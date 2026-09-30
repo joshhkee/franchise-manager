@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/team', label: 'Team' },
   { href: '/depth-chart', label: 'Depth Chart' },
   { href: '/formations', label: 'Formations' },
+  { href: '/packages', label: 'Packages' },
   { href: '/personnel', label: 'Personnel' },
   { href: '/callsheet', label: 'Call Sheet' },
   { href: '/checklist', label: 'Checklist' },

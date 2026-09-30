@@ -159,7 +159,8 @@ export default async function DashboardPage({
             </div>
             <p className="pt-1 text-[11px] leading-relaxed text-muted">
               Playbooks loaded: {playbooks.length}. Formations from civil.gg keep their own slot
-              layouts until you edit them; derived layouts are marked unverified.
+              layouts until you edit them; layouts derived from a set name are our reading of the
+              personnel group, so treat them as a starting point.
             </p>
           </div>
         </Card>

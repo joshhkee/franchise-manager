@@ -34,6 +34,10 @@ const SET_PATTERNS: { test: RegExp; set: string }[] = [
   { test: /3-4|34\b/i, set: '3-4' },
   { test: /4-3|43\b/i, set: '4-3' },
   { test: /\b46\b|forty[- ]?six/i, set: '46' },
+  // The return units are tested before the kicking units, because "Kick Return"
+  // is not a kickoff and "Punt Return" is not a punt.
+  { test: /punt\s*return/i, set: 'punt-return' },
+  { test: /kick\s*(?:off\s*)?return/i, set: 'kick-return' },
   { test: /field goal|^fg\b/i, set: 'fg' },
   { test: /^punt/i, set: 'punt' },
   { test: /kick ?off|kickoff/i, set: 'kickoff' },

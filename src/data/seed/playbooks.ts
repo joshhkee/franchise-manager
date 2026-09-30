@@ -40,7 +40,7 @@ export interface SeedPlaybook {
   id: string;
   name: string;
   team: string;
-  side: 'offense' | 'defense';
+  side: 'offense' | 'defense' | 'special';
   source: 'seed' | 'civil' | 'manual';
   url?: string;
   formations: SeedFormation[];
@@ -715,12 +715,158 @@ const THREE_FOUR: SeedPlaybook = {
   ],
 };
 
+/**
+ * Special teams.
+ *
+ * Madden exposes the specialists as depth-chart roles (`K`, `P`, `KOS`, `H`,
+ * `LS`, `KR`, `PR`) but not the coverage and blocking jobs around them, so those
+ * spots are bound to the *backups* of the defensive and offensive roles the unit
+ * would really use — the second corner running down on a punt, the third tackle
+ * blocking on a return. That is the same inherit-from-the-depth-chart rule every
+ * other formation follows, which means a depth-chart change moves these units too.
+ *
+ * Two deliberate bindings worth knowing, because the game treats them the same
+ * way we do: the kickoff unit uses `KOS` rather than `K` (the same man often does
+ * both, and no unit may field him twice), and the punting unit uses `P` while the
+ * field-goal unit uses `H`.
+ */
+const st = (
+  key: string,
+  label: string,
+  role: string,
+  rank: number,
+  x: number,
+  y: number,
+  eligible: string[],
+): SeedSlot => ({ key, label, role, rank, x, y, eligible });
+
+const SPECIAL_TEAMS: SeedPlaybook = {
+  id: 'pb-special-teams',
+  name: 'Special Teams',
+  team: 'NFL',
+  side: 'special',
+  source: 'seed',
+  formations: [
+    {
+      id: 'st-fg',
+      name: 'Field Goal',
+      set: 'FG',
+      distribution: 'Tight',
+      personnel: 'field-goal',
+      slots: [
+        st('TE_L', 'TE', 'TE', 3, 0.3, 0.95, ['TE', 'FB', 'LT', 'RT']),
+        st('LT', 'LT', 'LT', 1, 0.36, 0.95, ['LT', 'LG', 'RT', 'RG', 'C']),
+        st('LG', 'LG', 'LG', 1, 0.42, 0.95, ['LG', 'LT', 'C', 'RG', 'RT']),
+        st('C', 'C', 'C', 1, 0.48, 0.95, ['C', 'LG', 'RG']),
+        st('RG', 'RG', 'RG', 1, 0.54, 0.95, ['RG', 'C', 'LG', 'RT']),
+        st('RT', 'RT', 'RT', 1, 0.6, 0.95, ['RT', 'RG', 'LT', 'LG']),
+        st('TE_R', 'TE', 'TE', 2, 0.66, 0.95, ['TE', 'FB', 'LT', 'RT']),
+        st('FB', 'PP', 'FB', 1, 0.56, 0.84, ['FB', 'HB', 'TE']),
+        st('LS', 'LS', 'LS', 1, 0.5, 0.91, ['LS', 'TE', 'C', 'LB']),
+        st('H', 'H', 'H', 1, 0.44, 0.86, ['P', 'QB', 'K']),
+        st('K', 'K', 'K', 1, 0.3, 0.76, ['K']),
+      ],
+      plays: ['Field Goal', 'Extra Point', 'Fake Field Goal'],
+      notes: 'The holder is the punter here; the personal protector is the fullback.',
+    },
+    {
+      id: 'st-punt',
+      name: 'Punt',
+      set: 'Punt',
+      distribution: 'Tight',
+      personnel: 'punt',
+      slots: [
+        st('CB_L', 'G', 'CB', 2, 0.12, 0.92, ['CB', 'FS', 'SS']),
+        st('LE', 'LE', 'LE', 2, 0.32, 0.95, ['LE', 'RE', 'DT', 'LOLB', 'ROLB']),
+        st('SS', 'SS', 'SS', 2, 0.4, 0.92, ['SS', 'FS', 'MLB']),
+        st('LS', 'LS', 'LS', 1, 0.5, 0.95, ['LS', 'TE', 'C', 'LB']),
+        st('FS', 'FS', 'FS', 2, 0.6, 0.92, ['FS', 'SS', 'CB']),
+        st('RE', 'RE', 'RE', 1, 0.68, 0.95, ['RE', 'LE', 'DT', 'ROLB', 'LOLB']),
+        st('CB_R', 'G', 'CB', 3, 0.88, 0.92, ['CB', 'FS', 'SS']),
+        st('MLB', 'MLB', 'MLB', 2, 0.45, 0.85, ['MLB', 'LOLB', 'ROLB', 'SS']),
+        st('LOLB', 'LOLB', 'LOLB', 3, 0.55, 0.85, ['LOLB', 'ROLB', 'MLB', 'LE', 'RE']),
+        st('ROLB', 'PP', 'ROLB', 1, 0.5, 0.74, ['ROLB', 'LOLB', 'MLB', 'RE']),
+        st('P', 'P', 'P', 1, 0.22, 0.58, ['P']),
+      ],
+      plays: ['Punt', 'Rugby Punt', 'Fake Punt'],
+      notes: 'Both gunners are corners; the personal protector is an outside linebacker.',
+    },
+    {
+      id: 'st-punt-return',
+      name: 'Punt Return',
+      set: 'Punt Return',
+      distribution: 'Return',
+      personnel: 'punt-return',
+      slots: [
+        st('PR', 'PR', 'PR', 1, 0.2, 0.45, ['WR', 'HB', 'CB', 'RB']),
+        st('LOLB', 'LOLB', 'LOLB', 1, 0.35, 0.75, ['LOLB', 'ROLB', 'MLB', 'LE', 'RE']),
+        st('LE', 'LE', 'LE', 1, 0.4, 0.93, ['LE', 'RE', 'DT', 'LOLB', 'ROLB']),
+        st('DT', 'DT', 'DT', 2, 0.5, 0.93, ['DT', 'NT', 'LE', 'RE']),
+        st('RE', 'RE', 'RE', 1, 0.6, 0.93, ['RE', 'LE', 'DT', 'ROLB', 'LOLB']),
+        st('ROLB', 'ROLB', 'ROLB', 1, 0.65, 0.75, ['ROLB', 'LOLB', 'MLB', 'RE']),
+        st('NT', 'NT', 'NT', 1, 0.75, 0.93, ['NT', 'DT', 'LE', 'RE']),
+        st('NB', 'NB', 'NB', 1, 0.3, 0.85, ['CB', 'FS', 'SS', 'MLB']),
+        st('SS', 'SS', 'SS', 1, 0.45, 0.88, ['SS', 'FS', 'MLB']),
+        st('FS', 'FS', 'FS', 1, 0.6, 0.85, ['FS', 'SS', 'CB']),
+        st('MLB', 'MLB', 'MLB', 1, 0.72, 0.8, ['MLB', 'LOLB', 'ROLB', 'SS']),
+      ],
+      plays: ['Punt Return', 'Punt Block', 'Return Left'],
+      notes: 'The returner is the slot receiver; a corner covers the gunner on the other side.',
+    },
+    {
+      id: 'st-kickoff',
+      name: 'Kickoff',
+      set: 'Kickoff',
+      distribution: 'Spread',
+      personnel: 'kickoff',
+      slots: [
+        st('KOS', 'K', 'KOS', 1, 0.5, 0.42, ['K', 'P']),
+        st('CB_1', 'CB', 'CB', 1, 0.15, 0.95, ['CB', 'FS', 'SS']),
+        st('CB_2', 'CB', 'CB', 2, 0.28, 0.95, ['CB', 'FS', 'SS']),
+        st('CB_3', 'CB', 'CB', 3, 0.4, 0.95, ['CB', 'FS', 'SS']),
+        st('CB_4', 'CB', 'CB', 4, 0.6, 0.95, ['CB', 'FS', 'SS']),
+        st('SS', 'SS', 'SS', 1, 0.72, 0.95, ['SS', 'FS', 'MLB']),
+        st('FS', 'FS', 'FS', 1, 0.85, 0.95, ['FS', 'SS', 'CB']),
+        st('MLB', 'MLB', 'MLB', 1, 0.35, 0.86, ['MLB', 'LOLB', 'ROLB', 'SS']),
+        st('LOLB', 'LOLB', 'LOLB', 1, 0.5, 0.86, ['LOLB', 'ROLB', 'MLB', 'LE', 'RE']),
+        st('ROLB', 'ROLB', 'ROLB', 1, 0.65, 0.86, ['ROLB', 'LOLB', 'MLB', 'RE']),
+        st('LE', 'LE', 'LE', 1, 0.5, 0.95, ['LE', 'RE', 'DT', 'LOLB', 'ROLB']),
+      ],
+      plays: ['Kickoff', 'Squib Kick', 'Onside Kick'],
+      notes: 'Kickoff duty sits with KOS, which is often the same man as the placekicker.',
+    },
+    {
+      id: 'st-kick-return',
+      name: 'Kick Return',
+      set: 'Kick Return',
+      distribution: 'Return',
+      personnel: 'kick-return',
+      slots: [
+        st('KR_1', 'KR', 'KR', 1, 0.3, 0.5, ['WR', 'HB', 'CB', 'RB']),
+        st('KR_2', 'KR', 'KR', 2, 0.6, 0.52, ['WR', 'HB', 'CB', 'RB']),
+        st('WR', 'WR', 'WR', 3, 0.2, 0.85, ['WR', 'TE', 'HB']),
+        st('LOLB', 'LOLB', 'LOLB', 3, 0.35, 0.72, ['LOLB', 'ROLB', 'MLB', 'LE', 'RE']),
+        st('TE_1', 'TE', 'TE', 1, 0.4, 0.8, ['TE', 'FB', 'LT', 'RT']),
+        st('FB', 'FB', 'FB', 1, 0.45, 0.88, ['FB', 'HB', 'TE']),
+        st('TE_2', 'TE', 'TE', 2, 0.5, 0.8, ['TE', 'FB', 'LT', 'RT']),
+        st('HB', 'HB', 'HB', 2, 0.62, 0.8, ['HB', 'FB', 'RB']),
+        st('LE', 'LE', 'LE', 2, 0.65, 0.9, ['LE', 'RE', 'DT', 'LOLB', 'ROLB']),
+        st('MLB', 'MLB', 'MLB', 3, 0.72, 0.75, ['MLB', 'LOLB', 'ROLB', 'SS']),
+        st('ROLB', 'ROLB', 'ROLB', 3, 0.8, 0.85, ['ROLB', 'LOLB', 'MLB', 'RE']),
+      ],
+      plays: ['Kick Return', 'Return Middle', 'Handoff Return'],
+      notes: 'Two returners: the slot receiver and the backup corner.',
+    },
+  ],
+};
+
 export const PLAYBOOK_SEEDS: SeedPlaybook[] = [
   SHANAHAN,
   SPREAD,
   POWER,
   NICKEL_43,
   THREE_FOUR,
+  SPECIAL_TEAMS,
 ];
 
 export const DEFAULT_OFFENSE_PLAYBOOK_IDS = ['pb-shanahan', 'pb-spread', 'pb-power'];
