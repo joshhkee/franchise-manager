@@ -15,8 +15,8 @@ Not a league stats site. It answers four questions:
 1. **What does my team actually look like?** Offense, defense and special teams, group by
    group, with cap, contracts, dev traits and injuries.
 2. **Who plays where?** A depth chart that mirrors the game's own screen — including the
-   situational roles (`SLWR`, `3DRB`, `PWHB`, `NT`, `SUBLE`, `NB`, `KOS`…) — plus per-formation
-   personnel control.
+   package positions (`SLWR`, `3DRB`, `PWHB`, `NT`, `SUBLB`, `SLCB`, `RLE`, `RRE`, `RDT`,
+   `KOS`, `KR`, `PR`) — plus per-formation personnel control.
 3. **What do I change in game?** A diff between the game's depth chart and your plan, as an
    ordered apply checklist.
 4. **What do I call?** Down and distance in, one explained call out, with the looks you have
@@ -147,7 +147,8 @@ labelled spots.
 The seed ships six playbooks: four offense/defense sets plus **Special Teams**, which models the
 five units Madden makes you set (field goal, punt, punt return, kickoff, kick return) as ordinary
 formations — eleven spots each, bound to depth-chart roles, so a depth-chart change moves them too.
-The specialists are roles (`K`, `P`, `KOS`, `H`, `LS`, `KR`, `PR`); the coverage and blocking jobs
+The specialists are roles (`K`, `P`, `KOS`, `H`, `LS`, `KR`, `PR` — `H` is one of the roles
+[POSITIONS.md](POSITIONS.md) questions); the coverage and blocking jobs
 around them ride on the backups of the offensive and defensive roles each unit really uses.
 
 Slot layouts derived from a set name rather than read from a diagram are our best reading of the
@@ -179,14 +180,24 @@ Everything else follows from that:
 - **Two states**: `game` (what Madden currently has) and `plan` (what you want), with the apply
   checklist closing the gap.
 
-### Depth chart and formation vocabulary — what is assumed
+### Depth chart and formation vocabulary
 
-The slot list (`QB`, `HB`, `FB`, `PWHB`, `3DRB`, `WR`, `SLWR`, `TE`, … `NT`, `RLE`, `RRE`, `RDT`,
-`SUBLE`, `NB`, `KOS`, `H`, `LS`) and the rules for which slot each formation consumes are seeded
-from public knowledge, **not verified against the game**. Every slot is stored with a `verified`
-flag that starts `false`, shown in the app as "assumed until verified", and you can toggle it from
-the depth chart screen. When you have the game, you compare our screen to theirs once and the
-guesswork is gone.
+Madden draws a line between a player's **primary position** (one per player: his roster position,
+which drives progression, scheme fit and value) and the **package positions** the depth chart adds
+on top (`SLWR`, `3DRB`, `PWHB`, `NT`, `SUBLB`, `SLCB`, `RLE`, `RRE`, `RDT`, `KOS`, `KR`, `PR`). A
+package position is a job a formation consults, not a player type — which is exactly the
+inherit-from-role model this app is built on.
+
+**Madden 26 renamed part of that list**, and the vocabulary seeded here still uses the old names:
+`LE`/`RE` are now `LEDG`/`REDG` (Edge covers defensive ends *and* 3-4 outside linebackers), the
+linebackers are `SAM`/`MIKE`/`WILL` rather than `LOLB`/`MLB`/`ROLB`, and the slot corner is `SLCB`
+rather than the `NB` we invented. [POSITIONS.md](POSITIONS.md) is the researched reference: the full
+list, what changed, a per-file gap list and the migration plan. Until that migration lands, treat
+the vocabulary in the app as wrong, not merely unverified.
+
+Every slot is still stored with a `verified` flag that starts `false`, shown in the app as "assumed
+until verified", and you can toggle it from the depth chart screen. When you have the game, you
+compare our screen to theirs once and the guesswork is gone.
 
 ---
 
@@ -261,7 +272,10 @@ predictable: repeat the *look*, change the *concept*.
   per-user data separation.
 - **Defensive slots also carry assumed bindings.** Offensive role slots (`SLWR`, `3DRB`…) are the
   ones community sources document best; the defensive counterparts (which look consults `RLE`
-  versus `LE`) are the thinnest part of the seed data.
+  versus `LEDG`) are the thinnest part of the seed data.
+- **The defensive vocabulary is out of date, not just unverified.** Madden 26 replaced `LE`/`RE`
+  with `LEDG`/`REDG` and `LOLB`/`MLB`/`ROLB` with `SAM`/`MIKE`/`WILL`. See [POSITIONS.md](POSITIONS.md)
+  for the researched list and the migration plan.
 - **Special-teams coverage jobs are hand-authored.** The specialists (`K`, `P`, `H`, `LS`, `KR`,
   `PR`) come from the depth chart, but *which* backup covers a punt is our reading of the unit, not
   something the game tells us. The checklist shows the lineup so you can correct it in one place.

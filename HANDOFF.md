@@ -14,6 +14,7 @@ Verified against the working tree on **2026-09-30**: `npx vitest run` → **265 
 | --- | --- |
 | Starting any phase | this file, then [`PLAN.md`](PLAN.md) (the phase briefs) |
 | Changing any UI | [`DESIGN.md`](DESIGN.md) — normative, not advisory |
+| Touching positions or the depth-slot vocabulary | [`POSITIONS.md`](POSITIONS.md) — the Madden 26/27 list and the migration plan |
 | Running or deploying it | [`README.md`](README.md) |
 
 **One thread per phase.** The owner opens a fresh thread for each phase and pastes that
@@ -33,8 +34,9 @@ It exists to answer four questions, in the owner's framing:
 1. **What does my team actually look like?** Offense, defense and special teams, group by
    group, with cap, contracts, dev traits and injuries.
 2. **Who plays where?** A depth chart that mirrors the game's own screen — including the
-   situational roles (`SLWR`, `3DRB`, `PWHB`, `NT`, `SUBLE`, `NB`, `KOS`…) — plus
-   per-formation personnel control.
+   **package positions** the game layers on top of a player's roster position (`SLWR`, `3DRB`,
+   `PWHB`, `NT`, `SUBLB`, `SLCB`, `RLE`, `RRE`, `RDT`, `KOS`, `KR`, `PR`) — plus per-formation
+   personnel control. See [`POSITIONS.md`](POSITIONS.md) for the researched Madden 26/27 list.
 3. **What do I change in game?** A diff between the game's depth chart and the plan, as an
    ordered apply checklist.
 4. **What do I call?** Down and distance in, one explained call out, with the looks already
@@ -76,6 +78,10 @@ ones already implemented are marked ✅ and the ones still pending are marked �
 - ✅ **Label what is assumed.** The slot vocabulary and the formation→slot bindings are seeded
   from public knowledge, stored with a `verified` flag that starts `false`, and surfaced as
   "assumed until verified". Never present a guess as a fact.
+- ⚠️ **And label what is known wrong.** The defensive vocabulary predates Madden 26 and uses
+  position names the game no longer has (`LE`/`RE`, `LOLB`/`MLB`/`ROLB`, and an `NB` we invented
+  where the game says `SLCB`). [`POSITIONS.md`](POSITIONS.md) is the researched reference and the
+  migration plan; until it lands, the app's defensive roles are wrong rather than unverified.
 - ✅ **Label estimates as estimates** (e.g. approximated cap/expiring-deal values, alongside
   the raw contract fields).
 - ✅ **Every figure traces to a save field or is explicitly an estimate.**
@@ -172,7 +178,7 @@ checklist (the page and the export both read it, so they cannot disagree).
 
 ### Domain core (`src/domain/` — pure logic, no React, no database; this is the tested part)
 
-`depthSlots.ts` (vocabulary + verified flags) · `resolution.ts` (spot → player via
+`depthSlots.ts` (vocabulary + verified flags — **known stale, see [`POSITIONS.md`](POSITIONS.md)**) · `resolution.ts` (spot → player via
 inherit/override, plus `normalizeSlotRanks`) · `impact.ts` (blast radius of a change) ·
 `conflicts.ts` (duplicate starters, injured starters, empty spots) · `bulk.ts` (one player
 across a formation family) · `concepts.ts` · `families.ts` (3x1, 2x2, empty…) · `engine.ts`
@@ -360,6 +366,13 @@ authenticated**, so step 6 needs `gh auth login` once.
   chart, do formation subs appear in the file, what are the tables and fields — are answerable
   on **any** supported year's save. A public or community save would validate the whole approach
   now; only "confirm it holds on 27" needs 27.
+- **The defensive slot vocabulary is out of date — this is the biggest known correctness gap in
+  the app.** Madden 26 replaced `LE`/`RE` with `LEDG`/`REDG` (Edge now covers defensive ends *and*
+  3-4 outside linebackers), `LOLB`/`MLB`/`ROLB` with `SAM`/`MIKE`/`WILL`, and the slot corner is
+  `SLCB` — `NB`, which we seeded, is not a Madden depth-chart position. We also seeded an `H`
+  (holder) role that appears in no Madden position list. [`POSITIONS.md`](POSITIONS.md) has the
+  researched list, the ~450-occurrence gap and the migration plan; the 3-4 front is the one part
+  that needs a football decision rather than a rename.
 - **Player/team IDs change between exports** (a long-standing Madden complaint) → stable
   composite keys (name + position + age), snapshot history, and a manual merge UI when a match
   is ambiguous.
@@ -397,10 +410,13 @@ authenticated**, so step 6 needs `gh auth login` once.
 | 2 | **Which 3–4 playbooks (offense + defense) to seed first?** | Phase 4 quality; the scraper can fetch whatever is named. |
 | 3 | **Tune the trade value chart yourself, or start from a standard pick-value table and adjust in-app?** | Phase 5; the plan lists this as needed at build time. |
 | 4 | ~~What belongs in the special-teams units?~~ **Resolved** (2026-09-30): all five — field goal, punt, punt return, kickoff, kick return — seeded as formations in `pb-special-teams`, specialists from the depth chart and coverage jobs from the backups of the roles each unit uses. Revisit if a unit's lineup is wrong in game. | — |
-| 5 | **Whether `chokidar` save-folder watching is wanted** | Convenience vs. complexity; optional, and only relevant if Phase 1 is revived. |
+| 5 | **When to migrate the position vocabulary** (`LE`/`RE` → `LEDG`/`REDG`, `LOLB`/`MLB`/`ROLB` → `SAM`/`MIKE`/`WILL`, `NB` → `SLCB`, and decide on `H`). | Every defensive role in the seed is affected, and Phase 5's scheme-fit grading is per role — so this should land before scheme fit is built, not after. |
+| 6 | **Confirm the open position questions in game** (is `LS` primary? does `H` exist? ranks per position? `GAD`?). | Six cheap questions in [`POSITIONS.md`](POSITIONS.md) §7; each one either fixes a guess or retires a role. |
+| 7 | **Whether `chokidar` save-folder watching is wanted** | Convenience vs. complexity; optional, and only relevant if Phase 1 is revived. |
 
 ## Related documents
 
 - [`PLAN.md`](PLAN.md) — the implementation plan: scope, stack, data model, phase briefs, risks, phase-exit workflow.
+- [`POSITIONS.md`](POSITIONS.md) — Madden 26/27 primary vs package positions, what this repo gets wrong, and the migration plan.
 - [`DESIGN.md`](DESIGN.md) — the design contract every UI change must follow.
 - [`README.md`](README.md) — what the app does today, and how to run and deploy it.

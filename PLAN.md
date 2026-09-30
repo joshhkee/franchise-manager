@@ -141,6 +141,10 @@ passed / 17 suites** · `npx tsc --noEmit` clean · production build green. Ther
 - **Compaction/time-series:** `roster_snapshot` / `snapshot_player` (the repo has a JSON *export* called a snapshot — a different thing).
 - **Tunable tables:** `value_chart` and `scheme_fit_threshold` are code constants today, not DB tables.
 - **Multi-plan support:** a `plans` table exists but there is effectively one default plan; there is no plan diffing and no per-playbook plan comparison.
+- **The Madden 26/27 position vocabulary.** `src/domain/depthSlots.ts` seeds `LE`/`RE`,
+  `LOLB`/`MLB`/`ROLB`, `NB` and `H` — names the game no longer uses (or in `NB`'s and `H`'s case,
+  never used). [`POSITIONS.md`](POSITIONS.md) documents the correct list, the ~450 occurrences to
+  change, and the one part that needs a football decision (the 3-4 front).
 - **Playbook comparison view** (Phase 4) and **scheme-fit grading** (Phase 5).
 - **`inspect-save` reporting:** nothing enumerates the save's tables or confirms whether depth chart / formation subs are readable.
 
@@ -288,6 +292,17 @@ can't fill" flags. Plan diffing across playbooks.
 **Done when.** A real trade produces a sane valuation, and a player's fit is graded
 against the actual playbook.
 
+**Two dependencies found while researching Madden 27** (see [`POSITIONS.md`](POSITIONS.md)):
+
+1. **Scheme fit is per role, so the role vocabulary has to be right first.** Our defensive roles
+   still use pre-Madden-26 names (`LE`/`RE`, `LOLB`/`MLB`/`ROLB`, an invented `NB`). Grading a
+   player against `LE` when the game says `LEDG` would produce confident nonsense, so the position
+   migration should land before this phase, not after it.
+2. **Madden 27 rebuilt contracts.** Guaranteed money, void years, incentives, no-trade clauses and
+   custom structures all exist now, and players can negotiate outside their final year. The plan's
+   cap model — and the trade analyzer's contract-fallout math — is simpler than the game it is
+   modelling, so expect to show raw contract fields alongside any computed figure.
+
 ### Phase 6 — Hardening
 
 **Goal.** Trust it with a season.
@@ -322,6 +337,7 @@ the trade log and analyzer produce sane values on a real trade.
 - **Playbook slot data may be incomplete** → template table + in-app editor; scraping is a cached artifact, never a runtime dependency.
 - **Scraping is ToS-grey and fragile** → one-off script, cached JSON with attribution, manual editing path, madden-school.com as a secondary source.
 - **Cap rules are approximated** → show raw contract fields alongside computed figures and label estimates.
+- **The position vocabulary drifts between Madden releases** → Madden 26 renamed half the defense (`LE`/`RE` → `LEDG`/`REDG`, `LOLB`/`MLB`/`ROLB` → `SAM`/`MIKE`/`WILL`, slot corner `SLCB`) and we shipped the old names. Keep the vocabulary in one file, keyed so a rename is one edit, and re-check it each release — see [`POSITIONS.md`](POSITIONS.md).
 - **Save safety** → strictly read-only; backup copy before any read; never open the save for writing.
 
 ## 10. What's needed from you at build time
@@ -335,5 +351,6 @@ the trade log and analyzer produce sane values on a real trade.
 ## Related documents
 
 - [`HANDOFF.md`](HANDOFF.md) — the instruction set for any thread: stated preferences, features, phase status, conventions, exit checklist.
+- [`POSITIONS.md`](POSITIONS.md) — Madden 26/27 primary vs package positions, the gap against this repo, and the migration plan.
 - [`README.md`](README.md) — what the app does today, and how to run it.
 - [`DESIGN.md`](DESIGN.md) — the design system every UI change must follow (serif headings, team-driven accent, WCAG contract enforced by tests).
