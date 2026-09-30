@@ -46,7 +46,7 @@ Every script:
 | --- | --- |
 | `npm run dev` | Dev server |
 | `npm run build` / `npm start` | Production build and serve |
-| `npm test` | 265 tests: the domain core (resolution, impact, conflicts, bulk edits, concepts, families, call engine, tendency, drive logic, trade values), the seed playbook invariants, the checklist exporters, the WCAG theme contract, plus a database integration suite over a throwaway embedded Postgres |
+| `npm test` | 315 tests: the domain core (resolution, impact, conflicts, bulk edits, concepts, families, call engine, tendency, drive logic, trade values, scheme fit, plan diffing), the seed playbook invariants, the checklist exporters, the WCAG theme contract, plus a database integration suite over a throwaway embedded Postgres |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:push` | Apply schema |
 | `npm run db:seed` | Vocabulary, demo league/roster, seeded playbooks |
@@ -147,9 +147,9 @@ labelled spots.
 The seed ships six playbooks: four offense/defense sets plus **Special Teams**, which models the
 five units Madden makes you set (field goal, punt, punt return, kickoff, kick return) as ordinary
 formations — eleven spots each, bound to depth-chart roles, so a depth-chart change moves them too.
-The specialists are roles (`K`, `P`, `KOS`, `H`, `LS`, `KR`, `PR` — `H` is one of the roles
-[POSITIONS.md](POSITIONS.md) questions); the coverage and blocking jobs
-around them ride on the backups of the offensive and defensive roles each unit really uses.
+The specialists are roles (`K`, `P`, `LS`, `KOS`, `KR`, `PR`); the coverage and blocking jobs
+around them ride on the backups of the offensive and defensive roles each unit really uses. The
+holder is not a role — the punter holds, which is what [POSITIONS.md](POSITIONS.md) settled.
 
 Slot layouts derived from a set name rather than read from a diagram are our best reading of the
 personnel group, not a tracing of the game's screen — treat them as a starting point, and every
@@ -222,7 +222,11 @@ compare our screen to theirs once and the guesswork is gone.
 8. **Call sheet** — situation in, explained call out. Log a drive with one tap per play (coarse
    outcomes only, never play-by-play), get a pre-drive script, and watch your own tendency report
    for tells.
-9. **Trades & draft** — log CPU trades (players move between teams immediately), add rookies, and
+9. **Scheme fit** — how well your starters suit the scheme you are running, graded on the game's
+   own player archetypes plus the attributes each archetype is built on; every mismatch is listed
+   with the attributes that fell short. The same screen diffs your plan across playbooks — what
+   switching would cost you in roles nobody can fill.
+10. **Trades & draft** — log CPU trades (players move between teams immediately), add rookies, and
    check a CPU offer against a pick-value chart.
 
 ---
@@ -242,6 +246,10 @@ src/domain/        Pure logic — no React, no database. This is the tested core
   tendency.ts      Your own tendencies, by bucket
   drive.ts         Drive state, coarse outcomes, scripts
   tradeValue.ts    Pick values and a player model
+  archetypes.ts    The 36 Madden 27 player archetypes, by unit (committed table)
+  schemes.ts       The 21 Madden 27 schemes and their key archetypes (committed table)
+  schemeFit.ts     Archetype resolution and the per-role fit grade
+  planDiff.ts      What switching playbooks would do to your plan
 src/db/            Drizzle schema, repositories, migrations, snapshots
 src/lib/color.ts   WCAG colour maths and the accent-token derivation
 src/lib/theme.ts   Mode + team -> the token set the UI paints with
@@ -250,7 +258,7 @@ src/lib/importers/ EA ratings + civil.gg playbooks
 src/app/           Next.js App Router pages, server actions, API routes
 src/app/globals.css  The design tokens and component classes
 scripts/           One-off scripts: push, seed, import, scrape, colour audit
-tests/             265 tests: the domain core, seed data, checklist exports, the theme contract, DB integration
+tests/             315 tests: the domain core, seed data, checklist exports, the theme contract, DB integration
 ```
 
 **The call engine is rules and scoring on purpose.** No black box, no LLM. You will use it

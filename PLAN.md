@@ -49,7 +49,7 @@ This plan specifies a stack that **differs from what is already built in this re
 
 **Recommendation (pending your confirmation): keep the existing stack and adopt this
 plan's *phases, data model and scope* on top of it.** Rationale: the data model in
-section 4 is already substantially implemented on Drizzle (section 5), with 265
+section 4 is already substantially implemented on Drizzle (section 5), with 315
 passing tests. Swapping the driver from PGlite to `better-sqlite3` would rewrite the
 schema and migrations for no functional gain in a local-only app — PGlite already
 gives us a single local file with the same SQL. Dropping auth/deploy configs is a
@@ -118,14 +118,14 @@ verified against the working tree, not remembered.
 
 ### Status at handoff (verified 2026-09-30)
 
-Re-checked against the tree and a live run, not recalled: `npx vitest run` → **265
-passed / 17 suites** · `npx tsc --noEmit` clean · production build green. There is no
+Re-checked against the tree and a live run, not recalled: `npx vitest run` → **315
+passed / 20 suites** · `npx tsc --noEmit` clean · production build green. There is no
 `better-sqlite3` migration and no save importer; the stack question in section 0.2 is
 **still open** and is the one decision a phase thread must not guess at.
 
 | Phase | Status | Where / what is missing |
 | --- | --- | --- |
-| 0 — Scaffold | **Done**, on the repo's stack (see §0.2) | `package.json`, `tsconfig.json`, `next.config.ts`, `drizzle.config.ts`, `vitest.config.ts`, `README.md`, 17 suites, `scripts/` |
+| 0 — Scaffold | **Done**, on the repo's stack (see §0.2) | `package.json`, `tsconfig.json`, `next.config.ts`, `drizzle.config.ts`, `vitest.config.ts`, `README.md`, 20 suites, `scripts/` |
 | 1 — Save spike + import pipeline | **Deferred** (owner, 2026-09-30) | No `src/lib/franchise/`, no `scripts/inspect-save.ts`; `madden-franchise` is absent from `package.json` (it appears only as a user-agent string). Blocks nothing — the app is authoritative and works without a save. Revisit when a Madden 27 save exists |
 | 2 — Team overview | **Done** | `src/app/page.tsx`, `src/app/team/page.tsx` — position groups, cap sheet, expiring deals, positional need scoring, 3-deep views |
 | 3 — Depth chart + formation planner | **Substantially done** | `src/app/depth-chart/page.tsx`, `src/app/personnel/page.tsx`, `src/app/formations/**`, `src/app/checklist/page.tsx`, `src/domain/{resolution,impact,conflicts,bulk}.ts` — per-formation slot assignment, inherit-vs-override subs, duplicate/empty detection, availability warnings, impact preview, apply checklist. Delivered 2026-09-30: **special-teams units** (`pb-special-teams` — field goal, punt, punt return, kickoff, kick return), the **packages** view (`src/app/packages/page.tsx`), and **checklist export** to Markdown/CSV (`src/app/api/checklist/export/route.ts`). **Remaining gap:** multi-plan selection/diffing |
@@ -190,10 +190,13 @@ phase**, pasting the phase brief plus a pointer to this file and [`HANDOFF.md`](
 > **Active order (owner decision, 2026-09-30).** **Phase 1 is deferred** — the save-import
 > path blocks nothing, since the app is authoritative and runs on the EA ratings feed plus
 > manual entry. Phase 3's special-teams units, packages view and checklist export landed on
-> 2026-09-30; what is left of it is multi-plan support, which belongs with Phase 5's plan
-> diffing. So the order is **Phase 5** (scheme-fit grading, plan diffing), then **Phase 4's
-> playbook comparer**. Phase 1 is revisited only when a Madden 27 save exists — and a
-> supported-year save (19–26) can validate the approach sooner if wanted.
+> 2026-09-30; what is left of it is multi-plan support, which now needs a schema change
+> because the depth chart is keyed by layer rather than by plan. Phase 5's opening slice —
+> **scheme-fit grading and plan diffing across playbooks** — landed on 2026-09-30. So the next
+> work is **Phase 4's playbook comparer**, or the rest of Phase 5 (the trade analyzer's cap and
+> depth-chart fallout, and a draft board by year/round). Phase 1 is revisited only when a
+> Madden 27 save exists — and a supported-year save (19–26) can validate the approach sooner if
+> wanted.
 
 ### Phase 0 — Scaffold
 
@@ -293,6 +296,16 @@ can't fill" flags. Plan diffing across playbooks.
 
 **Done when.** A real trade produces a sane valuation, and a player's fit is graded
 against the actual playbook.
+
+**Status (2026-09-30).** Scheme fit and plan diffing are built — `/scheme` grades every
+starting role on Madden's own player archetypes plus an attribute floor, lists the
+depth-chart slots the scheme uses that the current starter cannot fill, and diffs the
+plan across playbooks to show the roles a switch would add, the starters it would
+unseat and the holes it would leave. The archetype and scheme tables are a one-time
+committed scrape; `SCHEME_FIT.md` is the researched reference and records which parts
+are the game's and which are ours. Trade log, analyzer, rookie entry and tracked picks
+already existed. Still open in this phase: the analyzer's cap and depth-chart fallout,
+and a draft board grouped by year and round.
 
 **Two dependencies found while researching Madden 27** (see [`POSITIONS.md`](POSITIONS.md)):
 

@@ -5,8 +5,8 @@ project. It records what the owner asked for, what has been built, what is delib
 *not* built, and the rules a change must follow. Where this document and the code
 disagree, the code is wrong — or this document is. Fix one of them, loudly.
 
-Verified against the working tree on **2026-09-30**: `npx vitest run` → **265 passed /
-17 suites** · `npx tsc --noEmit` clean · production build green.
+Verified against the working tree on **2026-09-30**: `npx vitest run` → **315 passed /
+20 suites** · `npx tsc --noEmit` clean · production build green.
 
 ## How to use this
 
@@ -15,6 +15,7 @@ Verified against the working tree on **2026-09-30**: `npx vitest run` → **265 
 | Starting any phase | this file, then [`PLAN.md`](PLAN.md) (the phase briefs) |
 | Changing any UI | [`DESIGN.md`](DESIGN.md) — normative, not advisory |
 | Touching positions or the depth-slot vocabulary | [`POSITIONS.md`](POSITIONS.md) — the Madden 26/27 list and the migration plan |
+| Touching scheme fit, plan diffing, archetypes or schemes | [`SCHEME_FIT.md`](SCHEME_FIT.md) — what the game models, and which parts are ours |
 | Running or deploying it | [`README.md`](README.md) |
 
 **One thread per phase.** The owner opens a fresh thread for each phase and pastes that
@@ -159,6 +160,7 @@ Verified by route and export inspection, not from memory.
 | `/personnel` | Role slots, their chain (slot → starter → consuming formations), impact preview, bulk assignment |
 | `/callsheet` | Situation in, explained call out; drive logging, pre-drive script, tendency/tell report |
 | `/checklist` | What to change in game, in menu order — depth chart diffs, special-teams lineups, then formation subs |
+| `/scheme` | Scheme fit per starting role (archetype + attribute floor), mismatch flags, and plan diffing across playbooks |
 | `/transactions` | Trade log, rookie entry, pick inventory, trade analyzer |
 | `/login` | Passphrase gate |
 
@@ -178,11 +180,13 @@ checklist (the page and the export both read it, so they cannot disagree).
 
 ### Domain core (`src/domain/` — pure logic, no React, no database; this is the tested part)
 
-`depthSlots.ts` (vocabulary + verified flags — **known stale, see [`POSITIONS.md`](POSITIONS.md)**) · `resolution.ts` (spot → player via
+`depthSlots.ts` (vocabulary + verified flags, migrated to the Madden 26/27 list) · `resolution.ts` (spot → player via
 inherit/override, plus `normalizeSlotRanks`) · `impact.ts` (blast radius of a change) ·
 `conflicts.ts` (duplicate starters, injured starters, empty spots) · `bulk.ts` (one player
 across a formation family) · `concepts.ts` · `families.ts` (3x1, 2x2, empty…) · `engine.ts`
-(deterministic call scoring) · `tendency.ts` · `drive.ts` · `tradeValue.ts`.
+(deterministic call scoring) · `tendency.ts` · `drive.ts` · `tradeValue.ts` · `archetypes.ts`
+(the 36 Madden 27 archetypes) · `schemes.ts` (the 21 schemes) · `schemeFit.ts` (archetype
+resolution and the per-role grade) · `planDiff.ts` (what switching playbooks costs the plan).
 
 **The call engine is rules and scoring on purpose. No LLM, no black box.** It is used
 mid-drive, so every call must be explainable, fast and reproducible, and carries one line
@@ -199,7 +203,12 @@ saying why.
   committed table; `npm run audit:colors` prints every contrast ratio.
 - **Seed data** — a demo league (`Demo Franchise` + 3 synthetic CPU teams) and a **53-man
   active roster** plus a practice squad the depth chart deliberately ignores. This exists so
-  the app is usable before the game is owned.
+  the app is usable before the game is owned. Demo players carry **synthetic attribute profiles**
+  (deterministic from their overall and id, marked `demo: 1` and labelled in the UI) because
+  `overall` alone cannot answer a scheme-fit question; `import:ratings` replaces all of it.
+- **Archetypes and schemes** — a one-time committed scrape of `madden.tools` (36 archetypes,
+  21 schemes), never fetched at runtime, the same rule as the colour palettes. See
+  [`SCHEME_FIT.md`](SCHEME_FIT.md).
 
 ---
 
@@ -220,7 +229,7 @@ is the **one unresolved decision before Phase 0** (detailed in `PLAN.md` §0.2).
 
 **Recommendation on record:** keep the existing stack and adopt the plan's *phases, data
 model and scope* on top of it. The plan's data model is already substantially implemented on
-Drizzle with 265 passing tests, and swapping PGlite for `better-sqlite3` would rewrite the
+Drizzle with 315 passing tests, and swapping PGlite for `better-sqlite3` would rewrite the
 schema and migrations for no functional gain in a single-file local app. Removing auth and the
 deploy configs is a deletion, not a phase. **If the owner prefers the plan's stack verbatim,
 Phase 0 becomes "migrate the stack, then scaffold" instead.**
@@ -263,12 +272,12 @@ of Phase 3 is multi-plan support, which belongs with Phase 5's plan diffing.
 
 | Phase | Status | Notes |
 | --- | --- | --- |
-| **0 — Scaffold** | **Done**, on the repo's stack | Configs, 17 suites, `scripts/`, docs. Pending the §4 stack decision. |
+| **0 — Scaffold** | **Done**, on the repo's stack | Configs, 20 suites, `scripts/`, docs. Pending the §4 stack decision. |
 | **1 — Save spike + import pipeline** | **Deferred** (owner, 2026-09-30) | No `src/lib/franchise/`, no `scripts/inspect-save.ts`, `madden-franchise` not a dependency. Revisit when a Madden 27 save exists; a supported-year save (19–26) can validate the approach sooner. Blocks nothing. |
 | **2 — Team overview** | **Done** | Position groups, cap sheet, expiring deals, need scoring, 3-deep views. |
 | **3 — Depth chart + formation planner** | **Nearly done** | Delivered 2026-09-30: the five **special-teams units** (field goal, punt, punt return, kickoff, kick return) as seeded formations; the **packages** view (`/packages`); and **checklist export** to Markdown/CSV (`/api/checklist/export`). Remaining: multi-plan selection and diffing. |
 | **4 — Playbook data + comparison** | **Partly** | Scraper and 6 seed playbooks (34 formations, including the five special-teams units) exist. **No playbook comparer**; no formation editor beyond per-slot rebinding. |
-| **5 — Front office — next active** | **Partly** | Trade log, analyzer, rookie entry, tracked picks exist. **No scheme-fit grading. No plan diffing.** |
+| **5 — Front office — active** | **Partly** | Scheme fit landed 2026-09-30: `/scheme` grades every starting role on Madden's own archetypes plus an attribute floor, lists mismatches, and diffs the plan across playbooks. Trade log, analyzer, rookie entry and tracked picks already existed. Remaining: the analyzer's cap and depth-chart fallout, and a draft board grouped by year/round. |
 | **6 — Hardening** | **Partly** | Suites cover slot validation, conflicts, bulk edits, resolution, the call engine, trade value and the WCAG theme contract. No schema-mismatch error UX; save-import idempotency applies only if Phase 1 is revived. |
 | **7 — Write-back** | **Deferred by design** | Only if a future save spike shows it is safely writable *and* the owner asks for it. |
 
@@ -277,8 +286,10 @@ the tell meter (`engine.ts`, `callSheet.ts`, `tendency.ts`, `drive.ts`, `/callsh
 export/restore, and the design system.
 
 **Missing tables the plan calls for:** `roster_snapshot`, `snapshot_player`, `value_chart`
-(currently code constants), `scheme_fit_threshold` (same). A `plans` table exists but there is
-effectively one default plan.
+(currently code constants), `scheme_fit_threshold` — scheme fit now exists but its floor and
+bands are still code constants (`FIT_FLOOR` in [`schemeFit.ts`](src/domain/schemeFit.ts)), not a
+DB table. A `plans` table exists but there is effectively one default plan; the depth chart is
+keyed by layer, not by plan, so multi-plan needs a schema change.
 
 ---
 
@@ -388,7 +399,7 @@ authenticated**, so step 6 needs `gh auth login` once.
 - **Madden 27 is not on EA's ratings feed yet**; the importer uses the newest season that
   answers and labels it. The slug is discovered, not documented, and will need re-discovery.
 - **Auth is one shared passphrase.** Correct for a single-user tool, wrong for sharing.
-- **UI has no automated test coverage** — all 17 suites are domain logic, seed data, export
+- **UI has no automated test coverage** — all 20 suites are domain logic, seed data, export
   formatting, DB integration and the theme contract.
 - **Special-teams coverage jobs are hand-authored.** The specialists come from the depth chart,
   but which backup covers a punt is our reading of the unit rather than something the game tells
