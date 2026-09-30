@@ -13,20 +13,28 @@ formation-sub planner you can actually apply in-game from a generated checklist.
 
 ## 0. Before any phase starts — two blockers
 
-### 0.1 Repository plumbing does not exist yet
+### 0.1 Repository plumbing
 
-The phase-exit workflow (section 6) ends with **commit → push → pull request**. None
-of that can happen today:
+**Resolved 2026-09-30 — remote and initial commit now exist.**
 
 | Requirement | State |
 | --- | --- |
-| Git remote | **None configured.** `git remote -v` is empty. |
-| Commits | **Zero.** `master` has no commits; every file is untracked, so no phase work is recoverable. |
-| `gh` CLI | Installed (2.101.0) but **not authenticated** (`gh auth login` needed) to open PRs. |
-| Default branch | `master`. Decide whether phase branches target `master` or `main`. |
+| Git remote | `origin` → `https://github.com/joshhkee/franchise-manager.git` |
+| Commits | One (`8563921 Initial Commit`), pushed. `main` tracks `origin/main`; tree clean. |
+| Default branch | **`main`** (not `master`). Phase branches target `main`. |
+| `gh` CLI | Installed (2.101.0) but **still not authenticated** — run `gh auth login` before any phase thread needs to open a PR. |
 
-**Resolution, once, before Phase 0:** create the remote, make the initial commit,
-authenticate `gh`. After that the per-phase loop works unchanged.
+Everything in the phase-exit checklist (section 6) now runs as written; only **PR
+creation** is gated on `gh auth login`.
+
+Two repo-hygiene notes for phase threads:
+
+- **The local database is not in git.** `data/*.db`, `data/pglite/` and `data/backups/`
+  are gitignored. A thread working in this same checkout keeps its seeded DB on disk;
+  one starting from a fresh clone must run `npm run db:push`, `npm run db:seed` and
+  (for real data) `npm run import:ratings` first. See the README.
+- **`data/imports/ea-ratings-m24-ratings.json` (6 MB) is committed.** It is regenerable
+  and already stale (an `m24` dump, not `m27`). Consider gitignoring it before it grows.
 
 ### 0.2 Stack conflict — decide before Phase 0
 
@@ -41,7 +49,7 @@ This plan specifies a stack that **differs from what is already built in this re
 
 **Recommendation (pending your confirmation): keep the existing stack and adopt this
 plan's *phases, data model and scope* on top of it.** Rationale: the data model in
-section 4 is already substantially implemented on Drizzle (section 5), with 249
+section 4 is already substantially implemented on Drizzle (section 5), with 265
 passing tests. Swapping the driver from PGlite to `better-sqlite3` would rewrite the
 schema and migrations for no functional gain in a local-only app — PGlite already
 gives us a single local file with the same SQL. Dropping auth/deploy configs is a
@@ -108,21 +116,28 @@ path later is a new file, not a refactor.
 This section exists so a phase thread knows what is already sitting on disk. It was
 verified against the working tree, not remembered.
 
-### Already implemented, on a different stack
+### Status at handoff (verified 2026-09-30)
 
-| Plan phase | Present in repo | Where |
+Re-checked against the tree and a live run, not recalled: `npx vitest run` → **265
+passed / 17 suites** · `npx tsc --noEmit` clean · production build green. There is no
+`better-sqlite3` migration and no save importer; the stack question in section 0.2 is
+**still open** and is the one decision a phase thread must not guess at.
+
+| Phase | Status | Where / what is missing |
 | --- | --- | --- |
-| Phase 0 — Scaffold | Done (different stack) | `package.json`, `tsconfig.json`, `next.config.ts`, `drizzle.config.ts`, `vitest.config.ts`, `README.md` |
-| Phase 2 — Team overview | Done | `src/app/team/page.tsx`, `src/app/page.tsx` — position groups, cap sheet, expiring deals, positional need scoring, 3-deep views |
-| Phase 3 — Depth chart + formation planner | Mostly done | `src/app/depth-chart/page.tsx`, `src/app/personnel/page.tsx`, `src/app/formations/**`, `src/app/checklist/page.tsx`, `src/domain/resolution.ts`, `src/domain/impact.ts`, `src/domain/conflicts.ts`, `src/domain/bulk.ts` — per-formation slot assignment, inherit-vs-override subs, duplicate/empty detection, availability warnings, impact preview, apply checklist |
-| Phase 4 — Playbook data | Partly done | `scripts/scrape-playbooks.ts`, `src/lib/importers/civilPlaybooks.ts`, `src/data/seed/playbooks.ts` — real civil.gg scraper + 5 seed playbooks, 29 formations. **No playbook comparer.** |
-| Phase 5 — Front office | Partly done | `src/app/transactions/page.tsx`, `src/domain/tradeValue.ts` — trade log, trade analyzer, rookie entry, tracked picks. **No scheme-fit grading. No multi-plan diffing.** |
-| Phase 6 — Hardening | Partly done | 15 suites, 249 tests (`tests/**`), incl. a DB integration suite and a WCAG theme contract |
-| — | Extra, not in this plan | Deterministic call-sheet engine + tell meter + drive scripting (`src/domain/engine.ts`, `callSheet.ts`, `tendency.ts`, `drive.ts`, `src/app/callsheet/page.tsx`); snapshot export/restore; design system (`DESIGN.md`) |
+| 0 — Scaffold | **Done**, on the repo's stack (see §0.2) | `package.json`, `tsconfig.json`, `next.config.ts`, `drizzle.config.ts`, `vitest.config.ts`, `README.md`, 17 suites, `scripts/` |
+| 1 — Save spike + import pipeline | **Deferred** (owner, 2026-09-30) | No `src/lib/franchise/`, no `scripts/inspect-save.ts`; `madden-franchise` is absent from `package.json` (it appears only as a user-agent string). Blocks nothing — the app is authoritative and works without a save. Revisit when a Madden 27 save exists |
+| 2 — Team overview | **Done** | `src/app/page.tsx`, `src/app/team/page.tsx` — position groups, cap sheet, expiring deals, positional need scoring, 3-deep views |
+| 3 — Depth chart + formation planner | **Substantially done** | `src/app/depth-chart/page.tsx`, `src/app/personnel/page.tsx`, `src/app/formations/**`, `src/app/checklist/page.tsx`, `src/domain/{resolution,impact,conflicts,bulk}.ts` — per-formation slot assignment, inherit-vs-override subs, duplicate/empty detection, availability warnings, impact preview, apply checklist. Delivered 2026-09-30: **special-teams units** (`pb-special-teams` — field goal, punt, punt return, kickoff, kick return), the **packages** view (`src/app/packages/page.tsx`), and **checklist export** to Markdown/CSV (`src/app/api/checklist/export/route.ts`). **Remaining gap:** multi-plan selection/diffing |
+| 4 — Playbook data + comparison | **Partly** | `scripts/scrape-playbooks.ts`, `src/lib/importers/civilPlaybooks.ts`, `src/data/seed/playbooks.ts` — real civil.gg scraper, 6 seed playbooks (34 formations, including the five special-teams units). **No playbook comparer**, and no formation editor beyond per-slot rebinding |
+| 5 — Front office — **next active** | **Partly** | `src/app/transactions/page.tsx`, `src/domain/tradeValue.ts` — trade log, trade analyzer, rookie entry, tracked picks. **No scheme-fit grading, no plan diffing** |
+| 6 — Hardening | **Partly** | Suites cover slot validation, conflicts, bulk edits, resolution, the call engine, trade value and the WCAG theme contrast contract. **No save-import idempotency** (blocked on Phase 1), no schema-mismatch error UX |
+| 7 — Write-back | **Deferred by design** | — |
+| — | **Extra, not in this plan** | Deterministic call-sheet engine + tell meter + drive scripting (`src/domain/{engine,callSheet,tendency,drive}.ts`, `src/app/callsheet/page.tsx`); snapshot export/restore; design system (`DESIGN.md`) |
 
 ### Missing entirely — the real work
 
-- **Phase 1 — the save spike and import pipeline.** No `madden-franchise` dependency, no `lib/franchise/`, no `scripts/inspect-save.ts`. **This is the gate**, and nothing in this plan should be built around assumptions until its findings are written down.
+- **Phase 1 — the save spike and import pipeline.** No `madden-franchise` dependency, no `lib/franchise/`, no `scripts/inspect-save.ts`. It is the gate on *assumptions* about the save, **not** on the rest of the build — everything already covered in this section runs on the EA ratings feed, manual entry and the demo league with no save file at all. The report it produces is the one artefact that genuinely requires a save.
 - **Compaction/time-series:** `roster_snapshot` / `snapshot_player` (the repo has a JSON *export* called a snapshot — a different thing).
 - **Tunable tables:** `value_chart` and `scheme_fit_threshold` are code constants today, not DB tables.
 - **Multi-plan support:** a `plans` table exists but there is effectively one default plan; there is no plan diffing and no per-playbook plan comparison.
@@ -154,8 +169,8 @@ Every phase thread finishes by doing all of the following, in order:
 5. **Push** the phase branch to the remote.
 6. **Open a pull request**, then **verify it is mergeable** — no conflicts against the target branch, CI green if CI exists. Report the PR URL and the mergeability check in the thread.
 
-> **Blocked today by section 0.1.** No remote, no commits, `gh` unauthenticated.
-> Set those up once and this checklist runs as written thereafter.
+> **One prerequisite remains from section 0.1:** `gh auth login`. Remote and initial
+> commit are done, so steps 4–5 work today; step 6 needs `gh` authenticated.
 
 Branch naming suggestion: `phase-<n>-<slug>` (e.g. `phase-1-save-spike`), PR into the
 default branch, one phase per PR so each is reviewable and revertable on its own.
@@ -163,7 +178,16 @@ default branch, one phase per PR so each is reviewable and revertable on its own
 ## 7. Phases
 
 Each phase is written as: goal → deliverable → done-when. **Start a new thread per
-phase**, pasting the phase brief plus a pointer to this file.
+phase**, pasting the phase brief plus a pointer to this file and [`HANDOFF.md`](HANDOFF.md)
+(the instruction set: preferences, conventions, "do not" list, exit checklist).
+
+> **Active order (owner decision, 2026-09-30).** **Phase 1 is deferred** — the save-import
+> path blocks nothing, since the app is authoritative and runs on the EA ratings feed plus
+> manual entry. Phase 3's special-teams units, packages view and checklist export landed on
+> 2026-09-30; what is left of it is multi-plan support, which belongs with Phase 5's plan
+> diffing. So the order is **Phase 5** (scheme-fit grading, plan diffing), then **Phase 4's
+> playbook comparer**. Phase 1 is revisited only when a Madden 27 save exists — and a
+> supported-year save (19–26) can validate the approach sooner if wanted.
 
 ### Phase 0 — Scaffold
 
@@ -181,6 +205,16 @@ depending on your decision.)*
 
 **Goal.** Find out what the save actually contains before building anything on
 assumptions.
+
+**Status: deferred by the owner (2026-09-30).** See the active-order note above — the
+save-free work runs first.
+
+**This phase does not block the rest of the app.** The app is already usable with no save
+(EA ratings import, manual entry, the demo league), so nothing that does not read the save
+needs to wait for this. What it gates is a *claim* — that the save can supply franchise
+state, and whether the depth chart and formation subs are readable at all. `madden-franchise`
+supports Madden 19–27, so the spike can run against any supported year's save; only the final
+confirmation is 27-specific.
 
 **Deliverable.** `scripts/inspect-save.ts` enumerates every table (name, uniqueId,
 record count), dumps the `Player` and `Team` schemas, and hunts for
@@ -219,6 +253,13 @@ checkable, progress saved, exportable to Markdown/CSV.
 
 **Done when.** You can plan a full offense playbook, generate the checklist, and
 follow it in game without the app guessing.
+
+**Status (2026-09-30).** Everything above is built except multi-plan support: the depth
+chart with both layers, per-formation assignment with inherit/override, conflict
+reporting, bulk assignment, the five special-teams units as ordinary formations, the
+`/packages` role-across-formations view, and the apply checklist — which exports to
+Markdown and CSV from `/api/checklist/export`. Multi-plan selection and diffing is the
+last piece, and it pairs with Phase 5's plan diffing.
 
 ### Phase 4 — Playbook data + comparison
 
@@ -293,5 +334,6 @@ the trade log and analyzer produce sane values on a real trade.
 
 ## Related documents
 
+- [`HANDOFF.md`](HANDOFF.md) — the instruction set for any thread: stated preferences, features, phase status, conventions, exit checklist.
 - [`README.md`](README.md) — what the app does today, and how to run it.
 - [`DESIGN.md`](DESIGN.md) — the design system every UI change must follow (serif headings, team-driven accent, WCAG contract enforced by tests).

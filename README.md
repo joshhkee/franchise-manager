@@ -2,10 +2,13 @@
 
 A hosted, mobile-first planner and drive-calling coach for one Madden 27 franchise.
 
-> **Building this in phases? Start with [`PLAN.md`](PLAN.md).** It is the authoritative
-> implementation plan: scope, stack, data model, the Phase 0–7 breakdown, the per-phase
-> exit workflow, and an honest reconciliation of the plan against what is already built
-> in this repository. Design rules for any UI work live in [`DESIGN.md`](DESIGN.md).
+> **Working on this? Start with [`HANDOFF.md`](HANDOFF.md).** It is the instruction set for
+> any thread: every preference and decision the owner has stated, the feature inventory,
+> verified phase status, the hard "do not" list, and the phase-exit checklist.
+>
+> **Building a phase?** [`PLAN.md`](PLAN.md) holds the briefs — scope, stack, data model,
+> the Phase 0–7 breakdown, and an honest reconciliation of the plan against what is already
+> built here. Design rules for any UI work live in [`DESIGN.md`](DESIGN.md).
 
 Not a league stats site. It answers four questions:
 
@@ -43,7 +46,7 @@ Every script:
 | --- | --- |
 | `npm run dev` | Dev server |
 | `npm run build` / `npm start` | Production build and serve |
-| `npm test` | 249 tests: the domain core (resolution, impact, conflicts, bulk edits, concepts, families, call engine, tendency, drive logic, trade values), the WCAG theme contract, plus a database integration suite over a throwaway embedded Postgres |
+| `npm test` | 265 tests: the domain core (resolution, impact, conflicts, bulk edits, concepts, families, call engine, tendency, drive logic, trade values), the seed playbook invariants, the checklist exporters, the WCAG theme contract, plus a database integration suite over a throwaway embedded Postgres |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:push` | Apply schema |
 | `npm run db:seed` | Vocabulary, demo league/roster, seeded playbooks |
@@ -141,9 +144,16 @@ with coordinates, and the play list. We render **our own diagrams** from those c
 than reusing their artwork — which is also what lets a diagram show *your* players' names on the
 labelled spots.
 
-Slot layouts that come from a set name rather than an explicit diagram are marked **unverified**
-in the app, and every slot binding is editable. Formation and play data is civil.gg's; this project
-is unaffiliated with it.
+The seed ships six playbooks: four offense/defense sets plus **Special Teams**, which models the
+five units Madden makes you set (field goal, punt, punt return, kickoff, kick return) as ordinary
+formations — eleven spots each, bound to depth-chart roles, so a depth-chart change moves them too.
+The specialists are roles (`K`, `P`, `KOS`, `H`, `LS`, `KR`, `PR`); the coverage and blocking jobs
+around them ride on the backups of the offensive and defensive roles each unit really uses.
+
+Slot layouts derived from a set name rather than read from a diagram are our best reading of the
+personnel group, not a tracing of the game's screen — treat them as a starting point, and every
+slot binding is editable by hand. Formation and play data is civil.gg's; this project is
+unaffiliated with it.
 
 ---
 
@@ -189,14 +199,17 @@ guesswork is gone.
    changes into the `plan` layer.
 4. **Formations** — every formation as a diagram with your players on the labelled spots, plus
    its play list and whether each spot inherits or is overridden.
-5. **Personnel** — role slots, their chain (slot → starter → consuming formations), impact
+5. **Packages** — one role across every formation that uses it, grouped by personnel. Pick `WR`
+   and you are looking at the third receiver in all eight of your 11-personnel looks at once.
+6. **Personnel** — role slots, their chain (slot → starter → consuming formations), impact
    preview, and bulk assignment.
-6. **Checklist** — exactly what to change in game, in menu order: depth chart differences first,
-   then the formation subs.
-7. **Call sheet** — situation in, explained call out. Log a drive with one tap per play (coarse
+7. **Checklist** — exactly what to change in game, in menu order: depth chart differences first,
+   then the special-teams lineups, then the formation subs. Exportable to Markdown or CSV so you
+   can follow it away from the app.
+8. **Call sheet** — situation in, explained call out. Log a drive with one tap per play (coarse
    outcomes only, never play-by-play), get a pre-drive script, and watch your own tendency report
    for tells.
-8. **Trades & draft** — log CPU trades (players move between teams immediately), add rookies, and
+9. **Trades & draft** — log CPU trades (players move between teams immediately), add rookies, and
    check a CPU offer against a pick-value chart.
 
 ---
@@ -224,7 +237,7 @@ src/lib/importers/ EA ratings + civil.gg playbooks
 src/app/           Next.js App Router pages, server actions, API routes
 src/app/globals.css  The design tokens and component classes
 scripts/           One-off scripts: push, seed, import, scrape, colour audit
-tests/             249 tests: the domain core, the theme contract, DB integration
+tests/             265 tests: the domain core, seed data, checklist exports, the theme contract, DB integration
 ```
 
 **The call engine is rules and scoring on purpose.** No black box, no LLM. You will use it
@@ -249,3 +262,6 @@ predictable: repeat the *look*, change the *concept*.
 - **Defensive slots also carry assumed bindings.** Offensive role slots (`SLWR`, `3DRB`…) are the
   ones community sources document best; the defensive counterparts (which look consults `RLE`
   versus `LE`) are the thinnest part of the seed data.
+- **Special-teams coverage jobs are hand-authored.** The specialists (`K`, `P`, `H`, `LS`, `KR`,
+  `PR`) come from the depth chart, but *which* backup covers a punt is our reading of the unit, not
+  something the game tells us. The checklist shows the lineup so you can correct it in one place.
