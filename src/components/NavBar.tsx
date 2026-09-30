@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/formations', label: 'Formations' },
   { href: '/packages', label: 'Packages' },
   { href: '/personnel', label: 'Personnel' },
+  { href: '/scheme', label: 'Scheme Fit' },
   { href: '/callsheet', label: 'Call Sheet' },
   { href: '/checklist', label: 'Checklist' },
   { href: '/transactions', label: 'Trades & Draft' },
