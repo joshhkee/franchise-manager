@@ -184,8 +184,8 @@ export default async function ChecklistPage({
       >
         <ul className="list-disc space-y-2 pl-5 text-sm text-muted">
           <li>
-            Madden&apos;s own packaging decides which situational roles a formation actually consults
-            (<code>SLWR</code>, <code>3DRB</code>, <code>NB</code>). Load the game, step into a
+            Madden&apos;s own packaging decides which package roles a formation actually consults
+            (<code>SLWR</code>, <code>3DRB</code>, <code>SLCB</code>). Load the game, step into a
             formation, and confirm the player you expect is on the field. If a spot disagrees,{' '}
             <Link href="/personnel" className="underline">
               rebind that spot

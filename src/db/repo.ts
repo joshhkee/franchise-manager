@@ -815,12 +815,103 @@ function buildSeedDepthChart(roster: SeedPlayer[]): DepthChartState {
   return chart;
 }
 
+/**
+ * Old depth-chart role -> the one Madden 26 gave it, so a chart filled in before
+ * the rename carries across instead of going blank. `H` has no successor: Madden
+ * has no holder position, and the field-goal unit consults the punter instead.
+ */
+const RETIRED_ROLE_REPLACEMENTS: Record<string, string | undefined> = {
+  LE: 'LEDG',
+  RE: 'REDG',
+  LOLB: 'SAM',
+  MLB: 'MIKE',
+  ROLB: 'WILL',
+  NB: 'SLCB',
+};
+
+/**
+ * Reconciles stored data with the current slot vocabulary.
+ *
+ * Retired roles are removed from the vocabulary, and any depth-chart entry
+ * sitting on one moves to its replacement at the same rank — but only into a
+ * vacancy. A chart you have already filled in under the new codes always wins,
+ * and nothing is ever invented: an empty spot stays empty and shows up as one.
+ */
+async function reconcileSlotVocabulary(): Promise<{ retired: string[]; moved: number }> {
+  const db = await getDb();
+  const known = new Set(DEPTH_SLOTS.map((slot) => slot.code));
+
+  const stored = await db.select({ code: depthSlots.code }).from(depthSlots);
+  const retired = stored.map((row) => row.code).filter((code) => !known.has(code));
+  for (const code of retired) {
+    await db.delete(depthSlots).where(eq(depthSlots.code, code));
+  }
+  if (retired.length === 0) return { retired, moved: 0 };
+
+  const retiredSet = new Set(retired);
+  const rows = await db
+    .select()
+    .from(depthChartEntries)
+    .where(eq(depthChartEntries.leagueId, DEFAULT_LEAGUE_ID));
+  const occupied = new Set(
+    rows
+      .filter((row) => !retiredSet.has(row.slotCode))
+      .map((row) => `${row.layer}:${row.slotCode}:${row.rank}`),
+  );
+
+  const moves: {
+    layer: string;
+    leagueId: string;
+    slotCode: string;
+    rank: number;
+    playerId: string | null;
+  }[] = [];
+  for (const row of rows) {
+    if (!retiredSet.has(row.slotCode)) continue;
+    const replacement = RETIRED_ROLE_REPLACEMENTS[row.slotCode];
+    const target = replacement ? `${row.layer}:${replacement}:${row.rank}` : '';
+    if (replacement && row.playerId && !occupied.has(target)) {
+      occupied.add(target);
+      moves.push({
+        layer: row.layer,
+        leagueId: row.leagueId,
+        slotCode: replacement,
+        rank: row.rank,
+        playerId: row.playerId,
+      });
+    }
+    await db
+      .delete(depthChartEntries)
+      .where(
+        and(
+          eq(depthChartEntries.leagueId, row.leagueId),
+          eq(depthChartEntries.layer, row.layer),
+          eq(depthChartEntries.slotCode, row.slotCode),
+          eq(depthChartEntries.rank, row.rank),
+        ),
+      );
+  }
+
+  if (moves.length) await db.insert(depthChartEntries).values(moves);
+  return { retired, moved: moves.length };
+}
+
 export interface SeedOptions {
   /** Re-seed depth charts and formation subs even if they already exist. */
   force?: boolean;
 }
 
-export async function applySeed(options: SeedOptions = {}): Promise<{ teams: number; players: number; formations: number }> {
+export interface SeedResult {
+  teams: number;
+  players: number;
+  formations: number;
+  /** Roles the vocabulary no longer contains, e.g. everything Madden 26 replaced. */
+  retiredRoles: string[];
+  /** Depth-chart entries carried onto a renamed role at the same rank. */
+  migratedEntries: number;
+}
+
+export async function applySeed(options: SeedOptions = {}): Promise<SeedResult> {
   const db = await getDb();
 
   // --- teams and players (seed-owned rows only; imported data is left alone) ---
@@ -888,6 +979,7 @@ export async function applySeed(options: SeedOptions = {}): Promise<{ teams: num
         },
       });
   }
+  const vocabulary = await reconcileSlotVocabulary();
 
   // --- playbooks ---
   const seedPlaybookIds = PLAYBOOK_SEEDS.map((pb) => pb.id);
@@ -1040,5 +1132,11 @@ export async function applySeed(options: SeedOptions = {}): Promise<{ teams: num
 
   await recordAudit('seed', 'database', null, { players: seedPlayerIds.length, formations: formationCount });
 
-  return { teams: 1 + CPU_TEAMS.length, players: seedPlayerIds.length, formations: formationCount };
+  return {
+    teams: 1 + CPU_TEAMS.length,
+    players: seedPlayerIds.length,
+    formations: formationCount,
+    retiredRoles: vocabulary.retired,
+    migratedEntries: vocabulary.moved,
+  };
 }

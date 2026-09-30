@@ -3,10 +3,19 @@ import type { DepthSlot, Side } from './types';
 /**
  * Seed of Madden's depth-chart vocabulary.
  *
- * The game's depth chart is not just base positions: it also exposes situational
- * roles (`SLWR`, `3DRB`, `PWHB`, `NT`, `SUBLB`, `NB`, `RLE`, `RRE`, `RDT`) that
- * formations consult when deciding who lines up. Those roles are the whole point
- * of this app, so they are modelled as first-class slots.
+ * Madden 26 split positions into two lists, and the distinction is the whole reason
+ * this app exists:
+ *
+ * - **Primary positions** are a player's position. One per player, shown on the
+ *   player card, and what progression, scheme fit and trade value use.
+ * - **Package positions** (EA calls them *secondary* positions) are jobs. They only
+ *   exist on the depth chart, they are longer than the roster list, and a formation
+ *   consults them instead of a primary position — `SLWR` before base `WR`, `SUBLB`
+ *   before a base linebacker.
+ *
+ * `situational: true` is exactly that split: true means the slot is a package role
+ * that only some formations consult. Primary positions (`QB`, `LEDG`, `MIKE`, `K`,
+ * `P`, `LS`, ...) are false.
  *
  * Nothing here is taken on faith: `verified` is false until a slot has been
  * confirmed against a real Madden 27 depth chart screen. The UI surfaces that
@@ -46,7 +55,7 @@ const OFFENSE: SlotSeed[] = [
     group: 'Running Backs',
     eligible: ['FB', 'HB', 'RB', 'TE'],
     ranks: 2,
-    description: 'Lead blocker in two-back sets.',
+    description: 'Lead blocker in two-back sets. Optional on a roster that does not carry one.',
   },
   {
     code: '3DRB',
@@ -133,98 +142,114 @@ const OFFENSE: SlotSeed[] = [
     ranks: 2,
     description: 'Right tackle.',
   },
+  {
+    code: 'GAD',
+    label: 'Gadget',
+    group: 'Gadget',
+    eligible: ['QB', 'HB', 'FB', 'WR', 'TE'],
+    ranks: 1,
+    situational: true,
+    description:
+      'Trick-play specialist who moves between roles — the man a formation hands the ball to on a gadget play. Added in Madden 26 alongside the primary/secondary split.',
+  },
 ];
 
+/**
+ * Madden 26 replaced `LE`/`RE` with `LEDG`/`REDG` and `LOLB`/`MLB`/`ROLB` with
+ * `SAM`/`MIKE`/`WILL`. An EDGE covers defensive ends *and* 3-4 outside linebackers,
+ * so a 3-4 edge is a lineman now: the game tallies the Falcons 3-4 as
+ * `5 DL / 2 LB / 4 DB`, not 3 DL + 4 LB. See `POSITIONS.md` §4.
+ */
 const DEFENSE: SlotSeed[] = [
   {
-    code: 'LE',
-    label: 'Left End',
+    code: 'LEDG',
+    label: 'Left Edge',
     group: 'Defensive Line',
-    eligible: ['LE', 'RE', 'DT', 'LOLB', 'ROLB', 'DE'],
+    eligible: ['LEDG', 'REDG', 'DT', 'NT', 'DE'],
     ranks: 3,
-    description: 'Base left defensive end.',
+    description: 'Base left edge. Absorbs the 3-4 left outside linebacker.',
   },
   {
-    code: 'RE',
-    label: 'Right End',
+    code: 'REDG',
+    label: 'Right Edge',
     group: 'Defensive Line',
-    eligible: ['RE', 'LE', 'DT', 'ROLB', 'LOLB', 'DE'],
+    eligible: ['REDG', 'LEDG', 'DT', 'NT', 'DE'],
     ranks: 3,
-    description: 'Base right defensive end.',
+    description: 'Base right edge. Absorbs the 3-4 right outside linebacker.',
   },
   {
     code: 'DT',
     label: 'Defensive Tackle',
     group: 'Defensive Line',
-    eligible: ['DT', 'NT', 'LE', 'RE', 'DE'],
+    eligible: ['DT', 'NT', 'LEDG', 'REDG', 'DE'],
     ranks: 3,
-    description: 'Interior defender in four-man fronts.',
+    description: 'Interior defender. A 3-4 lines up two of them either side of the nose.',
   },
   {
     code: 'NT',
     label: 'Nose Tackle',
     group: 'Defensive Line',
-    eligible: ['NT', 'DT', 'LE', 'RE'],
+    eligible: ['NT', 'DT', 'LEDG', 'REDG'],
     ranks: 2,
     situational: true,
-    description: 'Zero/one-technique in odd fronts and goal line.',
+    description: 'Zero/one-technique in odd fronts, and the shaded interior in sub packages.',
   },
   {
     code: 'RLE',
     label: 'Rush Left End',
     group: 'Defensive Line',
-    eligible: ['LE', 'RE', 'DT', 'ROLB', 'LOLB'],
+    eligible: ['LEDG', 'REDG', 'DT', 'NT', 'DE'],
     ranks: 2,
     situational: true,
-    description: 'Pass-rush left end used in nickel and dime.',
+    description: 'Pass-rush edge used in nickel and dime fronts.',
   },
   {
     code: 'RRE',
     label: 'Rush Right End',
     group: 'Defensive Line',
-    eligible: ['RE', 'LE', 'DT', 'LOLB', 'ROLB'],
+    eligible: ['REDG', 'LEDG', 'DT', 'NT', 'DE'],
     ranks: 2,
     situational: true,
-    description: 'Pass-rush right end used in nickel and dime.',
+    description: 'Pass-rush edge used in nickel and dime fronts.',
   },
   {
     code: 'RDT',
     label: 'Rush Defensive Tackle',
     group: 'Defensive Line',
-    eligible: ['DT', 'NT', 'LE', 'RE'],
+    eligible: ['DT', 'NT', 'LEDG', 'REDG'],
     ranks: 2,
     situational: true,
     description: 'Interior rusher in sub packages.',
   },
   {
-    code: 'LOLB',
-    label: 'Left Outside Linebacker',
+    code: 'SAM',
+    label: 'Strong-side Linebacker',
     group: 'Linebackers',
-    eligible: ['LOLB', 'ROLB', 'MLB', 'LE', 'RE'],
+    eligible: ['SAM', 'MIKE', 'WILL', 'SS'],
     ranks: 3,
-    description: 'Strong-side outside linebacker.',
+    description: 'The strong-side off-ball linebacker. Replaces the old LOLB.',
   },
   {
-    code: 'MLB',
+    code: 'MIKE',
     label: 'Middle Linebacker',
     group: 'Linebackers',
-    eligible: ['MLB', 'LOLB', 'ROLB', 'SS'],
+    eligible: ['MIKE', 'SAM', 'WILL', 'SS'],
     ranks: 3,
-    description: 'Mike linebacker.',
+    description: 'The middle off-ball linebacker and defensive signal-caller. Replaces the old MLB.',
   },
   {
-    code: 'ROLB',
-    label: 'Right Outside Linebacker',
+    code: 'WILL',
+    label: 'Weak-side Linebacker',
     group: 'Linebackers',
-    eligible: ['ROLB', 'LOLB', 'MLB', 'RE'],
+    eligible: ['WILL', 'MIKE', 'SAM', 'SS'],
     ranks: 3,
-    description: 'Weak-side outside linebacker.',
+    description: 'The weak-side off-ball linebacker. Replaces the old ROLB.',
   },
   {
     code: 'SUBLB',
     label: 'Sub Linebacker',
     group: 'Linebackers',
-    eligible: ['MLB', 'LOLB', 'ROLB', 'SS'],
+    eligible: ['MIKE', 'SAM', 'WILL', 'SS'],
     ranks: 2,
     situational: true,
     description: 'Coverage linebacker who replaces a lineman in nickel and dime.',
@@ -235,16 +260,16 @@ const DEFENSE: SlotSeed[] = [
     group: 'Secondary',
     eligible: ['CB', 'FS', 'SS'],
     ranks: 4,
-    description: 'Cornerback depth, ranked 1-4.',
+    description: 'Cornerback depth, ranked 1-4. The third corner is who nickel and dime fronts use.',
   },
   {
-    code: 'NB',
-    label: 'Nickel Back',
+    code: 'SLCB',
+    label: 'Slot Cornerback',
     group: 'Secondary',
-    eligible: ['CB', 'FS', 'SS', 'MLB'],
+    eligible: ['CB', 'FS', 'SS', 'MIKE'],
     ranks: 2,
     situational: true,
-    description: 'Nickel corner in sub packages.',
+    description: 'The corner who covers the slot in nickel and dime.',
   },
   {
     code: 'FS',
@@ -258,12 +283,16 @@ const DEFENSE: SlotSeed[] = [
     code: 'SS',
     label: 'Strong Safety',
     group: 'Secondary',
-    eligible: ['SS', 'FS', 'MLB'],
+    eligible: ['SS', 'FS', 'MIKE'],
     ranks: 3,
     description: 'In-the-box safety.',
   },
 ];
 
+/**
+ * `K`, `P` and `LS` are primary positions; `KOS`, `KR` and `PR` are package ones.
+ * A long snapper is a roster position now, not a job you hand to a tight end.
+ */
 const SPECIAL: SlotSeed[] = [
   {
     code: 'K',
@@ -279,7 +308,7 @@ const SPECIAL: SlotSeed[] = [
     group: 'Kicking',
     eligible: ['P'],
     ranks: 1,
-    description: 'Punts.',
+    description: 'Punts. Also the holder on field goals, which is why the field-goal unit binds him.',
   },
   {
     code: 'KOS',
@@ -291,22 +320,12 @@ const SPECIAL: SlotSeed[] = [
     description: 'Kickoff duty when it differs from the placekicker.',
   },
   {
-    code: 'H',
-    label: 'Holder',
-    group: 'Specialists',
-    eligible: ['P', 'QB', 'K'],
-    ranks: 1,
-    situational: true,
-    description: 'Holder on field goals and extra points.',
-  },
-  {
     code: 'LS',
     label: 'Long Snapper',
     group: 'Specialists',
-    eligible: ['LS', 'TE', 'C', 'LB'],
+    eligible: ['LS', 'TE', 'C'],
     ranks: 1,
-    situational: true,
-    description: 'Long snapper on punts and kicks.',
+    description: 'Long snapper on punts and kicks. A roster position since Madden 26.',
   },
   {
     code: 'KR',
@@ -314,6 +333,7 @@ const SPECIAL: SlotSeed[] = [
     group: 'Returners',
     eligible: ['WR', 'HB', 'CB', 'RB'],
     ranks: 2,
+    situational: true,
     description: 'Kick return depth.',
   },
   {
@@ -322,6 +342,7 @@ const SPECIAL: SlotSeed[] = [
     group: 'Returners',
     eligible: ['WR', 'HB', 'CB', 'RB'],
     ranks: 2,
+    situational: true,
     description: 'Punt return depth.',
   },
 ];
@@ -369,6 +390,14 @@ export function depthSlotGroups(side: Side): { group: string; slots: DepthSlot[]
     else groups.push({ group: slot.group, slots: [slot] });
   }
   return groups;
+}
+
+/**
+ * Primary positions: what a player can actually *be*. Everything else is a
+ * package role the depth chart offers on top.
+ */
+export function primaryPositions(): string[] {
+  return DEPTH_SLOTS.filter((slot) => !slot.situational).map((slot) => slot.code);
 }
 
 export const SIDE_LABELS: Record<Side, string> = {

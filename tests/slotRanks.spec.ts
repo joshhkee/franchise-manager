@@ -31,7 +31,7 @@ describe('normalizeSlotRanks', () => {
   it('respects an explicit order and only renumbers the clash', () => {
     const normalized = normalizeSlotRanks([
       slot('CB_L', 'CB', 1),
-      slot('NB', 'NB', 1),
+      slot('SLCB', 'SLCB', 1),
       slot('CB_R', 'CB', 1),
     ]);
     expect(normalized.map((s) => s.roleRank)).toEqual([1, 1, 2]);

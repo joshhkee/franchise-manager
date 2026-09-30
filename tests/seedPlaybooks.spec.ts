@@ -71,16 +71,25 @@ describe('seed playbooks', () => {
     ]);
   });
 
-  it('never asks one unit to field the placekicker and the kickoff specialist together', () => {
-    // K and KOS are the same man on most rosters, and H is usually the punter, so a
-    // unit that binds both would put one player at two spots on the field.
+  it('never asks one unit to field one man at two jobs', () => {
+    // K and KOS are the same man on most rosters, and the field-goal holder is the
+    // punter, so a unit that binds both halves of a pair would field one player twice.
     for (const playbook of PLAYBOOK_SEEDS) {
       for (const formation of playbook.formations) {
         const roles = formation.slots.map((slot) => slot.role);
         expect(roles.includes('K') && roles.includes('KOS'), formation.id).toBe(false);
-        expect(roles.includes('P') && roles.includes('H'), formation.id).toBe(false);
+        expect(roles.filter((role) => role === 'P').length, formation.id).toBeLessThanOrEqual(1);
       }
     }
+  });
+
+  it('holds for the field goal with the punter, because Madden has no holder position', () => {
+    const fieldGoal = PLAYBOOK_SEEDS.flatMap((playbook) => playbook.formations).find(
+      (formation) => formation.id === 'st-fg',
+    )!;
+    const holder = fieldGoal.slots.find((slot) => slot.label === 'H')!;
+    expect(holder.role).toBe('P');
+    expect(fieldGoal.slots.filter((slot) => slot.role === 'H')).toHaveLength(0);
   });
 
   it('labelling the return units does not collapse them into the kicking units', () => {

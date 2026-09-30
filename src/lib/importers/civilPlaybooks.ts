@@ -4,14 +4,21 @@ import type { SeedFormation, SeedPlaybook, SeedSlot } from '@/data/seed/playbook
  * civil.gg -> our formation model.
  *
  * civil.gg's public playbook database exposes, for Madden 27: the list of
- * formations, and plays tagged with set / formation / play type. It does **not**
- * expose the per-spot diagram labels, so the alignment spots here are *derived*
+ * formations, and plays tagged with set / formation / play type. The per-spot
+ * diagram labels are **not** exposed as text — the alignment is a flat WebP image
+ * (`.../assets/formation_macros/cfb27_def/<front>.webp`), so the roles printed on
+ * it cannot be read from the DOM. The alignment spots here are therefore *derived*
  * from the formation name (Trips, Bunch, Tight, Empty, I Form, personnel digits)
  * using templates.
  *
- * That derivation is deliberately transparent and cheap to correct: the app marks
- * these layouts as unverified, renders them as our own diagram, and lets any slot
- * be rebound by hand in the formation editor.
+ * The derivation follows the one rule that reproduces every labelled diagram in
+ * `POSITIONS.md` §4: below a four-man line, both edge jobs count as **linemen**, so
+ * a 3-4 is `5 DL / 2 LB / 4 DB` and a nickel 2-4 is `4 DL / 2 LB / 5 DB`. Getting
+ * that wrong is how this file used to invent a 3-4 with four linebackers.
+ *
+ * The rest is deliberately transparent and cheap to correct: the app marks these
+ * layouts as unverified, renders them as our own diagram, and lets any slot be
+ * rebound by hand in the formation editor.
  */
 
 export interface CivilPlay {
@@ -217,69 +224,127 @@ function buildReceiverSlots(count: number, bunch: boolean): SeedSlot[] {
   return templates[clamped] ?? templates[5];
 }
 
+/**
+ * Front shape in the game's own terms.
+ *
+ * The digits in a name count the *named* front — `nickel 33` is three linemen and
+ * three linebackers — but Madden 26 moved the edge, so the personnel line the game
+ * prints disagrees with the nickname. See the file header.
+ */
+export interface FrontShape {
+  /** Linemen as the formation name describes them. */
+  namedLine: number;
+  /** Linebackers as the formation name describes them. */
+  namedBackers: number;
+  /** Linemen in the game's `N DL` tally. */
+  line: number;
+  /** Linebackers in the game's `N LB` tally. */
+  linebackers: number;
+  /** Defensive backs, which the edge reclassification does not touch. */
+  backs: number;
+}
+
 /** Front digits in a defensive name: `nickel 33 odd` -> 3 linemen, 3 linebackers. */
-export function parseFront(name: string): { line: number; linebackers: number } {
+export function parseFront(name: string): FrontShape {
+  let namedLine = 3;
+  let namedBackers = 3;
+
   const digits = /(\d)\s?(\d)/.exec(name.replace(/[^0-9a-z ]/gi, ' '));
   if (digits) {
     const line = Number(digits[1]);
     const backers = Number(digits[2]);
     if (line >= 2 && line <= 6 && backers >= 1 && backers <= 5 && line + backers <= 8) {
-      return { line, linebackers: backers };
+      namedLine = line;
+      namedBackers = backers;
     }
+  } else if (/dime/i.test(name)) {
+    namedLine = 2;
+    namedBackers = 3;
+  } else if (/quarter/i.test(name)) {
+    namedLine = 3;
+    namedBackers = 1;
+  } else if (/\b3-4\b|\b34\b|\bbear\b/i.test(name)) {
+    namedLine = 3;
+    namedBackers = 4;
+  } else if (/\b4-3\b|\b43\b|\bover\b|\bunder\b|\beven\b/i.test(name)) {
+    namedLine = 4;
+    namedBackers = 3;
   }
-  if (/dime/i.test(name)) return { line: 3, linebackers: 2 };
-  if (/quarter/i.test(name)) return { line: 3, linebackers: 1 };
-  if (/\b3-4\b|\b34\b|\bbear\b/i.test(name)) return { line: 3, linebackers: 4 };
-  if (/\b4-3\b|\b43\b|\bover\b|\bunder\b|\beven\b/i.test(name)) return { line: 4, linebackers: 3 };
-  return { line: 3, linebackers: 3 };
+
+  const edgesAreLinemen = namedLine < 4;
+  const line = edgesAreLinemen ? namedLine + 2 : namedLine;
+  const linebackers = edgesAreLinemen ? Math.max(0, namedBackers - 2) : namedBackers;
+  return {
+    namedLine,
+    namedBackers,
+    line,
+    linebackers,
+    backs: Math.max(3, 11 - line - linebackers),
+  };
 }
 
+const LINEMAN_ELIGIBLE = ['LEDG', 'REDG', 'DT', 'NT', 'DE'];
+const BACKER_ELIGIBLE = ['MIKE', 'SAM', 'WILL', 'SS'];
+
+/**
+ * Secondary shapes, front to back. A sub front's fifth back is a third corner;
+ * a base front's is a second strong safety — that is what the diagrams show.
+ */
+const DB_LAYOUT: Record<'sub' | 'base', string[]> = {
+  sub: ['CB', 'CB', 'CB', 'FS', 'SS', 'SS', 'CB', 'SS'],
+  base: ['CB', 'CB', 'FS', 'SS', 'CB', 'SS', 'FS', 'SS'],
+};
+
+/**
+ * Eleven alignment spots derived from the formation name.
+ *
+ * The line is drawn right-edge-first, the way the game's own diagrams are: the
+ * right edge appears on the left of the screen.
+ */
 export function buildDefenseSlots(name: string): SeedSlot[] {
-  const { line, linebackers } = parseFront(name);
-  const defensiveBacks = Math.max(3, 11 - line - linebackers - 0);
+  const front = parseFront(name);
+  const subFront = front.namedLine <= 2;
   const slots: SeedSlot[] = [];
 
-  const lineKeys = line === 4 ? ['LE', 'DT1', 'DT2', 'RE'] : line === 3 ? ['LE', 'NT', 'RE'] : ['LE', 'NT', 'RE', 'DT1', 'DT2'].slice(0, line);
-  const lineRoles = line === 4 ? ['LE', 'DT', 'DT', 'RE'] : line === 3 ? ['LE', 'NT', 'RE'] : ['LE', 'NT', 'RE'];
-  const lineX = [0.33, 0.44, 0.56, 0.67, 0.5];
-  lineKeys.forEach((key, index) => {
-    slots.push({
-      key,
-      label: key,
-      role: lineRoles[index] ?? 'DT',
-      x: lineKeys.length === 3 ? lineX[index * 2] ?? 0.5 : lineX[index] ?? 0.5,
-      y: 0.9,
-      eligible: ['LE', 'RE', 'DT', 'NT'],
-    });
+  /** Rank is per role across the whole formation, so no two spots share a role+rank. */
+  const counts = new Map<string, number>();
+  const place = (role: string, x: number, y: number, eligible: string[]): SeedSlot => {
+    const rank = (counts.get(role) ?? 0) + 1;
+    counts.set(role, rank);
+    return { key: `${role}${rank}`, label: `${role}${rank}`, role, rank, x, y, eligible };
+  };
+
+  const interior =
+    front.namedLine >= 4 ? ['DT', 'DT'] : front.namedLine === 3 ? ['DT', 'NT', 'DT'] : ['NT', 'DT'];
+  const lineRoles = [subFront ? 'RRE' : 'REDG', ...interior, subFront ? 'RLE' : 'LEDG'];
+  const lastLineIndex = Math.max(1, lineRoles.length - 1);
+  lineRoles.forEach((role, index) => {
+    slots.push(place(role, 0.5 + (index - lastLineIndex / 2) * (0.34 / lastLineIndex), 0.9, LINEMAN_ELIGIBLE));
   });
 
-  const lbKeys = ['LOLB', 'MLB', 'ROLB', 'SUBLB', 'MLB2'];
-  for (let i = 0; i < linebackers; i += 1) {
-    const key = lbKeys[i] ?? `LB${i + 1}`;
-    slots.push({
-      key,
-      label: key,
-      role: key === 'SUBLB' || key === 'MLB2' ? 'SUBLB' : key,
-      x: [0.24, 0.47, 0.72, 0.36, 0.6][i] ?? 0.5,
-      y: 0.8 + i * 0.02,
-      eligible: ['LOLB', 'MLB', 'ROLB', 'SS'],
-    });
-  }
+  const backerRoles = subFront
+    ? (['SUBLB', 'SUBLB'] as string[])
+    : front.linebackers >= 3
+      ? ['SAM', 'MIKE', 'WILL']
+      : front.linebackers === 2
+        ? ['MIKE', 'WILL']
+        : ['MIKE'];
+  backerRoles.slice(0, front.linebackers).forEach((role, index) => {
+    slots.push(place(role, 0.5 + (index - (front.linebackers - 1) / 2) * 0.24, 0.8 + index * 0.01, BACKER_ELIGIBLE));
+  });
 
-  const dbTemplate: SeedSlot[] = [
-    { key: 'CB_L', label: 'CB1', role: 'CB', rank: 1, x: 0.08, y: 0.9, eligible: ['CB'] },
-    { key: 'CB_R', label: 'CB2', role: 'CB', rank: 2, x: 0.92, y: 0.9, eligible: ['CB'] },
-    { key: 'NB', label: 'NB', role: 'NB', rank: 1, x: 0.78, y: 0.88, eligible: ['CB', 'FS', 'SS'] },
-    { key: 'FS', label: 'FS', role: 'FS', x: 0.42, y: 0.38, eligible: ['FS', 'SS', 'CB'] },
-    { key: 'SS', label: 'SS', role: 'SS', x: 0.58, y: 0.44, eligible: ['SS', 'FS', 'MLB'] },
-    { key: 'NB2', label: 'NB2', role: 'NB', rank: 2, x: 0.22, y: 0.88, eligible: ['CB', 'FS'] },
-    { key: 'FS2', label: 'FS2', role: 'FS', rank: 2, x: 0.5, y: 0.3, eligible: ['FS', 'SS', 'CB'] },
-  ];
-
-  for (let i = 0; i < defensiveBacks; i += 1) {
-    const slot = dbTemplate[i];
-    if (slot) slots.push({ ...slot });
-  }
+  const dbRoles = DB_LAYOUT[subFront ? 'sub' : 'base'].slice(0, front.backs);
+  dbRoles.forEach((role, index) => {
+    const deep = role === 'FS' || role === 'SS';
+    slots.push(
+      place(
+        role,
+        deep ? 0.2 + index * 0.12 : 0.08 + index * 0.06,
+        deep ? 0.4 : 0.9,
+        ['CB', 'FS', 'SS'],
+      ),
+    );
+  });
 
   return slots;
 }

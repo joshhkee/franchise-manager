@@ -4,6 +4,7 @@ import {
   buildOffenseSlots,
   classifySide,
   parseFormationKey,
+  parseFront,
   toSeedPlaybooks,
   type CivilPlay,
 } from '@/lib/importers/civilPlaybooks';
@@ -63,14 +64,32 @@ describe('buildDefenseSlots', () => {
     expect(buildDefenseSlots(name)).toHaveLength(11);
   });
 
-  it('reads the front digits out of the formation name', () => {
+  it('counts an edge as a lineman, the way the game tallies a front', () => {
+    const linemen = ['LEDG', 'REDG', 'DT', 'NT', 'RLE', 'RRE', 'RDT'];
+    const backers = ['MIKE', 'SAM', 'WILL', 'SUBLB'];
+
+    // Madden prints `5 DL / 1 LB / 5 DB` for a 3-3-5 and `5 DL / 2 LB / 4 DB` for a 3-4.
     const nickel33 = buildDefenseSlots('Nickel 33 Odd');
-    expect(nickel33.filter((slot) => ['LE', 'NT', 'RE', 'DT'].includes(slot.role!))).toHaveLength(3);
-    expect(nickel33.filter((slot) => ['LOLB', 'MLB', 'ROLB', 'SUBLB'].includes(slot.role!))).toHaveLength(3);
+    expect(nickel33.filter((slot) => linemen.includes(slot.role!))).toHaveLength(5);
+    expect(nickel33.filter((slot) => backers.includes(slot.role!))).toHaveLength(1);
 
     const bear = buildDefenseSlots('3-4 Bear');
-    expect(bear.filter((slot) => ['LE', 'NT', 'RE', 'DT'].includes(slot.role!))).toHaveLength(3);
-    expect(bear.filter((slot) => ['LOLB', 'MLB', 'ROLB', 'SUBLB'].includes(slot.role!))).toHaveLength(4);
+    expect(bear.filter((slot) => linemen.includes(slot.role!))).toHaveLength(5);
+    expect(bear.filter((slot) => backers.includes(slot.role!))).toHaveLength(2);
+
+    // A four-man line is the front the name already describes.
+    const over = buildDefenseSlots('4-3 Even 61');
+    expect(over.filter((slot) => linemen.includes(slot.role!))).toHaveLength(4);
+    expect(over.filter((slot) => backers.includes(slot.role!))).toHaveLength(3);
+  });
+});
+
+describe('parseFront', () => {
+  it('reclassifies the edge out of the linebackers below a four-man line', () => {
+    expect(parseFront('Nickel 33 Odd')).toMatchObject({ line: 5, linebackers: 1, backs: 5 });
+    expect(parseFront('Nickel 24 Dbl Mug')).toMatchObject({ line: 4, linebackers: 2, backs: 5 });
+    expect(parseFront('3-4 Bear')).toMatchObject({ line: 5, linebackers: 2, backs: 4 });
+    expect(parseFront('4-3 Even 61')).toMatchObject({ line: 4, linebackers: 3, backs: 4 });
   });
 });
 

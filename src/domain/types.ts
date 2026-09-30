@@ -78,7 +78,7 @@ export function availabilityProblem(
 
 /**
  * A role on Madden's depth chart. Slots are the vocabulary the game itself uses,
- * including the situational roles (`SLWR`, `3DRB`, `NT`, `SUBLB`, ...) that
+ * including the package roles (`SLWR`, `3DRB`, `NT`, `SUBLB`, `SLCB`, ...) that
  * formations consult when deciding who lines up.
  */
 export interface DepthSlot {
@@ -92,7 +92,10 @@ export interface DepthSlot {
   order: number;
   /** How many ranked rows the in-game screen shows for this slot. */
   ranks: number;
-  /** True for sub-package roles like `SLWR`, `3DRB`, `NT`, `SUBLB`, `NB`. */
+  /**
+   * True for the package (secondary) positions — `SLWR`, `3DRB`, `NT`, `SUBLB`,
+   * `SLCB` — which only exist on the depth chart. False for a primary position.
+   */
   situational: boolean;
   description: string;
   /**

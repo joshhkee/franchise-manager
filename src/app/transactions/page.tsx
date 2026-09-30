@@ -8,9 +8,10 @@ import { PlayerSelect, TeamSelect } from '@/components/pickers';
 import { requireSession } from '@/lib/auth';
 import { loadOverview } from '@/lib/loaders';
 
+/** Primary positions only: a rookie is one thing on his player card, not a depth-chart job. */
 const POSITIONS = [
   'QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT',
-  'LE', 'RE', 'DT', 'NT', 'LOLB', 'MLB', 'ROLB', 'CB', 'FS', 'SS', 'K', 'P', 'LS',
+  'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS', 'K', 'P', 'LS',
 ];
 
 export default async function TransactionsPage({

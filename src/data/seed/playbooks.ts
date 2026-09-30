@@ -2,7 +2,7 @@
  * Seed playbook data.
  *
  * Each formation carries the labels that sit on its diagram and the depth-chart
- * role each label consumes — `SLWR`, `3DRB`, `NB` and friends — which is what lets
+ * role each label consumes — `SLWR`, `3DRB`, `SLCB` and friends — which is what lets
  * the planner propagate a depth-chart change through every formation.
  *
  * Coordinates are normalized: x runs 0 (left sideline) to 1 (right sideline), y
@@ -126,56 +126,126 @@ const SLOT2 = (x: number, y = 0.95): SeedSlot => ({
   eligible: ['WR', 'TE', 'HB'],
 });
 
-function def(key: string, role: string, x: number, y: number, eligible: string[]): SeedSlot {
-  return { key, label: key, role, x, y, eligible };
+/*
+ * The fronts below are taken from the labelled alignment diagrams in
+ * `POSITIONS.md` §4, not from the front's nickname. Two things they settle:
+ *
+ *   1. **An edge is a lineman.** Madden tallies the 3-4 as `5 DL / 2 LB / 4 DB`,
+ *      so `LEDG`/`REDG` sit on the line in every base front and a 3-4 has no
+ *      outside linebacker at all.
+ *   2. **The diagram draws the right edge on the left of the screen.** We mirror
+ *      that, so `REDG` is our left-most lineman and `RRE` the left-most rusher.
+ *
+ * Labels match the game's own (`REDGE1`, `NT1`, `MIKE1`) so a formation here reads
+ * the same way as the screen it is mirroring.
+ */
+const EDGE_ELIGIBLE = ['LEDG', 'REDG', 'DT', 'NT', 'DE'];
+const TACKLE_ELIGIBLE = ['DT', 'NT', 'LEDG', 'REDG'];
+const LINEBACKER_ELIGIBLE = ['MIKE', 'SAM', 'WILL', 'SS'];
+const SAFETY_ELIGIBLE = ['SS', 'FS', 'MIKE'];
+
+function def(
+  key: string,
+  role: string,
+  x: number,
+  y: number,
+  eligible: string[],
+  label = key,
+  rank?: number,
+): SeedSlot {
+  return { key, label, role, rank, x, y, eligible };
 }
 
-const DEF_FRONT_43 = (): SeedSlot[] => [
-  def('LE', 'LE', 0.33, 0.9, ['LE', 'RE', 'DT']),
-  def('DT1', 'DT', 0.44, 0.9, ['DT', 'NT', 'LE', 'RE']),
-  def('DT2', 'DT', 0.56, 0.9, ['DT', 'NT', 'LE', 'RE']),
-  def('RE', 'RE', 0.67, 0.9, ['RE', 'LE', 'DT']),
+/** `4-3 Over`: REDGE1 NT1 DT1 LEDGE1 — the nose shaded to the strong side. */
+const DEF_FRONT_43_OVER = (): SeedSlot[] => [
+  def('REDG', 'REDG', 0.33, 0.9, EDGE_ELIGIBLE, 'REDGE1', 1),
+  def('NT', 'NT', 0.44, 0.9, TACKLE_ELIGIBLE, 'NT1', 1),
+  def('DT1', 'DT', 0.56, 0.9, TACKLE_ELIGIBLE, 'DT1', 1),
+  def('LEDG', 'LEDG', 0.67, 0.9, EDGE_ELIGIBLE, 'LEDGE1', 1),
 ];
 
+/** `4-3 Under`: REDGE1 DT1 NT1 LEDGE1. */
+const DEF_FRONT_43_UNDER = (): SeedSlot[] => [
+  def('REDG', 'REDG', 0.3, 0.9, EDGE_ELIGIBLE, 'REDGE1', 1),
+  def('DT1', 'DT', 0.46, 0.9, TACKLE_ELIGIBLE, 'DT1', 1),
+  def('NT', 'NT', 0.58, 0.9, TACKLE_ELIGIBLE, 'NT1', 1),
+  def('LEDG', 'LEDG', 0.68, 0.9, EDGE_ELIGIBLE, 'LEDGE1', 1),
+];
+
+/** `4-3` linebackers: WILL1 MIKE1 SAM1. */
 const DEF_LB_43 = (): SeedSlot[] => [
-  def('LOLB', 'LOLB', 0.24, 0.82, ['LOLB', 'ROLB', 'MLB']),
-  def('MLB', 'MLB', 0.47, 0.8, ['MLB', 'LOLB', 'ROLB']),
-  def('ROLB', 'ROLB', 0.72, 0.82, ['ROLB', 'LOLB', 'MLB']),
+  def('WILL', 'WILL', 0.34, 0.82, LINEBACKER_ELIGIBLE, 'WILL1', 1),
+  def('MIKE', 'MIKE', 0.5, 0.8, LINEBACKER_ELIGIBLE, 'MIKE1', 1),
+  def('SAM', 'SAM', 0.66, 0.82, LINEBACKER_ELIGIBLE, 'SAM1', 1),
 ];
 
+/**
+ * The 3-4 front is five linemen, not three: REDGE1 DT1 NT1 DT2 LEDGE1. The game
+ * calls this `5 DL / 2 LB / 4 DB`.
+ */
+const DEF_FRONT_34 = (tight = false): SeedSlot[] => {
+  const [edgeLeft, tackleLeft, nose, tackleRight, edgeRight] = tight
+    ? [0.31, 0.4, 0.5, 0.6, 0.69]
+    : [0.28, 0.39, 0.5, 0.61, 0.72];
+  return [
+    def('REDG', 'REDG', edgeLeft, 0.9, EDGE_ELIGIBLE, 'REDGE1', 1),
+    def('DT1', 'DT', tackleLeft, 0.9, TACKLE_ELIGIBLE, 'DT1', 1),
+    def('NT', 'NT', nose, 0.9, TACKLE_ELIGIBLE, 'NT1', 1),
+    def('DT2', 'DT', tackleRight, 0.9, TACKLE_ELIGIBLE, 'DT2', 2),
+    def('LEDG', 'LEDG', edgeRight, 0.9, EDGE_ELIGIBLE, 'LEDGE1', 1),
+  ];
+};
+
+/** The two off-ball linebackers an odd front uses: WILL1 MIKE1. There is no SAM in it. */
 const DEF_LB_34 = (): SeedSlot[] => [
-  def('LOLB', 'LOLB', 0.24, 0.82, ['LOLB', 'ROLB', 'MLB']),
-  def('MLB1', 'MLB', 0.44, 0.8, ['MLB', 'LOLB', 'ROLB']),
-  def('MLB2', 'SUBLB', 0.56, 0.8, ['MLB', 'LOLB', 'ROLB', 'SS']),
-  def('ROLB', 'ROLB', 0.76, 0.82, ['ROLB', 'LOLB', 'MLB']),
+  def('WILL', 'WILL', 0.44, 0.8, LINEBACKER_ELIGIBLE, 'WILL1', 1),
+  def('MIKE', 'MIKE', 0.56, 0.8, LINEBACKER_ELIGIBLE, 'MIKE1', 1),
 ];
 
-const DEF_SECONDARY = (nb = true): SeedSlot[] => [
-  def('CB_L', 'CB', 0.08, 0.9, ['CB']),
-  def('CB_R', 'CB', 0.92, 0.9, ['CB']),
-  ...(nb ? [def('NB', 'NB', 0.78, 0.88, ['CB', 'FS', 'SS'])] : []),
-  def('FS', 'FS', 0.42, 0.38, ['FS', 'SS', 'CB']),
-  def('SS', 'SS', 0.58, 0.44, ['SS', 'FS', 'MLB']),
+/** Two rush ends over a shaded interior — how nickel and dime fronts line up. */
+const DEF_RUSH_FRONT = (): SeedSlot[] => [
+  def('RRE', 'RRE', 0.36, 0.9, EDGE_ELIGIBLE, 'RRE1', 1),
+  def('NT', 'NT', 0.48, 0.9, TACKLE_ELIGIBLE, 'NT1', 1),
+  def('DT1', 'DT', 0.6, 0.9, TACKLE_ELIGIBLE, 'DT1', 1),
+  def('RLE', 'RLE', 0.72, 0.9, EDGE_ELIGIBLE, 'RLE1', 1),
+];
+
+/** The base four defensive backs. `boxSafety` walks the strong safety into the front. */
+const DEF_SECONDARY = (boxSafety = false): SeedSlot[] => [
+  def('CB_L', 'CB', 0.08, 0.9, ['CB'], 'CB1', 1),
+  def('CB_R', 'CB', 0.92, 0.9, ['CB'], 'CB2', 2),
+  def('FS', 'FS', 0.42, 0.38, ['FS', 'SS', 'CB'], 'FS1', 1),
+  boxSafety
+    ? def('SS', 'SS', 0.62, 0.78, SAFETY_ELIGIBLE, 'SS1', 1)
+    : def('SS', 'SS', 0.58, 0.44, SAFETY_ELIGIBLE, 'SS1', 1),
+];
+
+/** Nickel 2-4's five: CB1 CB2 CB3 FS1 SS1. The third corner covers the slot. */
+const DEF_NICKEL_SECONDARY = (): SeedSlot[] => [
+  def('CB_L', 'CB', 0.08, 0.9, ['CB'], 'CB1', 1),
+  def('CB_R', 'CB', 0.92, 0.9, ['CB'], 'CB2', 2),
+  def('CB_N', 'CB', 0.26, 0.88, ['CB'], 'CB3', 3),
+  def('FS', 'FS', 0.44, 0.36, ['FS', 'SS', 'CB'], 'FS1', 1),
+  def('SS', 'SS', 0.6, 0.44, SAFETY_ELIGIBLE, 'SS1', 1),
+];
+
+/** The 3-3-5's five defensive backs use a second strong safety, not a third corner. */
+const DEF_335_SECONDARY = (): SeedSlot[] => [
+  def('CB_L', 'CB', 0.08, 0.9, ['CB'], 'CB1', 1),
+  def('CB_R', 'CB', 0.92, 0.9, ['CB'], 'CB2', 2),
+  def('FS', 'FS', 0.36, 0.34, ['FS', 'SS', 'CB'], 'FS1', 1),
+  def('SS', 'SS', 0.5, 0.44, SAFETY_ELIGIBLE, 'SS1', 1),
+  def('SS2', 'SS', 0.66, 0.38, SAFETY_ELIGIBLE, 'SS2', 2),
 ];
 
 /** Dime is six defensive backs, so it is not the nickel secondary plus a body. */
 const DEF_DIME_SECONDARY = (): SeedSlot[] => [
-  def('CB_L', 'CB', 0.08, 0.9, ['CB']),
-  def('CB_R', 'CB', 0.92, 0.9, ['CB']),
-  def('NB', 'NB', 0.74, 0.88, ['CB', 'FS', 'SS']),
-  // The dime back is the second slot corner, so it consults `NB` rank 2 rather
-  // than inventing a depth chart role Madden may not have.
-  {
-    key: 'NB2',
-    label: 'NB2',
-    role: 'NB',
-    rank: 2,
-    x: 0.5,
-    y: 0.6,
-    eligible: ['CB', 'FS', 'SS'],
-  },
-  def('FS', 'FS', 0.36, 0.34, ['FS', 'SS', 'CB']),
-  def('SS', 'SS', 0.64, 0.38, ['SS', 'FS', 'CB']),
+  def('CB_L', 'CB', 0.08, 0.9, ['CB'], 'CB1', 1),
+  def('CB_R', 'CB', 0.92, 0.9, ['CB'], 'CB2', 2),
+  def('CB_N', 'CB', 0.24, 0.88, ['CB'], 'CB3', 3),
+  def('FS', 'FS', 0.34, 0.32, ['FS', 'SS', 'CB'], 'FS1', 1),
+  def('SS', 'SS', 0.48, 0.44, SAFETY_ELIGIBLE, 'SS1', 1),
+  def('SS2', 'SS', 0.66, 0.38, SAFETY_ELIGIBLE, 'SS2', 2),
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -576,14 +646,11 @@ const NICKEL_43: SeedPlaybook = {
       name: 'Nickel 3-3-5',
       set: 'Nickel',
       distribution: 'Doubles',
+      // The game's 3-3-5 is five linemen and one linebacker: `5 DL / 1 LB / 5 DB`.
       slots: [
-        def('LE', 'LE', 0.36, 0.9, ['LE', 'RE', 'DT']),
-        def('NT', 'NT', 0.5, 0.9, ['NT', 'DT']),
-        def('RE', 'RE', 0.64, 0.9, ['RE', 'LE', 'DT']),
-        def('LOLB', 'LOLB', 0.22, 0.82, ['LOLB', 'ROLB', 'MLB']),
-        def('MLB', 'MLB', 0.5, 0.8, ['MLB', 'LOLB', 'ROLB']),
-        def('ROLB', 'ROLB', 0.78, 0.82, ['ROLB', 'LOLB', 'MLB']),
-        ...DEF_SECONDARY(),
+        ...DEF_FRONT_34(true),
+        def('MIKE', 'MIKE', 0.5, 0.8, LINEBACKER_ELIGIBLE, 'MIKE1', 1),
+        ...DEF_335_SECONDARY(),
       ],
       plays: ['Cover 3 Buzz', 'Cover 1 Press', 'Zone Blitz'],
     },
@@ -592,15 +659,13 @@ const NICKEL_43: SeedPlaybook = {
       name: 'Nickel 2-4-5 Double Mug',
       set: 'Nickel',
       distribution: 'Doubles',
-      // Two down linemen, four linebackers, five defensive backs.
+      // The game tallies this as `4 DL / 2 LB / 5 DB`: both edges are linemen, so
+      // the two men behind them are the sub backers.
       slots: [
-        def('DT1', 'RDT', 0.42, 0.9, ['DT', 'NT', 'LE', 'RE']),
-        def('DT2', 'RDT', 0.58, 0.9, ['DT', 'NT', 'LE', 'RE']),
-        def('LOLB', 'SUBLB', 0.3, 0.86, ['MLB', 'LOLB', 'ROLB', 'SS']),
-        def('MLB1', 'MLB', 0.44, 0.8, ['MLB', 'LOLB', 'ROLB']),
-        def('MLB2', 'MLB', 0.56, 0.8, ['MLB', 'LOLB', 'ROLB']),
-        def('ROLB', 'SUBLB', 0.7, 0.86, ['MLB', 'ROLB', 'LOLB', 'SS']),
-        ...DEF_SECONDARY(),
+        ...DEF_RUSH_FRONT(),
+        def('SUBLB1', 'SUBLB', 0.42, 0.82, LINEBACKER_ELIGIBLE),
+        def('SUBLB2', 'SUBLB', 0.58, 0.82, LINEBACKER_ELIGIBLE),
+        ...DEF_NICKEL_SECONDARY(),
       ],
       plays: ['Double Mug Blitz', 'Cover 2 Sink', 'Cover 3 Match'],
     },
@@ -609,12 +674,10 @@ const NICKEL_43: SeedPlaybook = {
       name: 'Dime 3-2-6',
       set: 'Dime',
       distribution: 'Doubles',
+      // `4 DL / 1 LB / 6 DB` in the game's own tally: one sub backer, six backs.
       slots: [
-        def('LE', 'RLE', 0.36, 0.9, ['LE', 'RE', 'DT']),
-        def('NT', 'RDT', 0.5, 0.9, ['DT', 'NT']),
-        def('RE', 'RRE', 0.64, 0.9, ['RE', 'LE', 'DT']),
-        def('LOLB', 'SUBLB', 0.34, 0.84, ['MLB', 'LOLB', 'ROLB', 'SS']),
-        def('ROLB', 'SUBLB', 0.66, 0.84, ['MLB', 'ROLB', 'LOLB', 'SS']),
+        ...DEF_RUSH_FRONT(),
+        def('SUBLB1', 'SUBLB', 0.5, 0.82, LINEBACKER_ELIGIBLE),
         ...DEF_DIME_SECONDARY(),
       ],
       plays: ['Cover 4 Palms', 'Cover 1 Robber', 'Fire Zone'],
@@ -624,7 +687,7 @@ const NICKEL_43: SeedPlaybook = {
       name: '4-3 Over',
       set: '4-3',
       distribution: 'Doubles',
-      slots: [...DEF_FRONT_43(), ...DEF_LB_43(), ...DEF_SECONDARY(false)],
+      slots: [...DEF_FRONT_43_OVER(), ...DEF_LB_43(), ...DEF_SECONDARY()],
       plays: ['Cover 2 Zone', 'Cover 3 Sky', 'Cover 1 Man'],
     },
     {
@@ -632,14 +695,7 @@ const NICKEL_43: SeedPlaybook = {
       name: '4-3 Under',
       set: '4-3',
       distribution: 'Tight',
-      slots: [
-        def('LE', 'LE', 0.3, 0.9, ['LE', 'RE', 'DT']),
-        def('NT', 'NT', 0.46, 0.9, ['NT', 'DT']),
-        def('DT2', 'DT', 0.58, 0.9, ['DT', 'NT', 'LE', 'RE']),
-        def('RE', 'RE', 0.68, 0.9, ['RE', 'LE', 'DT']),
-        ...DEF_LB_43(),
-        ...DEF_SECONDARY(false),
-      ],
+      slots: [...DEF_FRONT_43_UNDER(), ...DEF_LB_43(), ...DEF_SECONDARY()],
       plays: ['Cover 3 Match', 'Cover 6', 'Sam Blitz'],
     },
   ],
@@ -657,13 +713,7 @@ const THREE_FOUR: SeedPlaybook = {
       name: '3-4 Base',
       set: '3-4',
       distribution: 'Doubles',
-      slots: [
-        def('LE', 'LE', 0.34, 0.9, ['LE', 'RE', 'DT']),
-        def('NT', 'NT', 0.5, 0.9, ['NT', 'DT']),
-        def('RE', 'RE', 0.66, 0.9, ['RE', 'LE', 'DT']),
-        ...DEF_LB_34(),
-        ...DEF_SECONDARY(false),
-      ],
+      slots: [...DEF_FRONT_34(), ...DEF_LB_34(), ...DEF_SECONDARY()],
       plays: ['Cover 3 Zone', 'Tampa 2', 'Fire Zone Blitz'],
     },
     {
@@ -671,13 +721,7 @@ const THREE_FOUR: SeedPlaybook = {
       name: '3-4 Odd',
       set: '3-4',
       distribution: 'Tight',
-      slots: [
-        def('LE', 'LE', 0.34, 0.9, ['LE', 'RE', 'DT']),
-        def('NT', 'NT', 0.44, 0.9, ['NT', 'DT']),
-        def('RE', 'RE', 0.62, 0.9, ['RE', 'LE', 'DT']),
-        ...DEF_LB_34(),
-        ...DEF_SECONDARY(false),
-      ],
+      slots: [...DEF_FRONT_34(true), ...DEF_LB_34(), ...DEF_SECONDARY()],
       plays: ['Cover 2 Man', 'Cover 3 Buzz', 'Cross Fire'],
     },
     {
@@ -685,16 +729,8 @@ const THREE_FOUR: SeedPlaybook = {
       name: '3-4 Bear',
       set: '3-4',
       distribution: 'Tight',
-      slots: [
-        def('LE', 'LE', 0.3, 0.9, ['LE', 'RE', 'DT']),
-        def('NT', 'NT', 0.5, 0.9, ['NT', 'DT']),
-        def('RE', 'RE', 0.7, 0.9, ['RE', 'LE', 'DT']),
-        def('LOLB', 'LOLB', 0.2, 0.8, ['LOLB', 'ROLB', 'MLB']),
-        def('MLB1', 'MLB', 0.42, 0.78, ['MLB', 'LOLB', 'ROLB']),
-        def('MLB2', 'SUBLB', 0.58, 0.78, ['MLB', 'LOLB', 'ROLB', 'SS']),
-        def('ROLB', 'ROLB', 0.8, 0.8, ['ROLB', 'LOLB', 'MLB']),
-        ...DEF_SECONDARY(false),
-      ],
+      // The same five-man front as the odd look, with the strong safety in the box.
+      slots: [...DEF_FRONT_34(true), ...DEF_LB_34(), ...DEF_SECONDARY(true)],
       plays: ['Bear Blitz', 'Cover 1 Hole', 'Goal Line Stuff'],
     },
     {
@@ -702,12 +738,14 @@ const THREE_FOUR: SeedPlaybook = {
       name: 'Quarter 3 Deep',
       set: 'Quarter',
       distribution: 'Empty',
+      // Not yet checked against a diagram, so this keeps the dime's shape with the
+      // rush tackle a prevent look wants.
       slots: [
-        def('LE', 'RLE', 0.34, 0.9, ['LE', 'RE', 'DT']),
-        def('NT', 'RDT', 0.5, 0.9, ['DT', 'NT']),
-        def('RE', 'RRE', 0.66, 0.9, ['RE', 'LE', 'DT']),
-        def('LOLB', 'SUBLB', 0.38, 0.84, ['MLB', 'LOLB', 'ROLB', 'SS']),
-        def('ROLB', 'SUBLB', 0.62, 0.84, ['MLB', 'ROLB', 'LOLB', 'SS']),
+        def('RLE', 'RLE', 0.34, 0.9, EDGE_ELIGIBLE, 'RLE1', 1),
+        def('RDT', 'RDT', 0.5, 0.9, TACKLE_ELIGIBLE, 'RDT1', 1),
+        def('RRE', 'RRE', 0.66, 0.9, EDGE_ELIGIBLE, 'RRE1', 1),
+        def('SUBLB1', 'SUBLB', 0.38, 0.84, LINEBACKER_ELIGIBLE),
+        def('SUBLB2', 'SUBLB', 0.62, 0.84, LINEBACKER_ELIGIBLE),
         ...DEF_DIME_SECONDARY(),
       ],
       plays: ['Quarters Cover 4', 'Cover 2 Trap', 'Prevent Deep'],
@@ -718,17 +756,17 @@ const THREE_FOUR: SeedPlaybook = {
 /**
  * Special teams.
  *
- * Madden exposes the specialists as depth-chart roles (`K`, `P`, `KOS`, `H`,
- * `LS`, `KR`, `PR`) but not the coverage and blocking jobs around them, so those
- * spots are bound to the *backups* of the defensive and offensive roles the unit
- * would really use — the second corner running down on a punt, the third tackle
- * blocking on a return. That is the same inherit-from-the-depth-chart rule every
- * other formation follows, which means a depth-chart change moves these units too.
+ * Madden exposes the specialists as depth-chart roles (`K`, `P`, `LS`, `KOS`,
+ * `KR`, `PR`) but not the coverage and blocking jobs around them, so those spots
+ * are bound to the *backups* of the defensive and offensive roles the unit would
+ * really use — the second corner running down on a punt, the third edge blocking
+ * on a return. That is the same inherit-from-the-depth-chart rule every other
+ * formation follows, which means a depth-chart change moves these units too.
  *
  * Two deliberate bindings worth knowing, because the game treats them the same
  * way we do: the kickoff unit uses `KOS` rather than `K` (the same man often does
- * both, and no unit may field him twice), and the punting unit uses `P` while the
- * field-goal unit uses `H`.
+ * both, and no unit may field him twice), and the field-goal unit's holder spot
+ * consults `P`, because the punter is who holds — Madden has no holder position.
  */
 const st = (
   key: string,
@@ -762,12 +800,13 @@ const SPECIAL_TEAMS: SeedPlaybook = {
         st('RT', 'RT', 'RT', 1, 0.6, 0.95, ['RT', 'RG', 'LT', 'LG']),
         st('TE_R', 'TE', 'TE', 2, 0.66, 0.95, ['TE', 'FB', 'LT', 'RT']),
         st('FB', 'PP', 'FB', 1, 0.56, 0.84, ['FB', 'HB', 'TE']),
-        st('LS', 'LS', 'LS', 1, 0.5, 0.91, ['LS', 'TE', 'C', 'LB']),
-        st('H', 'H', 'H', 1, 0.44, 0.86, ['P', 'QB', 'K']),
+        st('LS', 'LS', 'LS', 1, 0.5, 0.91, ['LS', 'TE', 'C']),
+        // Madden has no holder position. The punter holds, so the spot consults `P`.
+        st('P', 'H', 'P', 1, 0.44, 0.86, ['P']),
         st('K', 'K', 'K', 1, 0.3, 0.76, ['K']),
       ],
       plays: ['Field Goal', 'Extra Point', 'Fake Field Goal'],
-      notes: 'The holder is the punter here; the personal protector is the fullback.',
+      notes: 'The holder consults the punter, who is who holds in the game; the personal protector is the fullback.',
     },
     {
       id: 'st-punt',
@@ -777,19 +816,19 @@ const SPECIAL_TEAMS: SeedPlaybook = {
       personnel: 'punt',
       slots: [
         st('CB_L', 'G', 'CB', 2, 0.12, 0.92, ['CB', 'FS', 'SS']),
-        st('LE', 'LE', 'LE', 2, 0.32, 0.95, ['LE', 'RE', 'DT', 'LOLB', 'ROLB']),
-        st('SS', 'SS', 'SS', 2, 0.4, 0.92, ['SS', 'FS', 'MLB']),
-        st('LS', 'LS', 'LS', 1, 0.5, 0.95, ['LS', 'TE', 'C', 'LB']),
-        st('FS', 'FS', 'FS', 2, 0.6, 0.92, ['FS', 'SS', 'CB']),
-        st('RE', 'RE', 'RE', 1, 0.68, 0.95, ['RE', 'LE', 'DT', 'ROLB', 'LOLB']),
+        st('LEDG', 'LEDGE2', 'LEDG', 2, 0.32, 0.95, EDGE_ELIGIBLE),
+        st('SS', 'SS2', 'SS', 2, 0.4, 0.92, SAFETY_ELIGIBLE),
+        st('LS', 'LS', 'LS', 1, 0.5, 0.95, ['LS', 'TE', 'C']),
+        st('FS', 'FS2', 'FS', 2, 0.6, 0.92, ['FS', 'SS', 'CB']),
+        st('REDG', 'REDGE1', 'REDG', 1, 0.68, 0.95, EDGE_ELIGIBLE),
         st('CB_R', 'G', 'CB', 3, 0.88, 0.92, ['CB', 'FS', 'SS']),
-        st('MLB', 'MLB', 'MLB', 2, 0.45, 0.85, ['MLB', 'LOLB', 'ROLB', 'SS']),
-        st('LOLB', 'LOLB', 'LOLB', 3, 0.55, 0.85, ['LOLB', 'ROLB', 'MLB', 'LE', 'RE']),
-        st('ROLB', 'PP', 'ROLB', 1, 0.5, 0.74, ['ROLB', 'LOLB', 'MLB', 'RE']),
+        st('MIKE', 'MIKE2', 'MIKE', 2, 0.45, 0.85, LINEBACKER_ELIGIBLE),
+        st('SAM', 'SAM3', 'SAM', 3, 0.55, 0.85, LINEBACKER_ELIGIBLE),
+        st('WILL', 'PP', 'WILL', 1, 0.5, 0.74, LINEBACKER_ELIGIBLE),
         st('P', 'P', 'P', 1, 0.22, 0.58, ['P']),
       ],
       plays: ['Punt', 'Rugby Punt', 'Fake Punt'],
-      notes: 'Both gunners are corners; the personal protector is an outside linebacker.',
+      notes: 'Both gunners are corners; the personal protector is the weak-side linebacker.',
     },
     {
       id: 'st-punt-return',
@@ -799,19 +838,19 @@ const SPECIAL_TEAMS: SeedPlaybook = {
       personnel: 'punt-return',
       slots: [
         st('PR', 'PR', 'PR', 1, 0.2, 0.45, ['WR', 'HB', 'CB', 'RB']),
-        st('LOLB', 'LOLB', 'LOLB', 1, 0.35, 0.75, ['LOLB', 'ROLB', 'MLB', 'LE', 'RE']),
-        st('LE', 'LE', 'LE', 1, 0.4, 0.93, ['LE', 'RE', 'DT', 'LOLB', 'ROLB']),
-        st('DT', 'DT', 'DT', 2, 0.5, 0.93, ['DT', 'NT', 'LE', 'RE']),
-        st('RE', 'RE', 'RE', 1, 0.6, 0.93, ['RE', 'LE', 'DT', 'ROLB', 'LOLB']),
-        st('ROLB', 'ROLB', 'ROLB', 1, 0.65, 0.75, ['ROLB', 'LOLB', 'MLB', 'RE']),
-        st('NT', 'NT', 'NT', 1, 0.75, 0.93, ['NT', 'DT', 'LE', 'RE']),
-        st('NB', 'NB', 'NB', 1, 0.3, 0.85, ['CB', 'FS', 'SS', 'MLB']),
-        st('SS', 'SS', 'SS', 1, 0.45, 0.88, ['SS', 'FS', 'MLB']),
-        st('FS', 'FS', 'FS', 1, 0.6, 0.85, ['FS', 'SS', 'CB']),
-        st('MLB', 'MLB', 'MLB', 1, 0.72, 0.8, ['MLB', 'LOLB', 'ROLB', 'SS']),
+        st('SAM', 'SAM1', 'SAM', 1, 0.35, 0.75, LINEBACKER_ELIGIBLE),
+        st('LEDG', 'LEDGE1', 'LEDG', 1, 0.4, 0.93, EDGE_ELIGIBLE),
+        st('DT', 'DT2', 'DT', 2, 0.5, 0.93, TACKLE_ELIGIBLE),
+        st('REDG', 'REDGE1', 'REDG', 1, 0.6, 0.93, EDGE_ELIGIBLE),
+        st('WILL', 'WILL1', 'WILL', 1, 0.65, 0.75, LINEBACKER_ELIGIBLE),
+        st('NT', 'NT1', 'NT', 1, 0.75, 0.93, TACKLE_ELIGIBLE),
+        st('CB_N', 'CB3', 'CB', 3, 0.3, 0.85, ['CB', 'FS', 'SS']),
+        st('SS', 'SS1', 'SS', 1, 0.45, 0.88, SAFETY_ELIGIBLE),
+        st('FS', 'FS1', 'FS', 1, 0.6, 0.85, ['FS', 'SS', 'CB']),
+        st('MIKE', 'MIKE1', 'MIKE', 1, 0.72, 0.8, LINEBACKER_ELIGIBLE),
       ],
       plays: ['Punt Return', 'Punt Block', 'Return Left'],
-      notes: 'The returner is the slot receiver; a corner covers the gunner on the other side.',
+      notes: 'The returner is the slot receiver; the third corner covers the gunner on the other side.',
     },
     {
       id: 'st-kickoff',
@@ -825,12 +864,12 @@ const SPECIAL_TEAMS: SeedPlaybook = {
         st('CB_2', 'CB', 'CB', 2, 0.28, 0.95, ['CB', 'FS', 'SS']),
         st('CB_3', 'CB', 'CB', 3, 0.4, 0.95, ['CB', 'FS', 'SS']),
         st('CB_4', 'CB', 'CB', 4, 0.6, 0.95, ['CB', 'FS', 'SS']),
-        st('SS', 'SS', 'SS', 1, 0.72, 0.95, ['SS', 'FS', 'MLB']),
-        st('FS', 'FS', 'FS', 1, 0.85, 0.95, ['FS', 'SS', 'CB']),
-        st('MLB', 'MLB', 'MLB', 1, 0.35, 0.86, ['MLB', 'LOLB', 'ROLB', 'SS']),
-        st('LOLB', 'LOLB', 'LOLB', 1, 0.5, 0.86, ['LOLB', 'ROLB', 'MLB', 'LE', 'RE']),
-        st('ROLB', 'ROLB', 'ROLB', 1, 0.65, 0.86, ['ROLB', 'LOLB', 'MLB', 'RE']),
-        st('LE', 'LE', 'LE', 1, 0.5, 0.95, ['LE', 'RE', 'DT', 'LOLB', 'ROLB']),
+        st('SS', 'SS1', 'SS', 1, 0.72, 0.95, SAFETY_ELIGIBLE),
+        st('FS', 'FS1', 'FS', 1, 0.85, 0.95, ['FS', 'SS', 'CB']),
+        st('MIKE', 'MIKE1', 'MIKE', 1, 0.35, 0.86, LINEBACKER_ELIGIBLE),
+        st('SAM', 'SAM1', 'SAM', 1, 0.5, 0.86, LINEBACKER_ELIGIBLE),
+        st('WILL', 'WILL1', 'WILL', 1, 0.65, 0.86, LINEBACKER_ELIGIBLE),
+        st('LEDG', 'LEDGE1', 'LEDG', 1, 0.5, 0.95, EDGE_ELIGIBLE),
       ],
       plays: ['Kickoff', 'Squib Kick', 'Onside Kick'],
       notes: 'Kickoff duty sits with KOS, which is often the same man as the placekicker.',
@@ -845,14 +884,14 @@ const SPECIAL_TEAMS: SeedPlaybook = {
         st('KR_1', 'KR', 'KR', 1, 0.3, 0.5, ['WR', 'HB', 'CB', 'RB']),
         st('KR_2', 'KR', 'KR', 2, 0.6, 0.52, ['WR', 'HB', 'CB', 'RB']),
         st('WR', 'WR', 'WR', 3, 0.2, 0.85, ['WR', 'TE', 'HB']),
-        st('LOLB', 'LOLB', 'LOLB', 3, 0.35, 0.72, ['LOLB', 'ROLB', 'MLB', 'LE', 'RE']),
+        st('SAM', 'SAM3', 'SAM', 3, 0.35, 0.72, LINEBACKER_ELIGIBLE),
         st('TE_1', 'TE', 'TE', 1, 0.4, 0.8, ['TE', 'FB', 'LT', 'RT']),
         st('FB', 'FB', 'FB', 1, 0.45, 0.88, ['FB', 'HB', 'TE']),
         st('TE_2', 'TE', 'TE', 2, 0.5, 0.8, ['TE', 'FB', 'LT', 'RT']),
         st('HB', 'HB', 'HB', 2, 0.62, 0.8, ['HB', 'FB', 'RB']),
-        st('LE', 'LE', 'LE', 2, 0.65, 0.9, ['LE', 'RE', 'DT', 'LOLB', 'ROLB']),
-        st('MLB', 'MLB', 'MLB', 3, 0.72, 0.75, ['MLB', 'LOLB', 'ROLB', 'SS']),
-        st('ROLB', 'ROLB', 'ROLB', 3, 0.8, 0.85, ['ROLB', 'LOLB', 'MLB', 'RE']),
+        st('LEDG', 'LEDGE2', 'LEDG', 2, 0.65, 0.9, EDGE_ELIGIBLE),
+        st('MIKE', 'MIKE3', 'MIKE', 3, 0.72, 0.75, LINEBACKER_ELIGIBLE),
+        st('WILL', 'WILL3', 'WILL', 3, 0.8, 0.85, LINEBACKER_ELIGIBLE),
       ],
       plays: ['Kick Return', 'Return Middle', 'Handoff Return'],
       notes: 'Two returners: the slot receiver and the backup corner.',

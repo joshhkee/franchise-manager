@@ -85,7 +85,7 @@ describe('previewDepthChange', () => {
 
   it('says plainly when nothing in the playbook consults a role', () => {
     const report = previewDepthChange(OFFENSE_FORMATIONS, makeContext(), {
-      slotCode: 'NB',
+      slotCode: 'SLCB',
       rank: 1,
       toPlayerId: 'cb2',
     });

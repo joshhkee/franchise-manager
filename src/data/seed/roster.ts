@@ -110,24 +110,24 @@ export const DEMO_ROSTER: SeedPlayer[] = [
   r('c2', 'Ned', 'Fisk', 'C', 66, 26, 62, { capHit: 1_800_000, contractYears: 1 }),
 
   // Defensive line — de3/le4 are the designated rushers who start the sub packages.
-  r('le1', 'Ras', 'Ellery', 'LE', 86, 27, 95, { dev: 'star', capHit: 14_000_000, contractYears: 3 }),
-  r('re1', 'Cy', 'Barton', 'RE', 82, 25, 91, { capHit: 7_500_000, contractYears: 2 }),
+  r('le1', 'Ras', 'Ellery', 'LEDG', 86, 27, 95, { dev: 'star', capHit: 14_000_000, contractYears: 3 }),
+  r('re1', 'Cy', 'Barton', 'REDG', 82, 25, 91, { capHit: 7_500_000, contractYears: 2 }),
   r('dt1', 'Otis', 'Frame', 'DT', 85, 29, 99, { capHit: 12_000_000, contractYears: 2 }),
   r('dt2', 'Hank', 'Roose', 'DT', 77, 24, 98, { capHit: 2_800_000, contractYears: 3 }),
   r('dt3', 'Ivo', 'Sandoval', 'NT', 74, 26, 96, { capHit: 3_400_000, contractYears: 2 }),
   r('dt4', 'Perry', 'Lund', 'DT', 71, 23, 92, { capHit: 1_000_000, contractYears: 3 }),
-  r('de3', 'Quinn', 'Abara', 'RE', 70, 23, 93, { capHit: 1_000_000, contractYears: 3 }),
-  r('le4', 'Mo', 'Halvorsen', 'LE', 68, 24, 97, { capHit: 900_000, contractYears: 3 }),
+  r('de3', 'Quinn', 'Abara', 'REDG', 70, 23, 93, { capHit: 1_000_000, contractYears: 3 }),
+  r('le4', 'Mo', 'Halvorsen', 'LEDG', 68, 24, 97, { capHit: 900_000, contractYears: 3 }),
 
   // Linebackers — lb5 is the coverage linebacker who starts the sub packages.
-  r('mlb1', 'Ade', 'Cortez', 'MLB', 88, 28, 54, { dev: 'star', capHit: 13_000_000, contractYears: 3 }),
-  r('lolb1', 'Jon', 'Pike', 'LOLB', 80, 26, 52, { capHit: 6_400_000, contractYears: 2 }),
-  r('rolb1', 'Kip', 'Vaughn', 'ROLB', 83, 25, 58, { capHit: 8_200_000, contractYears: 3 }),
-  r('lb4', 'Tob', 'Renner', 'MLB', 73, 24, 50, { capHit: 1_300_000, contractYears: 3 }),
-  r('lb5', 'Silas', 'Bright', 'ROLB', 71, 23, 56, { capHit: 1_000_000, contractYears: 3 }),
-  r('lb6', 'Emil', 'Sorensen', 'MLB', 68, 25, 48, { capHit: 950_000, contractYears: 2 }),
+  r('mlb1', 'Ade', 'Cortez', 'MIKE', 88, 28, 54, { dev: 'star', capHit: 13_000_000, contractYears: 3 }),
+  r('lolb1', 'Jon', 'Pike', 'SAM', 80, 26, 52, { capHit: 6_400_000, contractYears: 2 }),
+  r('rolb1', 'Kip', 'Vaughn', 'WILL', 83, 25, 58, { capHit: 8_200_000, contractYears: 3 }),
+  r('lb4', 'Tob', 'Renner', 'MIKE', 73, 24, 50, { capHit: 1_300_000, contractYears: 3 }),
+  r('lb5', 'Silas', 'Bright', 'WILL', 71, 23, 56, { capHit: 1_000_000, contractYears: 3 }),
+  r('lb6', 'Emil', 'Sorensen', 'SAM', 68, 25, 48, { capHit: 950_000, contractYears: 2 }),
 
-  // Secondary — cb3 is the nickel back who starts the sub packages.
+  // Secondary — cb3 is the third corner, who covers the slot when nickel and dime come on.
   r('cb1', 'Rell', 'Mackey', 'CB', 89, 26, 24, { dev: 'star', capHit: 14_000_000, contractYears: 3, speed: 94 }),
   r('cb2', 'Tune', 'Ferris', 'CB', 82, 27, 21, { capHit: 9_000_000, contractYears: 2, speed: 92 }),
   r('cb3', 'Ike', 'Nwosu', 'CB', 79, 23, 29, { capHit: 2_600_000, contractYears: 3, speed: 94 }),
@@ -158,14 +158,14 @@ export const CPU_ROSTERS: Record<string, SeedPlayer[]> = {
     r('met-te1', 'Ken', 'Adeyemi', 'TE', 80, 25, 85),
     r('met-lt1', 'Wes', 'Halloway', 'LT', 83, 27, 76),
     r('met-cb1', 'Nate', 'Beaumont', 'CB', 87, 25, 23, { dev: 'star' }),
-    r('met-mlb1', 'Ike', 'Solano', 'MLB', 82, 29, 53),
+    r('met-mlb1', 'Ike', 'Solano', 'MIKE', 82, 29, 53),
     r('met-k1', 'Bo', 'Krebs', 'K', 78, 26, 6),
   ],
   HAR: [
     r('har-qb1', 'Miles', 'Duquesne', 'QB', 81, 25, 7),
     r('har-hb1', 'Raf', 'Ibarra', 'HB', 83, 24, 20, { dev: 'star' }),
     r('har-wr1', 'Jae', 'Tolliver', 'WR', 88, 26, 13, { dev: 'superstar' }),
-    r('har-re1', 'Cal', 'Renfro', 'RE', 86, 27, 97, { dev: 'star' }),
+    r('har-re1', 'Cal', 'Renfro', 'REDG', 86, 27, 97, { dev: 'star' }),
     r('har-dt1', 'Omar', 'Kessler', 'DT', 84, 30, 92),
     r('har-fs1', 'Gio', 'Ravel', 'FS', 83, 26, 34),
     r('har-p1', 'Tim', 'Okonkwo', 'P', 77, 28, 5),
@@ -174,7 +174,7 @@ export const CPU_ROSTERS: Record<string, SeedPlayer[]> = {
     r('pra-qb1', 'Everett', 'Strand', 'QB', 90, 29, 9, { dev: 'xfactor' }),
     r('pra-hb1', 'Nils', 'Bergman', 'HB', 84, 27, 26),
     r('pra-wr1', 'Lyric', 'Dearmon', 'WR', 85, 24, 16),
-    r('pra-lolb1', 'Zeke', 'Tovar', 'LOLB', 87, 26, 55, { dev: 'star' }),
+    r('pra-lolb1', 'Zeke', 'Tovar', 'SAM', 87, 26, 55, { dev: 'star' }),
     r('pra-cb1', 'Dex', 'Aminu', 'CB', 86, 24, 25, { dev: 'superstar' }),
     r('pra-ss1', 'Griff', 'Lund', 'SS', 82, 28, 32),
     r('pra-k1', 'Ivan', 'Petrov', 'K', 81, 31, 2),
@@ -185,7 +185,7 @@ export const CPU_ROSTERS: Record<string, SeedPlayer[]> = {
  * Curated situational-role assignments for the demo team.
  *
  * This is the part of a depth chart that is a coaching decision rather than a
- * pure sort: the slot corner, the third-down back, the sub-package rushers.
+ * pure sort: the third-down back, the sub-package rushers, the coverage backer.
  *
  * Every name here is a *backup* at his base position — a starting role is a
  * starting role, so a man cannot open the game at two of them. That is the same
@@ -196,14 +196,17 @@ export const DEMO_SITUATIONAL: Record<string, string[]> = {
   '3DRB': ['hb3', 'hb4'],
   PWHB: ['hb4', 'hb2'],
   NT: ['dt3', 'dt2'],
-  RLE: ['de3', 'le4'],
-  RRE: ['le4', 'de3'],
+  RLE: ['le4', 'de3'],
+  RRE: ['de3', 'le4'],
   RDT: ['dt4', 'dt2'],
   SUBLB: ['lb5', 'lb4'],
-  NB: ['cb3', 'cb4'],
+  // Four outside corners and a pair of slot corners. The kickoff unit fields four
+  // corners and the free safety, so leaving the fourth to a safety would put one man
+  // at two spots. Our seeded nickel and dime fronts consult `CB` rank 3 rather than
+  // `SLCB` — see POSITIONS.md §7 — but the slot corner is a real row, so it is filled.
+  CB: ['cb1', 'cb2', 'cb3', 'cb5'],
+  SLCB: ['cb4', 'cb5'],
   KOS: ['k1'],
-  H: ['p1'],
-  LS: ['ls1'],
   KR: ['wr5', 'cb4'],
   PR: ['wr5', 'wr3'],
 };
