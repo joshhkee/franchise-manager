@@ -1,0 +1,24 @@
+# Self-hosted deploy: `docker compose up -d --build`
+#
+# The app is reachable at http://<your-machine>:3000 — put it behind Caddy,
+# Tailscale or a Cloudflare tunnel if you want it off your home network.
+services:
+  franchise:
+    build: .
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      # Change both before exposing this anywhere.
+      APP_PASSPHRASE: ${APP_PASSPHRASE:?set APP_PASSPHRASE}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      # Set to 1 when you are serving over HTTPS.
+      SECURE_COOKIES: ${SECURE_COOKIES:-0}
+      # Uncomment to use an external Postgres (Neon etc.) instead of the volume.
+      # DATABASE_URL: ${DATABASE_URL}
+    volumes:
+      # Your embedded database — this is the thing to back up.
+      - franchise-data:/data
+
+volumes:
+  franchise-data:
