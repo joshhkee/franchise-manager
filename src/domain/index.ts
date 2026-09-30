@@ -11,3 +11,7 @@ export * from './engine';
 export * from './tendency';
 export * from './drive';
 export * from './tradeValue';
+export * from './archetypes';
+export * from './schemes';
+export * from './schemeFit';
+export * from './planDiff';
