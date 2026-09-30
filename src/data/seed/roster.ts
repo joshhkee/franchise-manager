@@ -114,7 +114,8 @@ export const DEMO_ROSTER: SeedPlayer[] = [
   r('re1', 'Cy', 'Barton', 'REDG', 82, 25, 91, { capHit: 7_500_000, contractYears: 2 }),
   r('dt1', 'Otis', 'Frame', 'DT', 85, 29, 99, { capHit: 12_000_000, contractYears: 2 }),
   r('dt2', 'Hank', 'Roose', 'DT', 77, 24, 98, { capHit: 2_800_000, contractYears: 3 }),
-  r('dt3', 'Ivo', 'Sandoval', 'NT', 74, 26, 96, { capHit: 3_400_000, contractYears: 2 }),
+  // `DT` is his roster position; `NT` is a package role he starts in the odd fronts.
+  r('dt3', 'Ivo', 'Sandoval', 'DT', 74, 26, 96, { capHit: 3_400_000, contractYears: 2 }),
   r('dt4', 'Perry', 'Lund', 'DT', 71, 23, 92, { capHit: 1_000_000, contractYears: 3 }),
   r('de3', 'Quinn', 'Abara', 'REDG', 70, 23, 93, { capHit: 1_000_000, contractYears: 3 }),
   r('le4', 'Mo', 'Halvorsen', 'LEDG', 68, 24, 97, { capHit: 900_000, contractYears: 3 }),

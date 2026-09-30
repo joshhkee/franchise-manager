@@ -21,6 +21,7 @@ import {
   teams,
   transactions,
 } from './schema';
+import { demoRatings } from '@/lib/seedRatings';
 import { normalizeSlotRanks, type ResolveContext, type ResolvePlayer } from '@/domain/resolution';
 import { classifyFormation, familyKey, derivePersonnel } from '@/domain/families';
 import { DEPTH_SLOTS } from '@/domain/depthSlots';
@@ -711,7 +712,14 @@ function playerRow(seed: SeedPlayer, teamId: string) {
     age: seed.age,
     heightInches: 72,
     college: 'Demo State',
-    ratings: { speed_rating: seed.speed ?? seed.overall - 3 } as Record<string, number | string>,
+    // Synthetic but deterministic: the demo roster is fictional, and `overall` alone
+    // cannot answer "does he fit the scheme". Replaced wholesale by `import:ratings`.
+    ratings: demoRatings({
+      id: seed.id,
+      position: seed.position,
+      overall: seed.overall,
+      speed: seed.speed,
+    }),
     salary: (seed.capHit ?? 1_000_000) + 500_000,
     source: 'seed',
   };
