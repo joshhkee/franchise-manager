@@ -188,12 +188,14 @@ on top (`SLWR`, `3DRB`, `PWHB`, `NT`, `SUBLB`, `SLCB`, `RLE`, `RRE`, `RDT`, `KOS
 package position is a job a formation consults, not a player type — which is exactly the
 inherit-from-role model this app is built on.
 
-**Madden 26 renamed part of that list**, and the vocabulary seeded here still uses the old names:
+**Madden 26 renamed part of that list**, and the vocabulary seeded here follows the new names:
 `LE`/`RE` are now `LEDG`/`REDG` (Edge covers defensive ends *and* 3-4 outside linebackers), the
-linebackers are `SAM`/`MIKE`/`WILL` rather than `LOLB`/`MLB`/`ROLB`, and the slot corner is `SLCB`
-rather than the `NB` we invented. [POSITIONS.md](POSITIONS.md) is the researched reference: the full
-list, what changed, a per-file gap list and the migration plan. Until that migration lands, treat
-the vocabulary in the app as wrong, not merely unverified.
+linebackers are `SAM`/`MIKE`/`WILL` rather than `LOLB`/`MLB`/`ROLB`, the slot corner is `SLCB`
+rather than the `NB` we invented, `LS` is a primary position, and `GAD` was added as a package
+position. [POSITIONS.md](POSITIONS.md) is the researched reference: the full list, what changed, and
+the civil.gg front shapes the seeded formations are drawn from. The **front shapes** are read off
+labelled diagrams; those labels are raster images on the page, not text, so the scraper still lays
+sub fronts out from a personnel count rather than from the printed labels.
 
 Every slot is still stored with a `verified` flag that starts `false`, shown in the app as "assumed
 until verified", and you can toggle it from the depth chart screen. When you have the game, you
@@ -273,9 +275,10 @@ predictable: repeat the *look*, change the *concept*.
 - **Defensive slots also carry assumed bindings.** Offensive role slots (`SLWR`, `3DRB`…) are the
   ones community sources document best; the defensive counterparts (which look consults `RLE`
   versus `LEDG`) are the thinnest part of the seed data.
-- **The defensive vocabulary is out of date, not just unverified.** Madden 26 replaced `LE`/`RE`
-  with `LEDG`/`REDG` and `LOLB`/`MLB`/`ROLB` with `SAM`/`MIKE`/`WILL`. See [POSITIONS.md](POSITIONS.md)
-  for the researched list and the migration plan.
-- **Special-teams coverage jobs are hand-authored.** The specialists (`K`, `P`, `H`, `LS`, `KR`,
+- **Defensive slot bindings are assumptions, not facts.** Offensive role slots (`SLWR`, `3DRB`…) are
+  the ones community sources document best; which front a formation consults (`RLE` versus `LEDG`)
+  rests on our reading of civil.gg's alignment diagrams, and those diagrams are images we cannot
+  scrape as text ([POSITIONS.md](POSITIONS.md) §4).
+- **Special-teams coverage jobs are hand-authored.** The specialists (`K`, `P`, `LS`, `KR`,
   `PR`) come from the depth chart, but *which* backup covers a punt is our reading of the unit, not
   something the game tells us. The checklist shows the lineup so you can correct it in one place.

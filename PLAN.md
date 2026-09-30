@@ -141,10 +141,12 @@ passed / 17 suites** · `npx tsc --noEmit` clean · production build green. Ther
 - **Compaction/time-series:** `roster_snapshot` / `snapshot_player` (the repo has a JSON *export* called a snapshot — a different thing).
 - **Tunable tables:** `value_chart` and `scheme_fit_threshold` are code constants today, not DB tables.
 - **Multi-plan support:** a `plans` table exists but there is effectively one default plan; there is no plan diffing and no per-playbook plan comparison.
-- **The Madden 26/27 position vocabulary.** `src/domain/depthSlots.ts` seeds `LE`/`RE`,
-  `LOLB`/`MLB`/`ROLB`, `NB` and `H` — names the game no longer uses (or in `NB`'s and `H`'s case,
-  never used). [`POSITIONS.md`](POSITIONS.md) documents the correct list, the ~450 occurrences to
-  change, and the one part that needs a football decision (the 3-4 front).
+- ~~**The Madden 26/27 position vocabulary.**~~ **Done.**
+  [`depthSlots.ts`](src/domain/depthSlots.ts) seeds the game's list — `LEDG`/`REDG`,
+  `SAM`/`MIKE`/`WILL`, `LS` as a primary position, `GAD` as a package position — and the seeded
+  fronts are drawn from civil.gg's alignment diagrams. `LE`/`RE`/`LOLB`/`MLB`/`ROLB`/`NB`/`H` are
+  retired, and `applySeed` reconciles an existing depth chart onto the replacements. See
+  [`POSITIONS.md`](POSITIONS.md).
 - **Playbook comparison view** (Phase 4) and **scheme-fit grading** (Phase 5).
 - **`inspect-save` reporting:** nothing enumerates the save's tables or confirms whether depth chart / formation subs are readable.
 
@@ -294,10 +296,9 @@ against the actual playbook.
 
 **Two dependencies found while researching Madden 27** (see [`POSITIONS.md`](POSITIONS.md)):
 
-1. **Scheme fit is per role, so the role vocabulary has to be right first.** Our defensive roles
-   still use pre-Madden-26 names (`LE`/`RE`, `LOLB`/`MLB`/`ROLB`, an invented `NB`). Grading a
-   player against `LE` when the game says `LEDG` would produce confident nonsense, so the position
-   migration should land before this phase, not after it.
+1. **Scheme fit is per role, so the role vocabulary has to be right first.** *Settled:* the
+   vocabulary migration landed ahead of this phase, so grading runs against the names the game
+   actually uses (`LEDG`/`REDG`, `SAM`/`MIKE`/`WILL`) rather than retired ones.
 2. **Madden 27 rebuilt contracts.** Guaranteed money, void years, incentives, no-trade clauses and
    custom structures all exist now, and players can negotiate outside their final year. The plan's
    cap model — and the trade analyzer's contract-fallout math — is simpler than the game it is
