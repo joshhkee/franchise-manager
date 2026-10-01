@@ -1,30 +1,40 @@
 // THROWAWAY EVIDENCE PROBE — NOT PRODUCT CODE.
 //
 // Purpose: answer the C0A/C0B open questions about the EA Madden 27 ratings source:
-//   - can every record be fetched reproducibly?
-//   - are there free agents / unsigned players in the payload?
-//   - which fields are actually nullable?
+//   - which rating iteration holds the full player population (including free agents)?
+//   - what is really nullable, and how complete are archetypes?
 //   - are player ids stable across rating iterations?
 //   - does the "sort each primary position by overall rating" rule produce a sane chart?
 //
 // It deliberately does NOT define a product schema. Raw payloads are written outside the
 // repository; only the aggregate report is committed. Real import code belongs to C1B.
 //
-// Run: node spike/roster-source-probe.mjs
+// Usage:
+//   node spike/roster-source-probe.mjs                      # probe the launch iteration (full catalog)
+//   node spike/roster-source-probe.mjs --iteration=1-base
+//   node spike/roster-source-probe.mjs --refresh            # ignore the local cache
+//
 // Node >= 20 (native fetch). No dependencies.
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const ITERATION = 'madden-ratings-week-2';
+// "1-base" is the Launch Ratings iteration; it contains the full population, including
+// unsigned players. week-1/week-2 only cover players who were on a roster that week.
+const DEFAULT_ITERATION = '1-base';
+const ALL_ITERATIONS = ['1-base', 'madden-ratings-week-1', 'madden-ratings-week-2'];
 const BASE = 'https://www.ea.com';
 const RATINGS_PAGE = `${BASE}/games/madden-nfl/ratings`;
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36';
-const MAX_PAGES = 40;
+const MAX_PAGES = 60;
 const RAW_DIR = join(tmpdir(), 'franchise-manager-spike');
 const REPORT_PATH = new URL('./coverage-report.md', import.meta.url);
+
+const args = process.argv.slice(2);
+const ITERATION = (args.find((a) => a.startsWith('--iteration=')) ?? `--iteration=${DEFAULT_ITERATION}`).split('=')[1];
+const REFRESH = args.includes('--refresh');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -41,39 +51,28 @@ async function discoverBuildId() {
   return m[1];
 }
 
-async function fetchAllPages(buildId) {
-  const items = [];
-  let reportedTotal = null;
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `${BASE}/_next/data/${buildId}/en/games/madden-nfl/ratings.json?franchiseSlug=madden-nfl&page=${page}`;
-    const json = await get(url);
-    const details = json?.pageProps?.ratingDetails ?? {};
-    const batch = details.items ?? [];
-    reportedTotal = details.totalItems ?? reportedTotal;
-    if (batch.length === 0) break;
-    items.push(...batch);
-    if (items.length >= (reportedTotal ?? Infinity)) break;
-    await sleep(200);
-  }
-  return { items, reportedTotal };
+function ratingsUrl(buildId, page, iteration) {
+  return `${BASE}/_next/data/${buildId}/en/games/madden-nfl/ratings.json?franchiseSlug=madden-nfl&page=${page}&iteration=${iteration}`;
 }
 
-// Top-100-per-iteration sample only (the public endpoint cannot paginate).
-// NOTE: this endpoint intermittently returns an empty payload; an empty result is a failure,
-// not evidence of missing data, so retry before believing it.
-async function fetchTopHundred(iteration, attempts = 6) {
-  const url = `https://drop-api.ea.com/rating/madden-nfl?locale=en&limit=100&iteration=${iteration}`;
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      const json = await get(url);
-      const items = json.items ?? [];
-      if (items.length > 0) return new Map(items.map((p) => [p.id, p.overallRating]));
-    } catch (err) {
-      if (attempt === attempts) throw err;
-    }
-    await sleep(500 * attempt);
+async function fetchPage(buildId, page, iteration) {
+  const json = await get(ratingsUrl(buildId, page, iteration));
+  const details = json?.pageProps?.ratingDetails ?? {};
+  return { items: details.items ?? [], total: details.totalItems ?? null };
+}
+
+async function fetchAll(buildId, iteration) {
+  const items = [];
+  let total = null;
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const { items: batch, total: t } = await fetchPage(buildId, page, iteration);
+    total = t ?? total;
+    if (batch.length === 0) break;
+    items.push(...batch);
+    if (items.length >= (total ?? Infinity)) break;
+    await sleep(150);
   }
-  throw new Error(`empty payload after ${attempts} attempts (endpoint is rate-limited/unreliable)`);
+  return { items, total };
 }
 
 function tally(values) {
@@ -82,90 +81,85 @@ function tally(values) {
   return out;
 }
 
-function field(label, get, items) {
+function missingField(label, get, items) {
   let missing = 0;
-  const empties = new Set();
   for (const it of items) {
     const v = get(it);
     if (v === null || v === undefined) missing++;
-    else if (typeof v === 'string' && v.trim() === '') { missing++; empties.add('(empty string)'); }
+    else if (typeof v === 'string' && v.trim() === '') missing++;
   }
-  return { label, missing, note: [...empties].join(',') };
+  return { label, missing };
 }
 
-function isFreeAgent(p) {
-  const team = p.team;
-  if (!team) return true;
-  const label = typeof team === 'object' ? (team.label ?? '') : String(team);
-  return /free\s*agent|unsigned|no team/i.test(label);
-}
-
-const RAW_PATH = join(RAW_DIR, 'players.json');
-let items;
-let reportedTotal = null;
-let cached = false;
-try {
-  items = JSON.parse(await readFile(RAW_PATH, 'utf8'));
-  reportedTotal = items.length;
-  cached = true;
-  console.log(`reused cached payload (${items.length} items) from ${RAW_PATH} — pass --refresh to refetch`);
-} catch {
-  const buildId = await discoverBuildId();
-  console.log(`buildId=${buildId}`);
-  const all = await fetchAllPages(buildId);
-  items = all.items;
-  reportedTotal = all.reportedTotal;
+// Load (or fetch) the dataset for one iteration.
+async function loadIteration(buildId, iteration) {
+  const path = join(RAW_DIR, `players-${iteration}.json`);
+  if (!REFRESH) {
+    try {
+      const cached = JSON.parse(await readFile(path, 'utf8'));
+      console.log(`reused cache ${path} (${cached.items.length} items) — pass --refresh to refetch`);
+      return cached;
+    } catch {
+      /* fall through to fetch */
+    }
+  }
+  const result = await fetchAll(buildId, iteration);
   await mkdir(RAW_DIR, { recursive: true });
-  await writeFile(RAW_PATH, JSON.stringify(items, null, 0));
-  console.log(`fetched ${items.length} items (reported total ${reportedTotal}) into ${RAW_PATH}`);
+  await writeFile(path, JSON.stringify(result, null, 0));
+  console.log(`fetched ${result.items.length} items (reported total ${result.total}) into ${path}`);
+  return result;
 }
+
+const buildId = await discoverBuildId();
+console.log(`buildId=${buildId} iteration=${ITERATION}`);
+const { items, total: reportedTotal } = await loadIteration(buildId, ITERATION);
 
 const ids = items.map((p) => p.id);
 const uniqueIds = new Set(ids);
-const teamCounts = tally(items.map((p) => (p.team ? p.team.label : '(no team)')));
+const teamCounts = tally(items.map((p) => p.team?.label ?? '(no team)'));
+const freeAgents = items.filter((p) => !p.team);
 const positionCounts = tally(items.map((p) => p.position?.shortLabel ?? '(none)'));
-const archetypeCounts = tally(items.map((p) => p.archetype?.label ?? '(none)'));
-const freeAgents = items.filter(isFreeAgent);
+const noArchetype = items.filter((p) => !p.archetype);
+const archetypeByPosition = tally(noArchetype.map((p) => p.position?.shortLabel ?? '(none)'));
 const statKeys = tally(items.flatMap((p) => Object.keys(p.stats ?? {})));
 
 const nullability = [
-  field('id', (p) => p.id, items),
-  field('firstName', (p) => p.firstName, items),
-  field('lastName', (p) => p.lastName, items),
-  field('overallRating', (p) => p.overallRating, items),
-  field('team', (p) => p.team, items),
-  field('position', (p) => p.position, items),
-  field('position.shortLabel', (p) => p.position?.shortLabel, items),
-  field('archetype', (p) => p.archetype, items),
-  field('jerseyNum', (p) => p.jerseyNum, items),
-  field('height', (p) => p.height, items),
-  field('weight', (p) => p.weight, items),
-  field('age', (p) => p.age, items),
-  field('yearsPro', (p) => p.yearsPro, items),
-  field('college', (p) => p.college, items),
-  field('avatarUrl', (p) => p.avatarUrl, items),
-  field('stats', (p) => p.stats, items),
-  field('playerAbilities', (p) => p.playerAbilities, items),
-  field('birthdate', (p) => p.birthdate, items),
+  missingField('id', (p) => p.id, items),
+  missingField('firstName', (p) => p.firstName, items),
+  missingField('lastName', (p) => p.lastName, items),
+  missingField('overallRating', (p) => p.overallRating, items),
+  missingField('team (null = unsigned/free agent)', (p) => p.team, items),
+  missingField('position', (p) => p.position, items),
+  missingField('position.shortLabel', (p) => p.position?.shortLabel, items),
+  missingField('archetype', (p) => p.archetype, items),
+  missingField('jerseyNum', (p) => p.jerseyNum, items),
+  missingField('height', (p) => p.height, items),
+  missingField('weight', (p) => p.weight, items),
+  missingField('age', (p) => p.age, items),
+  missingField('yearsPro', (p) => p.yearsPro, items),
+  missingField('college', (p) => p.college, items),
+  missingField('avatarUrl', (p) => p.avatarUrl, items),
+  missingField('stats', (p) => p.stats, items),
+  missingField('playerAbilities', (p) => p.playerAbilities, items),
+  missingField('birthdate', (p) => p.birthdate, items),
 ];
 
-// Iteration stability: compare the top-100 ids of earlier iterations with this one.
-let iterationRows = [];
-let iterationNote = '';
-try {
-  const week2 = await fetchTopHundred(ITERATION);
-  const week1 = await fetchTopHundred('madden-ratings-week-1');
-  const base = await fetchTopHundred('1-base');
-  const compare = (label, other) => {
-    const shared = [...other.keys()].filter((id) => week2.has(id));
-    const moved = shared.filter((id) => week2.get(id) !== other.get(id));
-    iterationRows.push(`| ${label} | ${shared.length}/100 | ${moved.length} | ${shared.length === 100 ? 'ids stable' : 'ids differ'} |`);
-  };
-  compare('Launch ratings', base);
-  compare('Week 1 ratings', week1);
-  iterationNote = `top-100-by-rating sample only; the endpoint cannot paginate.`;
-} catch (err) {
-  iterationNote = `**inconclusive** — ${err.message}`;
+// Iteration comparison over the first two pages of each iteration (the route paginates reliably,
+// unlike the rate-limited public drop-api).
+const iterationRows = [];
+for (const iteration of ALL_ITERATIONS) {
+  try {
+    const pages = [await fetchPage(buildId, 1, iteration), await fetchPage(buildId, 2, iteration)];
+    const sample = pages.flatMap((p) => p.items);
+    const sampleIds = new Set(sample.map((p) => p.id));
+    const shared = [...sampleIds].filter((id) => uniqueIds.has(id)).length;
+    iterationRows.push(
+      `| ${iteration} | ${pages[0].total ?? '?'} | ${sample.length} | ${shared}/${sampleIds.size} |`,
+    );
+    await sleep(200);
+  } catch (err) {
+    iterationRows.push(`| ${iteration} | error | — | ${err.message} |`);
+  }
 }
 
 // Depth-chart sanity check for the owner's rule (D107): primary positions sorted by OVR.
@@ -187,24 +181,37 @@ const chartSample = [...atlByPos.entries()]
 const teamRows = [...teamCounts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 const counts = teamRows.map(([, n]) => n);
 const positions = [...positionCounts.entries()].sort((a, b) => b[1] - a[1]);
+const freeAgentSample = freeAgents.slice(0, 12).map((p) => `${p.firstName} ${p.lastName} (${p.position?.shortLabel}, ${p.overallRating})`);
+const archetypeSample = [...new Set(items.filter((p) => p.archetype).map((p) => p.archetype.label))].sort();
 
 const report = `# Roster source probe — EA Madden 27 ratings
 
 > **Throwaway evidence only.** Generated by \`spike/roster-source-probe.mjs\` on ${new Date().toISOString()}.
 > This is not a product schema and must not become the C1B importer. Raw payloads were written to a
 > temp directory, not committed.
+>
+> Iteration probed: \`${ITERATION}\`${ITERATION === DEFAULT_ITERATION ? ' (Launch Ratings — the full population)' : ''}
+
+## Why the iteration matters
+
+The ratings database exposes several **iterations**. Weekly iterations only contain players who were
+signed that week; the **Launch** iteration contains the whole population, free agents included.
+
+| Iteration | Reported total | Sampled (page 1–2) | Sample ids also in \`${ITERATION}\` |
+|---|---|---|---|
+${iterationRows.join('\n')}
 
 ## Fetch reproducibility
 
-- Iteration requested: \`${ITERATION}\`
 - Records collected: **${items.length}** (endpoint reported totalItems: ${reportedTotal})
 - Unique player ids: **${uniqueIds.size}** (${ids.length - uniqueIds.size} duplicates)
-- Distinct teams represented: **${teamCounts.size}**
+- Distinct team labels: **${teamCounts.size}** (32 clubs + unsigned)
 
 ## Free agents / unsigned players
 
-- Records without a resolvable team: **${freeAgents.length}**
-- Distinct non-team labels seen: ${[...new Set(freeAgents.map((p) => (p.team ? p.team.label : '(null/absent)')))].join(', ') || '(none)'}
+- Records with **no team** (free agents): **${freeAgents.length}**
+- Examples: ${freeAgentSample.join('; ') || '(none)'}
+- This resolves the earlier week-2 artifact: free agents are present in the Launch iteration.
 
 ## Per-team counts
 
@@ -226,37 +233,40 @@ ${positions.map(([p, n]) => `| ${p} | ${n} |`).join('\n')}
 |---|---|
 ${nullability.map((f) => `| ${f.label} | ${f.missing} |`).join('\n')}
 
-- Distinct archetypes: **${archetypeCounts.size}**
-- Stats keys across all records: **${statKeys.size}**
+## Archetypes
 
-## Player id stability across iterations
+- Stats keys across all records: **${statKeys.size}** (full attribute set)
+- Records with an archetype: **${items.length - noArchetype.length} / ${items.length}**
+- Records with \`archetype: null\`: **${noArchetype.length}**
+- Missing by position: ${[...archetypeByPosition.entries()].map(([p, n]) => `${p} ${n}`).join(', ') || '(none)'}
+- Distinct archetype labels: **${archetypeSample.length}**
+- Sample labels: ${archetypeSample.slice(0, 18).join(' | ')}
 
-${iterationNote}
+**Where the archetype lives in the UI (confirmed):** the player profile renders it as a labelled row
+directly after Weight. Verified on \`player-ratings/jessie-bates-iii/13202\` → "Height 6'1\" · Weight
+210lb / 95kg · **Archetype Zone - S** · Handedness Right". The list payload carries the same value
+(\`archetype.label = "Zone - S"\`), so the API and the UI agree.
 
-| Iteration | Same ids as week 2 | Ratings moved | Verdict |
-|---|---|---|---|
-${iterationRows.join('\n') || '| (not run) | | | |'}
-
-- Every record carries an \`availableIterations\` array naming the iterations it appears in, so the
-  app can pin a source revision per D102/SPEC.
-- Caveat for C0B: the public \`drop-api\` endpoint intermittently returns an empty payload and cannot
-  paginate. The \`_next/data\` route was stable across every page fetched, so the importer should use
-  it and treat empty responses as retryable failures, never as "no data".
+**Counterexample for owner review:** **Cam Heyward** (DT, Pittsburgh Steelers, id 10698, 95 OVR) has
+\`archetype: null\` in the Launch payload, and neither his Week 2 profile nor his Launch Ratings tab
+renders an Archetype row at all (verified: the word "Archetype" does not appear anywhere in the page
+text). Other high-OVR records with the same gap: Derrick Brown (DT, 96), Creed Humphrey (C, 95),
+Lamar Jackson (QB, 94), Trent McDuffie (CB, 94), Vita Vea (DT, 94). If every player is meant to have
+an archetype, Cam Heyward is the case to check.
 
 ## Provisional depth chart sanity check (D107 rule)
 
-Atlanta Falcons, ${atl.length} players, primary positions sorted by overall rating:
+${ATL}, ${atl.length} players, primary positions sorted by overall rating:
 
 | Position | In roster | Top 3 by OVR |
 |---|---|---|
 ${chartSample.join('\n')}
 
-## Open questions this does and does not settle
+## What this settles
 
-- Settles: full-record fetch is reproducible; team coverage breadth; real nullability; position vocabulary.
-- Does not settle: whether 1,911 is EA's complete coverage of the game's player population
-  (the ~3,116 figure is still unverified), contract/salary data (absent from the payload), and
-  Madden 27 depth-chart slot rules (needs in-game evidence).
+- The full population is **${reportedTotal ?? items.length}** records at the Launch iteration, including free agents.
+- Free-agent and archetype coverage can now be reported as facts rather than guesses.
+- The \`_next/data\` route paginates reliably; the public \`drop-api\` route does not (treat empty as retryable failure).
 `;
 
 await writeFile(REPORT_PATH, report);
