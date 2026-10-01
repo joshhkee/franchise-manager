@@ -20,7 +20,8 @@ Dev/test environment:        n/a (docs-only)
 
 ## Status
 
-- State: **review delivered; findings require owner disposition.** Not an accepted C0B precondition.
+- State: **review revised after owner feedback.** R1 accepted by owner, R2 retracted as a week-2 artifact,
+  R5 open pending owner confirmation. Not an accepted C0B precondition (independence caveat below).
 - Updated by: same agent as the primary evidence register — **independence caveat applies**; see the
   report's disclosure section. D101's separate-thread intent is not satisfied by this delivery.
 
@@ -37,11 +38,11 @@ Dev/test environment:        n/a (docs-only)
 
 | ID | Severity | Issue | Disposition needed |
 |---|---|---|---|
-| R1 | blocker | Source rights unresolved for Civil.GG art/data **and** EA ratings data | Owner risk acceptance or permission |
-| R2 | blocker | Zero free agents in the EA source vs SPEC's free-agent search | Owner scope decision |
+| R1 | ~~blocker~~ resolved | Source rights for Civil.GG art/data and EA ratings data | Owner **accepted** (personal/non-commercial; attribution + reference-by-URL constraint) |
+| R2 | ~~blocker~~ resolved | "Zero free agents" was a week-2 artifact; Launch iteration has 1,240 unsigned players | Baseline must be the Launch iteration |
 | R3 | important | EA ratings positions conflated with Madden 27 depth-chart slots | Correction in C0B |
-| R4 | important | Player id stability unverified; endpoint undocumented + buildId-dependent | C0B identity policy |
-| R5 | important | 23% missing archetypes will bias C4B fit features | C0B missing-value policy |
+| R4 | important (reduced) | Player ids confirmed stable 200/200 across iterations; buildId/endpoint fragility remains | C0B source-pinning + retry policy |
+| R5 | important | 25% missing archetypes (782/3,111); Cam Heyward named as the counterexample | Owner confirmation, then C0B policy |
 | R6 | important | One production DB + previews on = preview write hazard | Vercel Preview scope config |
 | R7 | important | Diagram orientation / slot mapping unverified | In-game evidence before C3A |
 | R8 | important | No automatic backups / inactivity pausing under-stated | Carry recovery into C0B |
@@ -68,8 +69,9 @@ Full detail and proposed corrections: [docs/reviews/C0A-independent-review.md](.
 
 ## Open items
 
-- **Blocker R1:** rights for Civil.GG art/data and EA ratings data.
-- **Blocker R2:** free-agent source or reduced scope.
+- **Open:** R5 — owner confirmation on the 782 null-archetype records (example: Cam Heyward).
+- **Resolved:** R1 (owner accepted risk, attribution + reference-by-URL constraint) and R2 (Launch
+  iteration carries 1,240 free agents).
 - Still-open C0A outputs: Madden 27 depth-chart matrix, representative Falcons mappings, stock-book
   inventory, special-teams feasibility.
 - Independence: a separately owned reviewer should run, or the owner records a waiver.
