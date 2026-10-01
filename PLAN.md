@@ -307,6 +307,13 @@ are the game's and which are ours. Trade log, analyzer, rookie entry and tracked
 already existed. Still open in this phase: the analyzer's cap and depth-chart fallout,
 and a draft board grouped by year and round.
 
+**Trade-target board — planned, not built.** The next piece of this phase turns the scouting
+view into a ranking of every player on every other club by scheme fit and trade value. It needs
+two models the app does not have yet — a continuous fit score
+([`SCHEME_FIT.md`](SCHEME_FIT.md) §7–8) and a positional value model
+([`TRADE_TARGETS.md`](TRADE_TARGETS.md)) — so the research, the build phases and the open
+decisions live in that document. Nothing of it is written yet.
+
 **Two dependencies found while researching Madden 27** (see [`POSITIONS.md`](POSITIONS.md)):
 
 1. **Scheme fit is per role, so the role vocabulary has to be right first.** *Settled:* the
@@ -368,3 +375,5 @@ the trade log and analyzer produce sane values on a real trade.
 - [`POSITIONS.md`](POSITIONS.md) — Madden 26/27 primary vs package positions, the gap against this repo, and the migration plan.
 - [`README.md`](README.md) — what the app does today, and how to run it.
 - [`DESIGN.md`](DESIGN.md) — the design system every UI change must follow (serif headings, team-driven accent, WCAG contract enforced by tests).
+- [`SCHEME_FIT.md`](SCHEME_FIT.md) — how fit is graded today, and the football research behind the planned fit score.
+- [`TRADE_TARGETS.md`](TRADE_TARGETS.md) — the value model, the roster-need model, and the plan for the ranked trade-target board.

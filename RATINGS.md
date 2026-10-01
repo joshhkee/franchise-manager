@@ -305,7 +305,7 @@ standing rule is to label estimates and assumptions.
 
 | Missing | Consequence |
 | --- | --- |
-| Contracts, cap hits, cap space | **No cap maths, and trade value can only be age/OVR-based.** Check what `src/domain/tradeValue.ts` actually requires before promising a trade engine. |
+| Contracts, cap hits, cap space | **No cap maths, and trade value can only be age/OVR-based.** Check what `src/domain/tradeValue.ts` actually requires before promising a trade engine; [`TRADE_TARGETS.md`](TRADE_TARGETS.md) §2.4 and §7 record the researched replacement and what it cannot compute without contracts. |
 | Star vs Normal development | Abilities distinguish X-Factor and Superstar only. A player with no abilities is written as `devTrait: null` (**unknown**), never guessed as Normal — mislabelling a Star as Normal understates a real asset. |
 | Depth chart order | The feed is a player list, not a depth chart. The initial Falcons depth chart comes from our own `buildTeamDepthChart` logic ([`depthChartSeed.ts`](src/domain/depthChartSeed.ts)) and reads position and overall only — no roster status, no practice squad, no in-game chart. |
 | Injuries, scheme choices, franchise state | Unchanged from today: entered in the app or, later, read from a save file. Phase 1 remains **deferred**. |

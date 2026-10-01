@@ -303,7 +303,7 @@ of Phase 3 is multi-plan support, which belongs with Phase 5's plan diffing.
 | **2 — Team overview** | **Done** | Position groups, cap sheet, expiring deals, need scoring, 3-deep views. |
 | **3 — Depth chart + formation planner** | **Nearly done** | Delivered 2026-09-30: the five **special-teams units** (field goal, punt, punt return, kickoff, kick return) as seeded formations; the **packages** view (`/packages`); and **checklist export** to Markdown/CSV (`/api/checklist/export`). Remaining: multi-plan selection and diffing. |
 | **4 — Playbook data + comparison** | **Partly** | Scraper and 6 seed playbooks (34 formations, including the five special-teams units) exist. **No playbook comparer**; no formation editor beyond per-slot rebinding. |
-| **5 — Front office — active** | **Mostly** | Scheme fit landed 2026-09-30: `/scheme` grades every starting role on Madden's own archetypes plus an attribute floor, lists mismatches, and diffs the plan across playbooks. The same day: **real Madden 27 rosters** (scraped artifact + import wiring, so every grade now uses EA's stored archetype) and the **scouting screen** (`/league`, `/league/[teamId]`, trade shortlist). Trade log, analyzer, rookie entry and tracked picks already existed. **Depth-chart seeding** landed the same day: [`depthChartSeed.ts`](src/domain/depthChartSeed.ts) derives a chart from position and overall, `seedDepthChartFromRoster` refuses to overwrite without an explicit replace, and `/depth-chart` (or `npm run seed:chart`) writes both layers from any real roster. Also the same day: **free agents and attributes** — the scraper reads the launch set as well as the current update (3,116 players, 1,196 unsigned), and the attributes surface on the dashboard and the scouting sort. And **the full stat sheet**: height and weight now arrive with the import, every player's name anywhere in the app opens a dialog with all 53 attributes, and `/players` ranks the whole league by any one of them, defaulting to your own club through a teams checklist. Remaining: the analyzer's cap and depth-chart fallout, and a draft board grouped by year/round. |
+| **5 — Front office — active** | **Mostly** | Scheme fit landed 2026-09-30: `/scheme` grades every starting role on Madden's own archetypes plus an attribute floor, lists mismatches, and diffs the plan across playbooks. The same day: **real Madden 27 rosters** (scraped artifact + import wiring, so every grade now uses EA's stored archetype) and the **scouting screen** (`/league`, `/league/[teamId]`, trade shortlist). Trade log, analyzer, rookie entry and tracked picks already existed. **Depth-chart seeding** landed the same day: [`depthChartSeed.ts`](src/domain/depthChartSeed.ts) derives a chart from position and overall, `seedDepthChartFromRoster` refuses to overwrite without an explicit replace, and `/depth-chart` (or `npm run seed:chart`) writes both layers from any real roster. Also the same day: **free agents and attributes** — the scraper reads the launch set as well as the current update (3,116 players, 1,196 unsigned), and the attributes surface on the dashboard and the scouting sort. And **the full stat sheet**: height and weight now arrive with the import, every player's name anywhere in the app opens a dialog with all 53 attributes, and `/players` ranks the whole league by any one of them, defaulting to your own club through a teams checklist. Remaining: the analyzer's cap and depth-chart fallout, and a draft board grouped by year/round. **Next up — the trade-target board:** ranking every player on every other club by scheme fit and trade value, which needs a continuous fit score and a positional value model first. Research, model and build plan are in [`TRADE_TARGETS.md`](TRADE_TARGETS.md); nothing of it is built yet. |
 | **6 — Hardening** | **Partly** | Suites cover slot validation, conflicts, bulk edits, resolution, the call engine, trade value and the WCAG theme contract. No schema-mismatch error UX; save-import idempotency applies only if Phase 1 is revived. |
 | **7 — Write-back** | **Deferred by design** | Only if a future save spike shows it is safely writable *and* the owner asks for it. |
 
@@ -489,6 +489,12 @@ authenticated**, so step 6 needs `gh auth login` once.
   delivery mechanism.
 - **Cap rules are approximated** → show raw contract fields next to computed figures and label
   estimates.
+- **Fit grades a bucket, and value has no positional premium.** `gradeRoleFit` returns five
+  categories, so it cannot *rank* three thousand players, and `playerValue` prices a 90-overall
+  running back and a 90-overall quarterback identically. Both have to change before a trade board
+  can order the league: the researched fit score is in
+  [`SCHEME_FIT.md`](SCHEME_FIT.md) §7–8 and the value model in
+  [`TRADE_TARGETS.md`](TRADE_TARGETS.md).
 - **Scraping is ToS-grey and fragile** → one-off script, committed JSON with attribution, a
   manual editing path, madden-school.com as a secondary source.
 - **The Madden 27 ratings route will change without notice.** EA's `drop-api` silently answers a
@@ -524,12 +530,16 @@ authenticated**, so step 6 needs `gh auth login` once.
 | 5 | ~~When to migrate the position vocabulary?~~ **Resolved** (2026-09-30): it landed before Phase 5, as the plan required — `LE`/`RE` → `LEDG`/`REDG`, `LOLB`/`MLB`/`ROLB` → `SAM`/`MIKE`/`WILL`, `NB` → `SLCB`, `LS` promoted to primary, `GAD` added, `H` retired. | — |
 | 6 | **Confirm the open position questions in game** (ranks per position? does a front ever consult `SLCB`? what should `GAD` change?). | The cheap ones are answered; three remain in [`POSITIONS.md`](POSITIONS.md) §7, and the 3-3-5 and 3-4 Bear look are now settled from the diagrams. |
 | 7 | **Whether `chokidar` save-folder watching is wanted** | Convenience vs. complexity; optional, and only relevant if Phase 1 is revived. |
+| 8 | **Does the trade-target board replace `/league`, or get its own route?** | One screen that answers "who should I go get" was the ask; the 32-team map stays either way. Detail in [`TRADE_TARGETS.md`](TRADE_TARGETS.md) §9. |
+| 9 | **Rank players without contracts, or require cap-hit entry first?** | The feed publishes none, so contract surplus is unavailable today. Recommendation: rank on talent × position × age, label it, and apply surplus only once a cap hit exists. |
+| 10 | **Scope order for the trade work — fit score + value first, or value alone on `/transactions`? And one PR or two?** | Recommendation: the fit score and value model together (a ranking is meaningless without both), then the board. |
 
 ## Related documents
 
 - [`PLAN.md`](PLAN.md) — the implementation plan: scope, stack, data model, phase briefs, risks, phase-exit workflow.
 - [`POSITIONS.md`](POSITIONS.md) — Madden 26/27 primary vs package positions, what this repo gets wrong, and the migration plan.
-- [`SCHEME_FIT.md`](SCHEME_FIT.md) — how scheme fit is graded, and the archetype and scheme tables it grades against.
+- [`SCHEME_FIT.md`](SCHEME_FIT.md) — how scheme fit is graded, the archetype and scheme tables it grades against, and the football research behind the planned fit score.
+- [`TRADE_TARGETS.md`](TRADE_TARGETS.md) — how players are valued, how a roster need is detected, and the plan for the ranked trade-target board.
 - [`RATINGS.md`](RATINGS.md) — Madden 27 roster scraping: the working source, EA's own position list, the silent-empty failure mode, and the build plan.
 - [`DESIGN.md`](DESIGN.md) — the design contract every UI change must follow.
 - [`README.md`](README.md) — what the app does today, and how to run and deploy it.

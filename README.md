@@ -327,3 +327,7 @@ predictable: repeat the *look*, change the *concept*.
 - **Special-teams coverage jobs are hand-authored.** The specialists (`K`, `P`, `LS`, `KR`,
   `PR`) come from the depth chart, but *which* backup covers a punt is our reading of the unit, not
   something the game tells us. The checklist shows the lineup so you can correct it in one place.
+- **Scouting does not rank by value yet.** `/league` grades every player against your schemes and
+  keeps a shortlist, but fit is five buckets rather than a score, and trade value has no positional
+  premium — so the screen can tell you who *fits* but not who is the best **target**. The researched
+  models and the build plan are in [TRADE_TARGETS.md](TRADE_TARGETS.md).

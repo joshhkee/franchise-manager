@@ -4,9 +4,15 @@
 records what the game models, where the data came from, which parts are the game's and which
 are our own additions, and what is still unconfirmed.
 
-Researched **2026-09-30**. The archetype and scheme tables are a one-time committed scrape
-(`madden.tools`), never fetched at runtime — the same rule as the team colour palettes. See
-[`POSITIONS.md`](POSITIONS.md) for the position vocabulary this builds on.
+Sections 1–6 and 10 are the shipped model: the game's archetype and scheme tables, how we grade,
+and the sources behind them. **Sections 7–8 are research for the next step** — what real football
+asks of each position, and the attribute-blueprint model planned on top of it. Section 9 is what
+we still get wrong or leave open. The trade side of that work lives in
+[`TRADE_TARGETS.md`](TRADE_TARGETS.md).
+
+Researched **2026-09-30**; sections 7–8 added **2026-10-01**. The archetype and scheme tables are
+a one-time committed scrape (`madden.tools`), never fetched at runtime — the same rule as the team
+colour palettes. See [`POSITIONS.md`](POSITIONS.md) for the position vocabulary this builds on.
 
 ---
 
@@ -207,7 +213,122 @@ plan compared across playbooks, which is what Phase 5's wording asks for.
 
 ---
 
-## 7. What we get wrong, and what is still open
+## 7. What real football asks for
+
+**Researched 2026-10-01.** Sections 2–4 above are the *game's* model. This section is
+*football's* — what the same schemes demand from the same positions on a real field — and it
+exists to feed the attribute-blueprint model in §8. It is our reading of public coaching and
+analysis sources (§10), not something Madden publishes.
+
+### 7.1 The passing families
+
+Chris B. Brown's taxonomy still describes most of the league, and the tallies bear it out: across
+2022–24 roughly **two thirds of NFL offenses ran a West Coast system**, with **Erhardt-Perkins**
+and **Air Coryell** splitting most of the rest and only a handful of spread or option teams.
+
+| Family | How it attacks | What it asks of players |
+| --- | --- | --- |
+| West Coast (Walsh) | Timing and rhythm; short to intermediate, YAC, horizontal stretch | Anticipation and short/mid accuracy over a rocket arm; receivers who win with route precision; tight ends heavily involved; backs who can catch |
+| Air Coryell | Vertically, off a numbered route tree, with deep shots off play-action | A strong-armed, deep-accurate quarterback; big outside receivers who win at the catch point; a protection-first line |
+| Erhardt-Perkins | Concepts rather than routes; the same concept from any formation | A quarterback who reads pictures; interchangeable skill players who can align anywhere; backs targeted in space |
+| Air Raid / Run and Shoot | Spread the field, throw to set up the run, option routes | Accuracy and decision-making; slot receivers; route adjusters with high awareness; little power run |
+| Spread / Pistol | Shotgun spacing plus a running quarterback threat | A mobile quarterback who punishes a light box; receiving backs; agile linemen |
+
+### 7.2 The run game is its own axis
+
+Zone and gap are independent of the passing family, and they are the single most actionable fit
+axis in the sport:
+
+- **Zone** — outside/inside zone, double teams and lateral movement. Wants *smaller, more
+  athletic* linemen who win with footwork rather than force, and a one-cut back with vision.
+- **Gap / power** — pulling linemen and down blocks, angles over athleticism. Wants *bigger,
+  stronger* linemen who can move a defender against his will, and a back who absorbs contact.
+
+That maps onto the archetype table cleanly — `Agile` versus `Power` on the line, `Elusive Back`
+versus `Power Back` — which is why the archetype vocabulary is a usable starting point even
+though it is coarse.
+
+### 7.3 Defense: front and shell
+
+Two independent axes, neither of which a Madden scheme name captures fully:
+
+- **Front.** A **3-4** asks its linemen to two-gap (size and strength over penetration) and its
+  outside linebackers to stand up and rush; a **4-3** asks four linemen to get upfield and its
+  WILL to run. The repo's own migrated front shapes already encode the difference — a 3-4 fields
+  two off-ball linebackers where a 4-3 fields three.
+- **Shell.** **Single-high** (Cover 1/3) wants a rangy free safety and corners who can hold up in
+  man; **two-high** (Cover 2/4, the Fangio family that now dominates the league) wants disciplined,
+  sure-tackling defensive backs, linebackers who can run the seam, and safeties who are close to
+  interchangeable. Disguise-heavy systems pay for players who can play more than one job.
+
+### 7.4 Per-unit demands
+
+The attributes that actually decide a fit, and the axis that moves them. The attribute names are
+the EA keys already in `ATTRIBUTE_LABELS`.
+
+| Unit | Deciding attributes | Scheme axis |
+| --- | --- | --- |
+| QB | short/mid/deep accuracy, throw power, throw under pressure, throw on the run, awareness, play action | Air Raid → short + mid + awareness; Coryell → power + deep; Spread/Pistol → on the run + speed |
+| HB | speed, acceleration, change of direction, BC vision, break tackle, carrying, catching | zone → COD + vision; gap → strength + trucking; spread/EP → catching + route running |
+| OL | pass block (+ finesse/power), run block (finesse/power), impact blocking, awareness, strength, agility, **weight** | zone → agility + finesse, and *lighter*; gap → strength + power, and *heavier* |
+| WR | route running by depth, catching, catch in traffic, release, COD, speed, **height** | Coryell → deep route + speed + release; West Coast → short/mid + COD; Air Raid/Spread → slot attributes |
+| TE | catching, route running, run block, impact blocking, strength | West Coast/Coryell → receiving; power run → blocking |
+| EDGE | finesse versus power moves, block shedding, pursuit, tackle, **weight** | speed-rush schemes → finesse + acceleration; 3-4/base → power + strength + run defence |
+| DT | strength, block shedding, power moves, pursuit | 3-4/NT → two-gap strength; 4-3 under → penetration |
+| LB | tackle, hit power, pursuit, block shedding, zone/man coverage, play recognition, speed | Tampa 2/two-high → coverage + range; 46/3-4 → run support + blitz |
+| CB | man, zone, press, speed, change of direction, play recognition, **height** | man/single-high → press + speed; two-high/zone → zone + recognition + tackling |
+| S | zone, man, play recognition, pursuit, tackle, hit power, speed | single-high FS → range + zone; box SS → tackle + hit power |
+
+**Height and weight are now on file.** The import writes both (`height_inches`, `weight_lbs`), so a
+blueprint can use measurables where the position genuinely demands a body type instead of grading
+a 300 lb guard the same as a 285 lb zone guard. The EA feed's `abilities` string is stored per
+player too, and is a real differentiator among star players.
+
+### 7.5 What to borrow from the college game
+
+The CFB game's scheme taxonomy is *structural* where Madden's is *identity*: it lists fronts and
+personnel families (4-2-5, 3-3-5 Tite, 3-4 Multiple) alongside offense styles (Pro Style, Air
+Raid, Veer and Shoot, Spread Option, Multiple, Option), and its dynasty mode treats "recruit to
+your scheme" as a per-position checklist. Two things transfer:
+
+1. **A structure layer.** `classifyFormation` in [`families.ts`](src/domain/families.ts) already
+   derives `nickel`, `dime`, `4-3`, `3-4` and `quarter` from our own formations, so the app can say
+   "your defence is really a 4-2-5" without trusting a Madden scheme label.
+2. **The blueprint idea.** Per scheme and per role, publish the profile you are shopping for —
+   which is exactly the model in §8.
+
+---
+
+## 8. The planned blueprint model (not built yet)
+
+Today a fit is an archetype match plus a flat `FIT_FLOOR` check on the archetype's six attributes,
+and the output is a letter. That answers "does he fit the label" but cannot *order* players, which
+is what a trade board needs. The planned upgrade, recorded here so the research above has a home:
+
+1. **Weighted attributes.** Give each archetype's attributes weights (the published list is
+   ordered, so first-listed counts most) instead of a flat pass/fail, and let the scheme profile
+   re-weight them — a wide-zone line weights agility and footwork, a gap scheme weights strength
+   and power.
+2. **A researched blueprint per (scheme, unit).** The §7.4 table turned into explicit weights and
+   floors, with the zone/gap, man/zone and single-/two-high axes carried as separate sub-scores so
+   a player's *shape* is visible, not just a verdict.
+3. **A continuous `fitScore` (0–100) alongside the letter.** Letters keep the UI honest; the score
+   is what ranks three thousand players. `fitDelta` against the current starter is the actionable
+   number.
+4. **Measurables and abilities as modifiers**, not primary inputs — height/weight where the
+   position demands a body type, abilities as a differentiator among stars.
+5. **Archetype match stays a strong multiplier.** Madden pays for the archetype, so a perfect
+   athletic profile at the wrong archetype still tops out below an `ideal`.
+
+This is **our** model. The game grades on archetype alone, which is why the UI has to keep saying
+so wherever it prints a score (see §1 and §4).
+
+The trade side of this work (what a fit is worth in a deal) lives in
+[`TRADE_TARGETS.md`](TRADE_TARGETS.md).
+
+---
+
+## 9. What we get wrong, and what is still open
 
 **Known limitations**
 
@@ -233,7 +354,7 @@ plan compared across playbooks, which is what Phase 5's wording asks for.
 
 ---
 
-## 8. Sources
+## 10. Sources
 
 - **madden.tools, schemes hub** (Madden 27) — the 21 schemes, their identities, key archetypes
   and example teams. https://madden.tools/schemes
@@ -249,6 +370,28 @@ plan compared across playbooks, which is what Phase 5's wording asks for.
 - **[`POSITIONS.md`](POSITIONS.md)** — the position vocabulary, the civil.gg front shapes, and
   why package roles have no archetypes of their own.
 
+*Section 7 (real-football demands):*
+
+- **Chris B. Brown, "Speak My Language"** (Grantland) and *The Art of Smart Football* — the
+  West Coast / Air Coryell / Erhardt-Perkins taxonomy that §7.1 follows.
+  https://grantland.com/features/how-terminology-erhardt-perkins-system-helped-maintain-dominance-tom-brady-patriots/
+- **Bandit Football, "Schemers Have No Aura"** — the 2022–24 scheme tallies behind the "two
+  thirds West Coast" figure, and the note that differential stats between families are mostly
+  noise. https://www.bandit.football/schemers-have-no-aura/
+- **USA Football, "Fit your offensive linemen to the blocking scheme"** — the zone-versus-gap body
+  type split in §7.2 (smaller and athletic versus bigger and stronger).
+  https://blogs.usafootball.com/blog/1066/fit-your-offensive-linemen-to-the-blocking-scheme
+- **The Athletic / MatchQuarters / Read Optional** on the Fangio family — two-high structure,
+  disguise and what it asks of safeties, linebackers and corners (§7.3).
+  https://www.nytimes.com/athletic/3311028/2022/05/24/vic-fangio-defense-analysis/
+- **EA SPORTS, "College Football 26 Dynasty & Team Builder Deep Dive"** — the structural scheme
+  taxonomy and archetype-per-scheme framing borrowed in §7.5.
+  https://www.ea.com/games/ea-sports-college-football/college-football-26/news/cfb26-campus-huddle-dynasty-deep-dive
+
 **Unverified:** the archetype and scheme data is a third-party reference, not read from the
 game. The archetype *codes* in the EA feed are confirmed from EA's own API. Nothing here is
 `verified` in the app's sense until it is checked against a real franchise.
+
+Section 7 is a different kind of source again: public coaching and analysis writing, read on
+2026-10-01, not measured from the game. It is our reading of how the sport works, and it is
+labelled that way wherever it reaches the UI.
