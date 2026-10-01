@@ -155,8 +155,8 @@ component class (`.card`, `.btn`, `.field`, `.note`). If you catch yourself typi
 4. Optionally `npm run scrape:colors` to re-derive from Wikipedia and diff, and
    `npm run audit:colors` to see every ratio.
 
-Fictional or unlisted teams fall back to the neutral palette by design — the demo
-franchise should not pretend to be somebody's real club.
+Unlisted teams fall back to the neutral palette by design — a club we have no
+palette for should not pretend to be somebody's real team.
 
 ## 8. Checklist for any UI change
 
@@ -165,6 +165,6 @@ franchise should not pretend to be somebody's real club.
 - [ ] Text meets AA on the surface it actually sits on, in both modes.
 - [ ] Numbers are `tabular-nums`; headings are serif; labels are sans.
 - [ ] Focus states present and accent-coloured.
-- [ ] Works with the neutral (demo) team and with a low-contrast team like the
+- [ ] Works with a team on the neutral palette and with a low-contrast team like the
       Raiders or the Steelers.
 - [ ] `npm test` green, including the theme contract.

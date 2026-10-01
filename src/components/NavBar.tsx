@@ -11,6 +11,8 @@ const LINKS = [
   { href: '/packages', label: 'Packages' },
   { href: '/personnel', label: 'Personnel' },
   { href: '/scheme', label: 'Scheme Fit' },
+  { href: '/league', label: 'Scouting' },
+  { href: '/players', label: 'Player Stats' },
   { href: '/callsheet', label: 'Call Sheet' },
   { href: '/checklist', label: 'Checklist' },
   { href: '/transactions', label: 'Trades & Draft' },

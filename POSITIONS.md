@@ -217,7 +217,6 @@ Landed. The counts below are what the change touched:
 | [src/domain/depthSlots.ts](src/domain/depthSlots.ts) | 45 | The vocabulary itself |
 | [tests/fixtures.ts](tests/fixtures.ts) | 37 | Test fixtures |
 | [src/lib/importers/civilPlaybooks.ts](src/lib/importers/civilPlaybooks.ts) | 25 | The defensive slot builder |
-| [src/data/seed/roster.ts](src/data/seed/roster.ts) | 13 | Demo roster `position` values |
 | [tests/civilPlaybooks.spec.ts](tests/civilPlaybooks.spec.ts) | 10 | Assertions naming roles |
 | [src/app/transactions/page.tsx](src/app/transactions/page.tsx) | 5 | Position labels in the trade view |
 | [tests/slotRanks.spec.ts](tests/slotRanks.spec.ts), [tests/impact.spec.ts](tests/impact.spec.ts) | 3 | Fixtures |

@@ -77,6 +77,11 @@ describe('the archetype table', () => {
     expect(resolveArchetypeId('DE_PowerRusher')).toBe('edge-power-rusher');
     expect(resolveArchetypeId('OLB_SpeedRusher')).toBe('edge-speed-rusher');
     expect(resolveArchetypeId('MLB_FieldGeneral')).toBe('mike-field-general');
+    // Madden 27's feed reports guards as G_*; the older OG_* codes still resolve.
+    expect(resolveArchetypeId('G_Power')).toBe('ol-power');
+    expect(resolveArchetypeId('G_PassProtector')).toBe('ol-pass-protector');
+    expect(resolveArchetypeId('G_Agile')).toBe('ol-agile');
+    expect(resolveArchetypeId('KP_Power')).toBeNull();
     expect(resolveArchetypeId('cb-mantoMan')).toBeNull();
     expect(resolveArchetypeId('CB_MantoMan')).toBe('cb-man');
     expect(resolveArchetypeId('qb-field-general')).toBe('qb-field-general');

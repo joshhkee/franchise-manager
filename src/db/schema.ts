@@ -34,6 +34,7 @@ export const players = pgTable('players', {
   overall: integer('overall').notNull(),
   age: integer('age'),
   heightInches: integer('height_inches'),
+  weightLbs: integer('weight_lbs'),
   college: text('college'),
   ratings: jsonb('ratings').$type<Record<string, number | string>>().notNull().default({}),
   salary: integer('salary'),
@@ -59,12 +60,26 @@ export const franchisePlayers = pgTable('franchise_players', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Players on other teams the owner is tracking as trade targets.
+ *
+ * A shortlist, not a trade: nothing here moves a player or values a deal — it just
+ * marks who to keep an eye on while scouting. The trade analyzer still does the maths.
+ */
+export const tradeTargets = pgTable('trade_targets', {
+  playerId: text('player_id').primaryKey(),
+  leagueId: text('league_id').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const leagues = pgTable('leagues', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   season: integer('season').notNull().default(2026),
   week: integer('week').notNull().default(1),
-  userTeamId: text('user_team_id').notNull(),
+  /** Null until you pick a club to play as; the ratings import does not choose for you. */
+  userTeamId: text('user_team_id'),
   capTotal: integer('cap_total').notNull().default(279_000_000),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

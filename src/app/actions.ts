@@ -22,6 +22,10 @@ import {
   upsertFranchisePlayer,
   upsertSubs,
   movePlayersToTeam,
+  addTradeTarget,
+  removeTradeTarget,
+  seedDepthChartFromRoster,
+  setUserTeam,
   DEFAULT_LEAGUE_ID,
 } from '@/db/repo';
 import { getDb } from '@/db/index';
@@ -35,6 +39,7 @@ import type { Concept } from '@/domain/concepts';
 import type { FormationSub, Side } from '@/domain/types';
 import { restoreSnapshot, type Snapshot } from '@/db/snapshot';
 import { fetchRatings } from '@/lib/importers/eaRatings';
+import { findLatestDropArtifact, loadDropArtifact } from '@/lib/importers/dropArtifact';
 import { requireSession } from '@/lib/auth';
 import { resolveThemeMode } from '@/lib/theme';
 import { writeThemeMode } from '@/lib/themeCookie';
@@ -427,11 +432,63 @@ export async function addRookieAction(formData: FormData): Promise<void> {
 }
 
 /** Re-import real Madden rosters from EA's public ratings feed. */
+/**
+ * Build the depth chart from a real Madden 27 roster.
+ *
+ * Seeding is an explicit choice with an explicit replace flag, because a chart you have
+ * edited is authored work and must never be silently overwritten.
+ */
+export async function seedDepthChartAction(formData: FormData): Promise<void> {
+  await requireSession();
+  const teamId = text(formData, 'teamId');
+  const force = text(formData, 'force') === '1';
+  const makeTeam = text(formData, 'makeTeam') === '1';
+  if (!teamId) return;
+
+  let query: string;
+  try {
+    const result = await seedDepthChartFromRoster(teamId, { force });
+    if (makeTeam) await setUserTeam(teamId);
+    const params = new URLSearchParams({ seeded: result.teamId });
+    if (makeTeam) params.set('teamSet', '1');
+    if (result.empty.length) params.set('unfilled', result.empty.join(','));
+    query = params.toString();
+  } catch (error) {
+    query = `seedError=${encodeURIComponent((error as Error).message.slice(0, 200))}`;
+  }
+
+  revalidatePath('/', 'layout');
+  revalidatePath('/depth-chart');
+  revalidatePath('/team');
+  revalidatePath('/scheme');
+  revalidatePath('/personnel');
+  revalidatePath('/formations');
+  revalidatePath('/checklist');
+  redirect(`/depth-chart?${query}`);
+}
+
+/** Add or remove a league player from the trade shortlist. */
+export async function setTradeTargetAction(formData: FormData): Promise<void> {
+  await requireSession();
+  const playerId = text(formData, 'playerId');
+  if (!playerId) return;
+  if (text(formData, 'intent') === 'remove') {
+    await removeTradeTarget(playerId);
+  } else {
+    await addTradeTarget(playerId, optional(formData, 'note'));
+  }
+  revalidatePath('/league', 'layout');
+}
+
 export async function importRatingsAction(): Promise<void> {
   await requireSession();
   await applyMigrations();
   try {
-    const result = await fetchRatings();
+    // Prefer the committed Madden 27 artifact. Fetching EA at request time would
+    // silently produce an empty league outside a browser context, so the only
+    // network path stays the older API as a fallback. See RATINGS.md §2.1.
+    const artifact = await findLatestDropArtifact();
+    const result = artifact ? await loadDropArtifact(artifact) : await fetchRatings();
     await persistRatings(result);
     revalidatePath('/', 'layout');
     redirect(`/?imported=${result.players.length}&slug=${result.slug}`);

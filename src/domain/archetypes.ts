@@ -136,6 +136,100 @@ export const ATTRIBUTE_LABELS: Record<EaAttributeKey, string> = {
 };
 
 /**
+ * The whole attribute sheet, grouped the way a player card reads.
+ *
+ * The Madden 27 feed publishes 53 numeric attributes for every player, and a flat list
+ * of 53 is unreadable. The groups are the game's own vocabulary — physical, passing,
+ * ball carrier, receiving, blocking, coverage, front seven, special teams — so a card
+ * can show everything and still be scannable, and a lineman's card is not buried under
+ * kick power. Every key in `ATTRIBUTE_LABELS` belongs to exactly one group; a test
+ * holds that line so a new attribute cannot be added and forgotten here.
+ */
+export const ATTRIBUTE_GROUPS: { id: string; label: string; attributes: EaAttributeKey[] }[] = [
+  {
+    id: 'physical',
+    label: 'Physical',
+    attributes: [
+      'speed',
+      'acceleration',
+      'agility',
+      'changeOfDirection',
+      'jumping',
+      'strength',
+      'stamina',
+      'injury',
+      'toughness',
+    ],
+  },
+  { id: 'mental', label: 'Mental', attributes: ['awareness', 'playRecognition'] },
+  {
+    id: 'passing',
+    label: 'Passing',
+    attributes: [
+      'throwPower',
+      'throwAccuracyDeep',
+      'throwAccuracyMid',
+      'throwAccuracyShort',
+      'throwOnTheRun',
+      'throwUnderPressure',
+      'playAction',
+      'breakSack',
+    ],
+  },
+  {
+    id: 'ball-carrier',
+    label: 'Ball carrier',
+    attributes: [
+      'carrying',
+      'bCVision',
+      'breakTackle',
+      'trucking',
+      'stiffArm',
+      'spinMove',
+      'jukeMove',
+    ],
+  },
+  {
+    id: 'receiving',
+    label: 'Receiving',
+    attributes: [
+      'catching',
+      'catchInTraffic',
+      'spectacularCatch',
+      'release',
+      'shortRouteRunning',
+      'mediumRouteRunning',
+      'deepRouteRunning',
+    ],
+  },
+  {
+    id: 'blocking',
+    label: 'Blocking',
+    attributes: [
+      'runBlock',
+      'runBlockPower',
+      'runBlockFinesse',
+      'passBlock',
+      'passBlockPower',
+      'passBlockFinesse',
+      'leadBlock',
+      'impactBlocking',
+    ],
+  },
+  {
+    id: 'coverage',
+    label: 'Coverage',
+    attributes: ['manCoverage', 'zoneCoverage', 'press'],
+  },
+  {
+    id: 'front-seven',
+    label: 'Front seven',
+    attributes: ['powerMoves', 'finesseMoves', 'blockShedding', 'pursuit', 'tackle', 'hitPower'],
+  },
+  { id: 'special-teams', label: 'Special teams', attributes: ['kickPower', 'kickAccuracy', 'kickReturn'] },
+];
+
+/**
  * The unit an archetype belongs to.
  *
  * Deliberately coarser than a position: the game reuses one archetype set across a
@@ -722,6 +816,11 @@ export function readAttribute(
  * genuinely ambiguous one — a 3-4 outside linebacker who set the edge became an EDGE in
  * Madden 26, but SAM/WILL kept a run-stopper archetype too, so it maps to the linebacker
  * version. Both cases are noted in [`SCHEME_FIT.md`](SCHEME_FIT.md).
+ *
+ * Madden 27's own feed reports guards as `G_*` where older dumps used `OG_*`; both are
+ * mapped here. `KP_*` and `LS_*` appear too, but our archetype table deliberately has no
+ * kicker, punter or long-snapper archetypes, so those codes resolve to nothing on
+ * purpose (see the specialist note in [`SCHEME_FIT.md`](SCHEME_FIT.md)).
  */
 export const EA_ARCHETYPE_TO_ID: Record<string, string> = {
   // Offense
@@ -744,12 +843,15 @@ export const EA_ARCHETYPE_TO_ID: Record<string, string> = {
   OT_PassProtector: 'ol-pass-protector',
   OG_PassProtector: 'ol-pass-protector',
   C_PassProtector: 'ol-pass-protector',
+  G_PassProtector: 'ol-pass-protector',
   OT_Power: 'ol-power',
   OG_Power: 'ol-power',
   C_Power: 'ol-power',
+  G_Power: 'ol-power',
   OT_Agile: 'ol-agile',
   OG_Agile: 'ol-agile',
   C_Agile: 'ol-agile',
+  G_Agile: 'ol-agile',
   // Defense
   DE_PowerRusher: 'edge-power-rusher',
   DE_SmallerSpeedRusher: 'edge-speed-rusher',

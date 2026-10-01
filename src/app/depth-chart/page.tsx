@@ -1,29 +1,42 @@
 import Link from 'next/link';
-import { copyGameDepthChartToPlanAction, setDepthSlotAction } from '../actions';
+import {
+  copyGameDepthChartToPlanAction,
+  seedDepthChartAction,
+  setDepthSlotAction,
+} from '../actions';
 import { depthSlotGroups } from '@/domain/depthSlots';
 import type { Side } from '@/domain/types';
 import { requireSession } from '@/lib/auth';
 import { loadGameAndPlan, loadOverview } from '@/lib/loaders';
 import { Badge, Card, PageHeader } from '@/components/ui';
-import { EligiblePlayerSelect } from '@/components/pickers';
+import { EligiblePlayerSelect, TeamSelect } from '@/components/pickers';
 
 const SIDES: Side[] = ['offense', 'defense', 'special'];
 
 export default async function DepthChartPage({
   searchParams,
 }: {
-  searchParams: Promise<{ layer?: string; copied?: string }>;
+  searchParams: Promise<{
+    layer?: string;
+    copied?: string;
+    seeded?: string;
+    teamSet?: string;
+    unfilled?: string;
+    seedError?: string;
+  }>;
 }) {
   await requireSession();
   const params = await searchParams;
   const layer = params.layer === 'game' ? 'game' : 'plan';
   const otherLayer = layer === 'game' ? 'plan' : 'game';
 
-  const [{ vocabulary }, { roster, userTeam }] = await Promise.all([
+  const [{ game, plan, vocabulary }, { teams, roster, userTeam }] = await Promise.all([
     loadGameAndPlan(),
     loadOverview(),
   ]);
-  const { game, plan } = await loadGameAndPlan();
+  const seededTeam = params.seeded
+    ? (teams.find((team) => team.id === params.seeded) ?? null)
+    : null;
   const active = layer === 'game' ? game : plan;
   const other = otherLayer === 'game' ? game : plan;
 
@@ -85,11 +98,71 @@ export default async function DepthChartPage({
         <span>Slots marked ? are vocabulary not yet confirmed against Madden 27</span>
       </div>
 
+      {params.seeded ? (
+        <p className="note note-good">
+          Seeded the depth chart from the{' '}
+          {seededTeam ? `${seededTeam.abbr} · ${seededTeam.name}` : params.seeded} roster. It is derived
+          from position and overall, so treat it as a starting point and edit it here like any other
+          chart.
+          {params.teamSet ? ' This franchise now plays as that team.' : ''}
+        </p>
+      ) : null}
+      {params.seedError ? (
+        <p className="note note-bad">Could not seed the depth chart: {params.seedError}</p>
+      ) : null}
+      {params.unfilled ? (
+        <p className="note note-warn">
+          No eligible player on the roster for: {params.unfilled.split(',').join(', ')}. Those roles
+          stay empty until you fill them.
+        </p>
+      ) : null}
       {params.copied ? (
         <p className="note note-good">
           Copied the in-game depth chart into your plan.
         </p>
       ) : null}
+
+      <Card
+        title="Seed from a real roster"
+        subtitle="The ratings feed is a flat player list, so this derives a chart from position and overall — a starting point you edit, not Madden's own chart."
+      >
+        <form action={seedDepthChartAction} className="space-y-3">
+          <p className="text-xs leading-relaxed text-muted">
+            Best eligible player takes each primary role, package roles go to the next man up (the slot
+            receiver is the second receiver, the nickel back the second corner), returners go to the
+            fastest men, and everyone else backs up. Both layers are written; formation subs are left
+            alone.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block min-w-[15rem] flex-1">
+              <span className="label">Seed from</span>
+              <TeamSelect
+                teams={teams}
+                name="teamId"
+                selected={userTeam?.id ?? null}
+                includeEmpty={false}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs">
+              <input type="checkbox" name="force" value="1" defaultChecked={counts.filled === 0} />
+              Replace the current chart
+            </label>
+            <label className="flex items-center gap-2 text-xs">
+              <input type="checkbox" name="makeTeam" value="1" />
+              Make it my franchise team
+            </label>
+            <button className="btn" type="submit">
+              Seed depth chart
+            </button>
+          </div>
+          {counts.filled > 0 ? (
+            <p className="text-xs text-muted">
+              Your chart already has {counts.filled} ranked spots. Seeding overwrites them in both
+              layers, so it refuses unless you tick Replace.
+            </p>
+          ) : null}
+        </form>
+      </Card>
 
       <Card
         title="How this works"

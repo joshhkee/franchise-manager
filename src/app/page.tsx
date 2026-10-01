@@ -1,15 +1,16 @@
 import Link from 'next/link';
 import { importRatingsAction } from './actions';
 import { getDataSourceCounts, getPlaybookSummary } from '@/db/repo';
+import { readAttribute } from '@/domain/archetypes';
 import { auditPlan, conflictCounts } from '@/domain/conflicts';
 import { resolveAll } from '@/domain/resolution';
 import { DEPTH_SLOTS } from '@/domain/depthSlots';
 import { requireSession } from '@/lib/auth';
 import { loadOverview, loadPlan } from '@/lib/loaders';
 import { Badge, Card, Empty, PageHeader, Stat, money, ovrTone } from '@/components/ui';
+import { PlayerDialog } from '@/components/PlayerDialog';
 
 const SOURCE_LABELS: Record<string, string> = {
-  seed: 'demo roster (built in)',
   'ea-ratings': 'EA ratings feed',
   manual: 'entered by you',
   save: 'franchise save file',
@@ -36,6 +37,21 @@ export default async function DashboardPage({
   const myRoster = userTeam ? roster.filter((player) => player.franchise.teamId === userTeam.id) : [];
   const capHit = myRoster.reduce((sum, player) => sum + (player.franchise.capHit ?? 0), 0);
   const capSpace = (league?.capTotal ?? 0) - capHit;
+
+  // Speed decides returners, sub packages and who can run away from a linebacker, so
+  // it is the one attribute worth a standing card. Every other attribute is on the
+  // scouting screens, off the same EA attribute map.
+  const speedOf = (player: (typeof myRoster)[number]) => readAttribute(player.ratings, 'speed');
+  const fastest = myRoster
+    .map((player) => ({
+      player,
+      speed: speedOf(player),
+      acceleration: readAttribute(player.ratings, 'acceleration'),
+    }))
+    .filter((entry) => entry.speed !== null)
+    .sort((a, b) => (b.speed ?? 0) - (a.speed ?? 0) || b.player.overall - a.player.overall)
+    .slice(0, 8);
+  const withAttributes = myRoster.filter((player) => speedOf(player) !== null).length;
 
   // Team strength from the rank-1 player at every base depth slot.
   const sideStrength = (side: 'offense' | 'defense' | 'special') => {
@@ -106,7 +122,7 @@ export default async function DashboardPage({
         >
           <div className="space-y-2">
             {Object.entries(sources).length === 0 ? (
-              <Empty>No players yet. Run a ratings import or seed the demo roster.</Empty>
+              <Empty>No players yet. Run the Madden 27 ratings import to load the league.</Empty>
             ) : (
               Object.entries(sources).map(([source, count]) => (
                 <div key={source} className="flex items-center justify-between text-sm">
@@ -117,12 +133,12 @@ export default async function DashboardPage({
             )}
             <form action={importRatingsAction} className="pt-2">
               <button className="btn w-full text-center" type="submit">
-                Import Madden ratings from EA
+                Import Madden 27 ratings
               </button>
               <p className="mt-2 text-[11px] leading-relaxed text-muted">
-                EA&apos;s public ratings feed currently publishes older seasons (Madden 27 is not on it
-                yet); the newest season that answers is imported and labelled. Madden 27 player data
-                arrives via the franchise save file once you own the game.
+                Reads the committed Madden 27 artifact scraped from EA&apos;s own ratings database
+                (<code>npm run scrape:ratings</code> re-scrapes it after a ratings update). Contract
+                figures are not published by that feed, so cap fields start empty for you to fill in.
               </p>
             </form>
           </div>
@@ -189,14 +205,21 @@ export default async function DashboardPage({
                     const player = playerId
                       ? plan.roster.find((entry) => entry.id === playerId)
                       : undefined;
+                    const speed = player ? readAttribute(player.ratings, 'speed') : null;
                     return (
                       <div key={slot.code} className="flex items-center justify-between gap-2">
                         <span className="text-muted">{slot.code}</span>
                         {player ? (
                           <span className="flex items-center gap-2">
-                            <span className="truncate">
-                              {player.firstName.charAt(0)}. {player.lastName}
-                            </span>
+                            <PlayerDialog
+                              player={player}
+                              teamAbbr={userTeam?.abbr ?? null}
+                              devTrait={player.franchise.devTrait}
+                              className="truncate"
+                            />
+                            {speed !== null ? (
+                              <span className="text-[11px] text-muted tabular-nums">SPD {speed}</span>
+                            ) : null}
                             <Badge tone={ovrTone(player.overall)}>{player.overall}</Badge>
                           </span>
                         ) : (
@@ -212,7 +235,68 @@ export default async function DashboardPage({
         </div>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <Card
+        title="Fastest on your roster"
+        subtitle="Speed and acceleration straight from EA's own attribute sheet — the numbers behind returners, sub packages and who can win the corner."
+        aside={
+          <Link href="/players?filters=1&team=FA" className="btn-ghost">
+            Free agents
+          </Link>
+        }
+      >
+        {fastest.length === 0 ? (
+          <Empty>
+            No attributes yet. Import the Madden 27 ratings to get EA's full attribute set for
+            every player.
+          </Empty>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="grid-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Pos</th>
+                  <th>SPD</th>
+                  <th className="hidden sm:table-cell">ACC</th>
+                  <th>OVR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fastest.map(({ player, speed, acceleration }) => (
+                  <tr key={player.id}>
+                    <td>
+                      <PlayerDialog
+                        player={player}
+                        teamAbbr={userTeam?.abbr ?? null}
+                        devTrait={player.franchise.devTrait}
+                      />
+                    </td>
+                    <td className="text-muted">{player.position}</td>
+                    <td className="font-semibold tabular-nums">{speed}</td>
+                    <td className="hidden tabular-nums sm:table-cell">
+                      {acceleration ?? '—'}
+                    </td>
+                    <td>
+                      <Badge tone={ovrTone(player.overall)}>{player.overall}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-3 text-[11px] leading-relaxed text-muted">
+          {withAttributes} of {myRoster.length} players on your roster carry EA&apos;s attribute
+          sheet (speed, acceleration, and the rest — open any team on{' '}
+          <Link href="/league" className="underline">
+            scouting
+          </Link>{' '}
+          to sort a roster by it). Unsigned players keep the ratings they launched with, because
+          EA&apos;s weekly updates only republish players who are on a team.
+        </p>
+      </Card>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Link href="/callsheet" className="card block">
           <h3 className="text-sm font-semibold">Call sheet</h3>
           <p className="mt-1 text-xs text-muted">
@@ -229,6 +313,12 @@ export default async function DashboardPage({
           <h3 className="text-sm font-semibold">Trades &amp; draft</h3>
           <p className="mt-1 text-xs text-muted">
             Log CPU trades and add drafted rookies so the roster stays current.
+          </p>
+        </Link>
+        <Link href="/players" className="card block">
+          <h3 className="text-sm font-semibold">Player stats</h3>
+          <p className="mt-1 text-xs text-muted">
+            Every player in the game ranked by any attribute, starting on your own roster.
           </p>
         </Link>
       </div>

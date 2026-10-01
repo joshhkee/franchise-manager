@@ -218,10 +218,6 @@ plan compared across playbooks, which is what Phase 5's wording asks for.
 - **Three attribute lists are shorter than six.** `MIKE Field General` has five attributes, and
   `Run Support` at safety has five. Grading uses however many exist and reports how many it
   graded on, so a partial list is visible rather than hidden.
-- **Demo attributes are synthetic.** The seed roster is fictional and its players have no real
-  ratings, so without them the scheme-fit screen would be blank on first run. Each demo player
-  gets a deterministic profile derived from his overall and id, marked `demo: 1` and shown as
-  `demo` in the UI. `npm run import:ratings` replaces all of it.
 
 **Still open**
 

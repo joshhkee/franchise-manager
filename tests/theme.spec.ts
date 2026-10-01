@@ -54,9 +54,9 @@ describe('team palette data', () => {
   });
 
   it('falls back to neutral for fictional or unknown teams', () => {
-    expect(resolveTeamPalette({ abbr: 'DEM', name: 'Demo Franchise' })).toBe(NEUTRAL_PALETTE);
+    expect(resolveTeamPalette({ abbr: 'ZZZ', name: 'Nowhere Nine' })).toBe(NEUTRAL_PALETTE);
     expect(resolveTeamPalette(null)).toBe(NEUTRAL_PALETTE);
-    expect(hasTeamPalette({ abbr: 'DEM' })).toBe(false);
+    expect(hasTeamPalette({ abbr: 'ZZZ' })).toBe(false);
     expect(hasTeamPalette({ abbr: 'KC' })).toBe(true);
   });
 });
@@ -140,7 +140,7 @@ describe('resolved theme', () => {
   });
 
   it('uses the neutral palette for a team it does not know', () => {
-    const theme = resolveTheme('light', { abbr: 'DEM' });
+    const theme = resolveTheme('light', { abbr: 'ZZZ' });
     expect(theme.palette).toBe(NEUTRAL_PALETTE);
   });
 });

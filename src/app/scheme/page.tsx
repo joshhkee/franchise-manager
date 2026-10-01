@@ -8,15 +8,13 @@ import {
   FIT_GRADE_TONES,
   countGrades,
   gradeDepthChart,
-  schemeIdForPlaybook,
   type RoleFit,
 } from '@/domain/schemeFit';
 import { PLAYBOOK_SCHEME, SCHEME_BY_ID, schemesForSide } from '@/domain/schemes';
-import { DEFAULT_DEFENSE_PLAYBOOK_IDS, DEFAULT_OFFENSE_PLAYBOOK_IDS } from '@/data/seed/playbooks';
 import { getPlans } from '@/db/repo';
 import { requireSession } from '@/lib/auth';
 import { loadPlan } from '@/lib/loaders';
-import { isDemoRatings } from '@/lib/seedRatings';
+import { resolveSchemes } from '@/lib/scouting';
 import type { Side } from '@/domain/types';
 
 type TwoSided = Exclude<Side, 'special'>;
@@ -30,24 +28,6 @@ function sideOf(roleCode: string): Side | null {
 
 function orderOf(roleCode: string): number {
   return depthSlot(roleCode)?.order ?? 999;
-}
-
-/**
- * Which scheme to grade a side against.
- *
- * The plan stores one playbook, so only one side of the ball can come from it; the other
- * falls back to the first seeded playbook for its side. Either way the playbook we used
- * is printed on the card, because "which scheme am I graded against" is exactly the kind
- * of assumption this project refuses to hide.
- */
-function defaultSchemeFor(side: TwoSided, planPlaybookId: string | null): string | null {
-  if (planPlaybookId) {
-    const mapped = SCHEME_BY_ID.get(schemeIdForPlaybook(planPlaybookId) ?? '');
-    if (mapped && mapped.side === side) return mapped.id;
-  }
-  const fallback =
-    side === 'offense' ? DEFAULT_OFFENSE_PLAYBOOK_IDS[0] : DEFAULT_DEFENSE_PLAYBOOK_IDS[0];
-  return schemeIdForPlaybook(fallback);
 }
 
 export default async function SchemePage({
@@ -67,26 +47,13 @@ export default async function SchemePage({
     const player = id ? byId.get(id) : undefined;
     return player ? `${player.firstName.charAt(0)}. ${player.lastName}` : 'nobody';
   };
-  const isDemo = (playerId: string | null) =>
-    isDemoRatings(playerId ? byId.get(playerId)?.ratings : null);
-
   const players = new Map(
     roster.map((player) => [player.id, { ratings: player.ratings, position: player.position }]),
   );
 
   const planPlaybookId = plans.find((plan) => plan.isDefault)?.playbookId ?? null;
-
-  const schemeIds = {} as Record<TwoSided, string>;
-  for (const side of SIDES) {
-    const requested = side === 'offense' ? params.offense : params.defense;
-    const options = schemesForSide(side);
-    const fallback = defaultSchemeFor(side, planPlaybookId);
-    schemeIds[side] = options.some((scheme) => scheme.id === requested)
-      ? (requested as string)
-      : options.some((scheme) => scheme.id === fallback)
-        ? (fallback as string)
-        : (options[0]?.id ?? '');
-  }
+  // Shared with the league scouting screens, so a grade means the same thing there.
+  const schemeIds = resolveSchemes(params, planPlaybookId);
 
   const grades = SIDES.map((side) => {
     const scheme = SCHEME_BY_ID.get(schemeIds[side]) ?? null;
@@ -123,7 +90,6 @@ export default async function SchemePage({
         })
       : null;
 
-  const anyDemoAttributes = roster.some((player) => isDemoRatings(player.ratings));
   const mismatches = grades.flatMap(({ side, scheme, fits }) =>
     fits
       .filter((fit) => fit.grade === 'mismatch')
@@ -227,12 +193,7 @@ export default async function SchemePage({
                               {fit.roleCode}
                             </Link>
                           </td>
-                          <td>
-                            {nameOf(starterId)}
-                            {isDemo(starterId) ? (
-                              <span className="ml-1 text-[10px] text-muted">demo</span>
-                            ) : null}
-                          </td>
+                          <td>{nameOf(starterId)}</td>
                           <td className="text-muted">
                             {fit.archetypeName ?? '—'}
                             {fit.archetypeSource === 'derived' ? (
@@ -458,14 +419,6 @@ export default async function SchemePage({
             Which Madden scheme each of our playbooks <em>is</em> is our reading, not a fact from the
             game. It is printed on each card so you can disagree with it.
           </li>
-          {anyDemoAttributes ? (
-            <li>
-              <span className="text-ink">Demo attributes.</span> Players from the seed roster carry
-              synthetic ratings (marked <span className="text-ink">demo</span>) that exist so this
-              screen works before you import anything, so their grades are placeholders. Run{' '}
-              <code>npm run import:ratings</code> for real EA attributes and archetypes.
-            </li>
-          ) : null}
         </ul>
       </Card>
     </div>

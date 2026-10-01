@@ -31,8 +31,8 @@ Two repo-hygiene notes for phase threads:
 
 - **The local database is not in git.** `data/*.db`, `data/pglite/` and `data/backups/`
   are gitignored. A thread working in this same checkout keeps its seeded DB on disk;
-  one starting from a fresh clone must run `npm run db:push`, `npm run db:seed` and
-  (for real data) `npm run import:ratings` first. See the README.
+  one starting from a fresh clone must run `npm run db:push`, `npm run db:seed`,
+  `npm run import:ratings` and `npm run seed:chart` first. See the README.
 - **`data/imports/ea-ratings-m24-ratings.json` (6 MB) is committed.** It is regenerable
   and already stale (an `m24` dump, not `m27`). Consider gitignoring it before it grows.
 
@@ -137,7 +137,7 @@ passed / 20 suites** · `npx tsc --noEmit` clean · production build green. Ther
 
 ### Missing entirely — the real work
 
-- **Phase 1 — the save spike and import pipeline.** No `madden-franchise` dependency, no `lib/franchise/`, no `scripts/inspect-save.ts`. It is the gate on *assumptions* about the save, **not** on the rest of the build — everything already covered in this section runs on the EA ratings feed, manual entry and the demo league with no save file at all. The report it produces is the one artefact that genuinely requires a save.
+- **Phase 1 — the save spike and import pipeline.** No `madden-franchise` dependency, no `lib/franchise/`, no `scripts/inspect-save.ts`. It is the gate on *assumptions* about the save, **  not** on the rest of the build — everything already covered in this section runs on the EA ratings feed and manual entry with no save file at all. The report it produces is the one artefact that genuinely requires a save.
 - **Compaction/time-series:** `roster_snapshot` / `snapshot_player` (the repo has a JSON *export* called a snapshot — a different thing).
 - **Tunable tables:** `value_chart` and `scheme_fit_threshold` are code constants today, not DB tables.
 - **Multi-plan support:** a `plans` table exists but there is effectively one default plan; there is no plan diffing and no per-playbook plan comparison.
@@ -219,7 +219,7 @@ assumptions.
 save-free work runs first.
 
 **This phase does not block the rest of the app.** The app is already usable with no save
-(EA ratings import, manual entry, the demo league), so nothing that does not read the save
+(EA ratings import, manual entry), so nothing that does not read the save
 needs to wait for this. What it gates is a *claim* — that the save can supply franchise
 state, and whether the depth chart and formation subs are readable at all. `madden-franchise`
 supports Madden 19–27, so the spike can run against any supported year's save; only the final

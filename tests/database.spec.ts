@@ -20,19 +20,31 @@ const repo = await import('@/db/repo');
 const { applyMigrations } = await import('@/db/migrate');
 const { closeDb } = await import('@/db/index');
 const { exportSnapshot, restoreSnapshot } = await import('@/db/snapshot');
+const { persistRatings } = await import('@/db/import');
+const { findLatestDropArtifact, loadDropArtifact } = await import('@/lib/importers/dropArtifact');
 const { DEPTH_SLOTS } = await import('@/domain/depthSlots');
 const { resolveAll } = await import('@/domain/resolution');
 
+const USER_TEAM = 'ATL';
 let formationCount = 0;
 let userTeamId = '';
 
 beforeAll(async () => {
   await applyMigrations();
+  // The seed ships scheme data only now — vocabulary, playbooks, the default plan.
   await repo.applySeed();
+  // Rosters come from the committed Madden 27 artifact through the same path
+  // `import:ratings` uses, so these tests exercise the real import.
+  const artifact = await findLatestDropArtifact();
+  if (!artifact) throw new Error('No Madden 27 ratings artifact in data/imports/.');
+  await persistRatings(await loadDropArtifact(artifact));
+  await repo.setUserTeam(USER_TEAM);
+  // Real rosters arrive with no chart at all; build one so the resolution tests have roles.
+  await repo.seedDepthChartFromRoster(USER_TEAM, { force: true });
   const league = await repo.getLeague();
   userTeamId = league?.userTeamId ?? '';
   formationCount = (await repo.getFormations()).length;
-}, 180_000);
+}, 300_000);
 
 afterAll(async () => {
   await closeDb();
@@ -40,17 +52,16 @@ afterAll(async () => {
 });
 
 describe('migrations and seed', () => {
-  it('seeds the depth chart vocabulary, teams, rosters and playbooks', async () => {
+  it('seeds the vocabulary and playbooks, and imports the real league', async () => {
     const vocabulary = await repo.getDepthSlotVocabulary();
     expect(vocabulary.length).toBe(DEPTH_SLOTS.length);
 
-    // The seed ships a small demo league on purpose — the real 32 arrive with the
-    // EA ratings import, which upserts teams by abbreviation.
+    // Teams and players arrive with the EA ratings import, which upserts by abbreviation.
     const teams = await repo.getTeams();
-    expect(teams.length).toBeGreaterThanOrEqual(4);
+    expect(teams.length).toBeGreaterThanOrEqual(32);
 
     const roster = await repo.getRoster();
-    expect(roster.length).toBeGreaterThan(50);
+    expect(roster.length).toBeGreaterThan(1000);
     expect(roster.every((player) => player.franchise !== undefined)).toBe(true);
 
     expect(formationCount).toBeGreaterThan(0);
@@ -89,15 +100,18 @@ describe('formation resolution against stored data', () => {
     expect(named / total).toBeGreaterThan(0.5);
   });
 
-  it('seeds a plan with no duplicate-personnel errors in any formation', async () => {
-    const { auditPlan, conflictCounts } = await import('@/domain/conflicts');
+  it('staffs every role in the chart derived from a real roster', async () => {
+    const { auditPlan } = await import('@/domain/conflicts');
     const formations = await repo.getFormations();
     const { ctx } = await repo.buildResolveContext('plan', formations);
-    const counts = conflictCounts(auditPlan(formations, ctx));
+    const plan = auditPlan(formations, ctx);
 
-    // Every formation fields eleven distinct players, and no two spots in one
-    // formation pull the same man off the depth chart.
-    expect(counts.error).toBe(0);
+    // The plan is no longer a hand-authored demo chart, so it is not promise-clean:
+    // a chart derived from a real roster (`seed:chart`) has fewer bodies per position
+    // and can put the same backup at two spots in one formation, which the audit
+    // reports as a `duplicate` on purpose. What must hold is that no role went
+    // unfilled — an empty starter is a gap the derivation failed to close.
+    expect(plan.filter((conflict) => conflict.kind === 'empty')).toEqual([]);
   });
 
   it('starts a different player at every offensive and defensive role', async () => {
@@ -324,5 +338,35 @@ describe('snapshots', () => {
     await expect(restoreSnapshot({ nope: true } as never)).rejects.toThrow();
     const newer = { ...(await exportSnapshot()), version: 99 };
     await expect(restoreSnapshot(newer)).rejects.toThrow(/version/i);
+  });
+
+  it('carries the trade shortlist through a snapshot', async () => {
+    const player = (await repo.getRoster())[0]!;
+    await repo.addTradeTarget(player.id, 'snapshot test');
+    const snapshot = await exportSnapshot();
+    expect(snapshot.counts.tradeTargets).toBeGreaterThan(0);
+
+    await repo.removeTradeTarget(player.id);
+    expect((await repo.listTradeTargets()).some((row) => row.playerId === player.id)).toBe(false);
+
+    await restoreSnapshot(snapshot);
+    const restored = await repo.listTradeTargets();
+    expect(restored.find((row) => row.playerId === player.id)?.note).toBe('snapshot test');
+  });
+});
+
+describe('trade shortlist', () => {
+  it('adds, updates and removes shortlisted players without duplicating them', async () => {
+    const player = (await repo.getRoster())[0]!;
+    await repo.addTradeTarget(player.id, 'watch him');
+    expect((await repo.listTradeTargets()).filter((row) => row.playerId === player.id)).toHaveLength(1);
+
+    await repo.addTradeTarget(player.id, 'updated note');
+    const targets = await repo.listTradeTargets();
+    expect(targets.filter((row) => row.playerId === player.id)).toHaveLength(1);
+    expect(targets.find((row) => row.playerId === player.id)?.note).toBe('updated note');
+
+    await repo.removeTradeTarget(player.id);
+    expect((await repo.listTradeTargets()).some((row) => row.playerId === player.id)).toBe(false);
   });
 });

@@ -6,15 +6,19 @@ import type { RosterPlayer, Side } from '@/domain/types';
 import { requireSession } from '@/lib/auth';
 import { loadOverview, loadPlan } from '@/lib/loaders';
 import { Badge, Card, Empty, PageHeader, Stat, money, ovrTone } from '@/components/ui';
+import { PlayerDialog } from '@/components/PlayerDialog';
 import { TeamSelect } from '@/components/pickers';
 
-function PlayerLine({ player }: { player: RosterPlayer }) {
+function PlayerLine({ player, teamAbbr }: { player: RosterPlayer; teamAbbr?: string | null }) {
   const injury = player.franchise.injuryStatus;
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <span className="truncate">
-        {player.firstName.charAt(0)}. {player.lastName}
-      </span>
+      <PlayerDialog
+        player={player}
+        teamAbbr={teamAbbr}
+        devTrait={player.franchise.devTrait}
+        className="truncate"
+      />
       <Badge tone={ovrTone(player.overall)}>{player.overall}</Badge>
       {player.franchise.devTrait && player.franchise.devTrait !== 'normal' ? (
         <Badge tone="info">
@@ -65,6 +69,10 @@ export default async function TeamPage({
     superstar: myRoster.filter((p) => p.franchise.devTrait === 'superstar').length,
     star: myRoster.filter((p) => p.franchise.devTrait === 'star').length,
   };
+
+  const abbrById = new Map(teams.map((team) => [team.id, team.abbr]));
+  const abbrFor = (player: RosterPlayer) =>
+    abbrById.get(player.franchise.teamId ?? player.teamId ?? '') ?? null;
 
   const playerById = new Map(myRoster.map((player) => [player.id, player]));
   const lookup = (id: string | null | undefined) =>
@@ -165,7 +173,7 @@ export default async function TeamPage({
       </div>
 
       {myRoster.length === 0 ? (
-        <Empty>No players on this team yet. Import ratings or seed the demo roster first.</Empty>
+        <Empty>No players on this team yet. Run the Madden 27 ratings import first.</Empty>
       ) : null}
 
       {(['offense', 'defense', 'special'] as Side[]).map((side) => (
@@ -222,7 +230,7 @@ export default async function TeamPage({
                                   if (!player) return null;
                                   return (
                                     <li key={id} className={index === 0 ? '' : 'opacity-60'}>
-                                      <PlayerLine player={player} />
+                                      <PlayerLine player={player} teamAbbr={abbrFor(player)} />
                                     </li>
                                   );
                                 })}

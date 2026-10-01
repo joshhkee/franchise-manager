@@ -25,9 +25,27 @@ export interface EaRatingsPlayer {
   overall: number;
   age: number | null;
   heightInches: number | null;
+  /** Weight in pounds. The Madden 27 feed publishes it; older feeds may not. */
+  weightLbs?: number | null;
   college: string | null;
   salary: number | null;
   ratings: Record<string, number | string>;
+  /** EA's archetype code, e.g. `WR_DeepThreat`. Only the Madden 27 feed publishes one. */
+  archetype?: string | null;
+  /**
+   * Development trait read off the player's ability list. `null` means 
+   * "not knowable from this source" — never guess between Star and Normal.
+   */
+  devTrait?: 'xfactor' | 'superstar' | null;
+  /**
+   * Which Madden 27 ratings update these numbers came from.
+   *
+   * Only the scraper path sets it. EA's weekly updates republish rostered players
+   * only, so the unsigned pool (free agents) is merged in from the launch set and
+   * keeps `1-base` here — that way a launch rating is never mistaken for a current
+   * one. The older `ratings-api.ea.com` feed leaves it undefined.
+   */
+  ratingsIteration?: string | null;
 }
 
 export interface RatingsImportResult {
@@ -39,6 +57,12 @@ export interface RatingsImportResult {
   notes: string[];
   /** The NFL season the ratings describe, e.g. 2023 for `m24-ratings`. */
   seasonYear: number | null;
+  /**
+   * True when this pull is the whole league, so player rows from an earlier pull
+   * should be removed. The Madden 27 artifact is one game's complete rosters; the
+   * older API import is not, so it leaves existing rows alone.
+   */
+  replacesSource?: boolean;
 }
 
 /** Nickname -> team identity, as the API reports `team`. */
@@ -170,6 +194,7 @@ export function normalizeEaPlayer(raw: Record<string, unknown>): EaRatingsPlayer
     overall,
     age: ageFromBirthdate(raw.plyrBirthdate),
     heightInches: toNumber(raw.height),
+    weightLbs: toNumber(raw.weight),
     college: typeof raw.college === 'string' ? raw.college : null,
     salary: toNumber(raw.totalSalary),
     ratings,
@@ -271,7 +296,7 @@ export async function discoverRatingsEndpoint(
       '',
       'Fallbacks: scrape the ea.com ratings pages with `npm run scrape:ratings`,',
       'use a ratings mirror such as maddenratings.com, or import from a franchise save file',
-      '(`npm run import:save`) once you own the game. The app keeps running on the seeded demo roster.',
+      '(`npm run import:save`) once you own the game.',
     ].join('\n'),
   );
 }

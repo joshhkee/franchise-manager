@@ -74,12 +74,16 @@ const TONE = {
 export function Badge({
   children,
   tone = 'muted',
+  title,
 }: {
   children: ReactNode;
   tone?: keyof typeof TONE;
+  /** Hover text, e.g. the reasons behind a fit grade. */
+  title?: string;
 }) {
   return (
     <span
+      title={title}
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${TONE[tone]}`}
     >
       {children}

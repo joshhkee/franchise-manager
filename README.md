@@ -32,7 +32,7 @@ Plus the boring part that keeps it accurate: trade logging and drafted-rookie en
 npm install
 cp .env.example .env.local     # set APP_PASSPHRASE and SESSION_SECRET
 npm run db:push                # create tables in the embedded database
-npm run db:seed                # demo league and roster, full slot vocabulary, seeded playbooks
+npm run db:seed                # slot vocabulary, seeded playbooks, default plan and call sheet
 npm run scrape:playbooks       # real Madden 27 formations from civil.gg (needs Playwright)
 npm run dev                    # http://localhost:3000
 ```
@@ -46,11 +46,14 @@ Every script:
 | --- | --- |
 | `npm run dev` | Dev server |
 | `npm run build` / `npm start` | Production build and serve |
-| `npm test` | 315 tests: the domain core (resolution, impact, conflicts, bulk edits, concepts, families, call engine, tendency, drive logic, trade values, scheme fit, plan diffing), the seed playbook invariants, the checklist exporters, the WCAG theme contract, plus a database integration suite over a throwaway embedded Postgres |
+| `npm test` | 382 tests: the domain core (resolution, impact, conflicts, bulk edits, concepts, families, call engine, tendency, drive logic, trade values, scheme fit, plan diffing, scouting fit, depth-chart seeding, player ranking), the parsed Madden 27 ratings feed, the seed playbook invariants, the checklist exporters, the WCAG theme contract, plus a database integration suite over a throwaway embedded Postgres |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run db:push` | Apply schema |
-| `npm run db:seed` | Vocabulary, demo league/roster, seeded playbooks |
-| `npm run import:ratings` | Pull real player ratings from EA's public feed |
+| `npm run db:generate` | Write a migration from `schema.ts` (`drizzle-kit generate` — no database needed). Run it after every schema edit |
+| `npm run db:push` | Apply the committed migrations to the active database. It replays `drizzle/*.sql`, so an ungenerated column is silently missing |
+| `npm run db:seed` | Depth-slot vocabulary, seeded playbooks, default plan and call sheet. No rosters — import those |
+| `npm run scrape:ratings` | Scrape Madden 27 ratings from EA's ratings database into a committed artifact (dev-only Playwright). Reads the current update **and** the launch set, because the weekly updates skip free agents; `-- --no-base` for rostered players only |
+| `npm run import:ratings` | Import the committed Madden 27 artifact (offline); `-- --file=` for a specific one, `-- --api` for the older EA feed |
+| `npm run seed:chart` | Derive a starting depth chart from a real roster; `-- --team=ATL --user-team --force`. Also available as a card on `/depth-chart` |
 | `npm run scrape:playbooks` | Pull real formations and plays from civil.gg |
 | `npm run scrape:colors` | One-time: diff team colours against Wikipedia (never runs at runtime) |
 | `npm run audit:colors` | Print the WCAG contrast ratios for every team, both modes |
@@ -74,8 +77,8 @@ before changing any UI. The short version:
 - **Contrast is a test, not a promise.** `tests/theme.spec.ts` proves every one of the 32 clubs
   passes AA in both modes.
 
-Fictional teams (the demo franchise and CPU teams) get a neutral accent rather than pretending to
-be somebody's real club.
+A team with no committed palette gets a neutral accent rather than pretending to be somebody's
+real club.
 
 ---
 
@@ -110,25 +113,51 @@ Playbooks are excluded on purpose — they are reproducible from the scraper.
 
 ## The three layers of data
 
-**1. Base roster — real, automated.** `npm run import:ratings` calls EA's public ratings feed
-(the same one the ea.com ratings database reads). It returns full player records: every
-attribute, position, height, jersey, college, team, plus salary and signing bonus.
+**1. Base roster — real, automated.** `npm run scrape:ratings` reads EA's own Madden 27 ratings
+database through a real browser and writes one artifact per ratings update to `data/imports/`;
+`npm run import:ratings` loads that artifact. The artifact is committed, so the app works offline
+and deterministically, and a ratings refresh is a deliberate two-command action, never a runtime
+fetch.
 
-One honest caveat: the feed publishes past seasons and its season slugs are undocumented. The
-importer probes candidate slugs, uses the newest that answers, and labels the rows with it. When
-EA publishes Madden 27 there, the same command picks it up. `scripts/probe-ea-api.ts` prints what
-actually responds if a slug ever changes.
+It returns the whole game — **3,116 players, including the 1,196 who are unsigned** — with full
+player records: every attribute, the primary position (`LEDG`/`REDG`/`SAM`/`MIKE`/`WILL`, not the
+retired `LE`/`RE`/`LOLB` set), height, weight, jersey, college, age, team, and EA's own
+**archetype** — which is what upgrades every scheme-fit grade from a guess to the game's own label.
+
+Attributes are theirs to use, so they are on screen. **Click any player's name anywhere in the app**
+and his whole card opens in a dialog: all 53 attributes grouped and sorted, height, weight, age,
+college, jersey, archetype, abilities — with a `•` on the attributes Madden itself counts for that
+archetype. And `/players` ranks **every player by any of them** (plus OVR, name, age, height and
+weight): the teams checklist starts on your own club, and one click widens it to any other club, all
+32, or the unsigned pool. The dashboard still lists your fastest players and every starter's `SPD`,
+and any team on `/league/[teamId]` sorts by speed or strength. `/free-agents` is a redirect to
+`/players?team=FA`, kept so old bookmarks still land. A weekly ratings update only republishes
+players who are on a roster, so the free agents are read from the **launch set** and keep the
+ratings they launched with — the artifact records that per player (`ratingsIteration`). Contracts, cap hits and signing bonuses are **not** published by that feed, so imported
+players start with empty contract fields for you to fill in; dev traits are derived from the
+player's ability list, which distinguishes X-Factor and Superstar but cannot tell Star from
+Normal.
+
+A flat player list is not a depth chart, so `npm run seed:chart` (or the card on `/depth-chart`)
+derives a starting one from position and overall for the team you pick: best eligible player at
+each primary role, package roles to the next man up, returners to the fastest men. It writes both
+layers, never touches formation subs, and refuses to overwrite a chart you have edited unless you
+ask it to.
+
+The older public ratings API (`ratings-api.ea.com`) is still supported as a fallback
+(`npm run import:ratings -- --api`) for whichever season answers there; it publishes nothing newer
+than Madden 24. The endpoint behaviour, the silent-empty failure mode and the working scrape route
+are recorded in [RATINGS.md](RATINGS.md).
 
 **2. Franchise state — yours, entered in-app.** Contracts, cap, dev traits, injuries, your two
 depth charts, formation subs, trades, drafted rookies. Anything you author is stored separately
 from the imported ratings, so re-importing EA data never clobbers your work.
 
-The seed ships a small demo league (`Demo Franchise` plus three synthetic CPU teams) so the app
-is usable before you own the game. The demo roster is a realistic 53-man active roster (plus a
-practice squad the depth chart deliberately ignores), which is what lets every role have a
-different starter while backups still cover two spots — the swing tackle. Importing ratings adds the real 32 NFL teams alongside them
-and merges by abbreviation, which means your trade-partner list will show both until you import.
-Set your team from the **Team** screen once real rosters are in.
+Rosters are not seeded. `npm run import:ratings` loads the real 32 NFL clubs and ~3,100 players
+from the committed Madden 27 artifact, and **replaces any earlier ratings pull**, so you get one
+game's rosters rather than two seasons merged. `db:seed` sets up the scheme side only — the slot
+vocabulary, the seeded playbooks, the default plan and the call sheet — and picks no team for you;
+set yours with `npm run seed:chart -- --team=ATL --user-team` or on the **Team** screen.
 
 **3. Franchise state — automated, later.** When you own Madden 27 on PC, a save-file importer
 (`madden-franchise`, which supports Madden 19–27 and can write) populates layer 2 behind the same
@@ -274,10 +303,18 @@ predictable: repeat the *look*, change the *concept*.
 - **Formation subs are not confirmed to persist in-game.** Community reports say they are
   device-and-scheme-tied. The plan is built so the app is authoritative either way: you hold the
   plan, the checklist tells you what to set.
-- **Madden 27 is not on EA's ratings feed yet.** The importer uses the newest season that answers
-  and labels it; you can also start from the demo roster or enter players by hand.
-- **The ratings slug is discovered, not documented.** It will need re-discovery when EA changes
-  it. That is what `scripts/probe-ea-api.ts` is for.
+- **The ratings feed publishes no contracts.** Cap hits and contract years are entered by you and
+  labelled as estimates; the Madden 27 import leaves them empty rather than approximating.
+- **Scouting grades a player at his primary position.** The feed is a player list, not a depth
+  chart, so the app cannot know a corner is really his team's nickel back, and it grades everyone
+  against *your* schemes rather than their current team's.
+- **A seeded depth chart is a starting point, not Madden's chart.** The feed carries no chart and
+  no roster status, so `seed:chart` treats every player as available and works from position and
+  overall alone — on a roster with no fullback, the role takes a tight end. Seeding one team does
+  not touch the other 31, and the screens read whatever team is set as yours.
+- **The ratings artefact is regenerated by hand.** `npm run scrape:ratings` is a deliberate,
+  rate-limited run with a committed result; EA's scrape route changes without notice and
+  [RATINGS.md](RATINGS.md) is the source of record for it.
 - **Auth is one passphrase.** Correct for a single-user tool, not for sharing. There is no
   per-user data separation.
 - **Defensive slots also carry assumed bindings.** Offensive role slots (`SLWR`, `3DRB`…) are the

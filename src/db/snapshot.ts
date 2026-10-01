@@ -10,6 +10,7 @@ import {
   leagues,
   players,
   teams,
+  tradeTargets,
   transactions,
 } from './schema';
 
@@ -40,6 +41,7 @@ const TABLES = {
   driveCalls,
   transactions,
   draftPicks,
+  tradeTargets,
 } as const;
 
 type TableName = keyof typeof TABLES;
@@ -99,6 +101,7 @@ export async function restoreSnapshot(snapshot: Snapshot): Promise<Record<string
     'callSheetEntries',
     'transactions',
     'draftPicks',
+    'tradeTargets',
     'formationSubs',
     'depthChartEntries',
     'franchisePlayers',

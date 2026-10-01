@@ -19,9 +19,11 @@ import {
   playbooks,
   players,
   teams,
+  tradeTargets,
   transactions,
 } from './schema';
-import { demoRatings } from '@/lib/seedRatings';
+import { readAttribute } from '@/domain/archetypes';
+import { buildTeamDepthChart, type ChartCandidate } from '@/domain/depthChartSeed';
 import { normalizeSlotRanks, type ResolveContext, type ResolvePlayer } from '@/domain/resolution';
 import { classifyFormation, familyKey, derivePersonnel } from '@/domain/families';
 import { DEPTH_SLOTS } from '@/domain/depthSlots';
@@ -38,16 +40,6 @@ import type {
   RosterPlayer,
   Side,
 } from '@/domain/types';
-import {
-  CPU_ROSTERS,
-  CPU_TEAMS,
-  DEMO_ROSTER,
-  DEMO_SITUATIONAL,
-  DEMO_TEAM,
-  seedPlayersFor,
-  type SeedPlayer,
-  type SeedTeam,
-} from '@/data/seed/roster';
 import { PLAYBOOK_SEEDS, type SeedFormation } from '@/data/seed/playbooks';
 
 export const DEFAULT_LEAGUE_ID = 'default';
@@ -103,6 +95,7 @@ function toRosterPlayer(row: PlayerRow, franchise: FranchiseRow): RosterPlayer {
     overall: row.overall,
     age: row.age,
     heightInches: row.heightInches,
+    weightLbs: row.weightLbs ?? null,
     college: row.college,
     ratings: row.ratings ?? {},
     salary: row.salary,
@@ -129,6 +122,31 @@ export async function getDataSourceCounts(): Promise<Record<string, number>> {
     .from(players)
     .groupBy(players.source);
   return Object.fromEntries(rows.map((row) => [row.source ?? 'unknown', Number(row.count)]));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Trade shortlist                                                            */
+/* -------------------------------------------------------------------------- */
+
+export type TradeTarget = typeof tradeTargets.$inferSelect;
+
+/** Everyone the owner is tracking, newest first. */
+export async function listTradeTargets(): Promise<TradeTarget[]> {
+  const db = await getDb();
+  return db.select().from(tradeTargets).orderBy(desc(tradeTargets.createdAt));
+}
+
+export async function addTradeTarget(playerId: string, note: string | null = null): Promise<void> {
+  const db = await getDb();
+  await db
+    .insert(tradeTargets)
+    .values({ playerId, leagueId: DEFAULT_LEAGUE_ID, note })
+    .onConflictDoUpdate({ target: tradeTargets.playerId, set: { note } });
+}
+
+export async function removeTradeTarget(playerId: string): Promise<void> {
+  const db = await getDb();
+  await db.delete(tradeTargets).where(eq(tradeTargets.playerId, playerId));
 }
 
 export async function getPlaybookSummary() {
@@ -178,6 +196,119 @@ export async function getDepthChart(layer: ChartLayer): Promise<DepthChartState>
     chart.entries[row.slotCode] = row2;
   }
   return chart;
+}
+
+export interface SeedChartResult {
+  teamId: string;
+  layers: ChartLayer[];
+  /** Players on the team's published roster. */
+  players: number;
+  /** Ranked spots written. */
+  placed: number;
+  /** Distinct men given a starting job. */
+  starters: number;
+  /** Roles nobody on the roster could fill. */
+  empty: string[];
+  notes: string[];
+}
+
+/**
+ * Build the depth chart from a team's imported roster.
+ *
+ * This is the bridge from real Madden 27 ratings to a usable plan: the feed is a flat
+ * player list, and every screen in the app reads roles. [`buildTeamDepthChart`](src/domain/depthChartSeed.ts)
+ * decides who goes where, and this writes the result to the chart layers.
+ *
+ * It refuses to overwrite a chart you have already filled in unless `force` is passed:
+ * a chart is authored work ([`HANDOFF.md`](HANDOFF.md) §2.5), and a seeded one is a
+ * starting point, not the game's own chart. Formation subs are never touched.
+ */
+export async function seedDepthChartFromRoster(
+  teamId: string,
+  options: { layers?: ChartLayer[]; force?: boolean } = {},
+): Promise<SeedChartResult> {
+  const db = await getDb();
+  const layers: ChartLayer[] = options.layers ?? ['game', 'plan'];
+
+  const existing = await db
+    .select({ slotCode: depthChartEntries.slotCode })
+    .from(depthChartEntries)
+    .where(eq(depthChartEntries.leagueId, DEFAULT_LEAGUE_ID))
+    .limit(1);
+  if (existing.length > 0 && !options.force) {
+    throw new Error(
+      'Your depth chart is not empty. Seeding replaces it, so pass --force (or tick the replace box) to go ahead.',
+    );
+  }
+
+  const roster = await getRoster(teamId);
+  const candidates: ChartCandidate[] = roster
+    .filter((player) => player.franchise.rosterStatus !== 'free-agent')
+    .map((player) => ({
+      id: player.id,
+      position: player.position,
+      overall: player.overall,
+      speed: readAttribute(player.ratings, 'speed'),
+    }));
+  if (candidates.length === 0) {
+    throw new Error(`No players on ${teamId}. Run \`npm run import:ratings\` first.`);
+  }
+
+  const chart = buildTeamDepthChart(candidates);
+
+  await db
+    .delete(depthChartEntries)
+    .where(
+      and(
+        eq(depthChartEntries.leagueId, DEFAULT_LEAGUE_ID),
+        inArray(depthChartEntries.layer, layers),
+      ),
+    );
+
+  const rows = layers.flatMap((layer) =>
+    Object.entries(chart.entries).flatMap(([slotCode, ranked]) =>
+      ranked
+        .map((playerId, index) => ({
+          layer,
+          leagueId: DEFAULT_LEAGUE_ID,
+          slotCode,
+          rank: index + 1,
+          playerId,
+        }))
+        .filter((row) => row.playerId),
+    ),
+  );
+  if (rows.length) await db.insert(depthChartEntries).values(rows);
+
+  const notes = [...chart.notes];
+  const pinned = await db.select({ layer: formationSubs.layer }).from(formationSubs).limit(1);
+  if (pinned.length > 0) {
+    notes.push(
+      'Formation subs were left alone. Pin them again if they pointed at players who are no longer on this roster.',
+    );
+  }
+
+  await recordAudit('seed-depth-chart', 'depthChart', teamId, {
+    players: candidates.length,
+    placed: rows.length,
+    layers,
+  });
+
+  return {
+    teamId,
+    layers,
+    players: candidates.length,
+    placed: rows.length,
+    starters: chart.starters,
+    empty: chart.empty,
+    notes,
+  };
+}
+
+/** Make a team the one this franchise is played as. */
+export async function setUserTeam(teamId: string): Promise<void> {
+  const db = await getDb();
+  await db.update(leagues).set({ userTeamId: teamId }).where(eq(leagues.id, DEFAULT_LEAGUE_ID));
 }
 
 export async function getSubs(layer: ChartLayer): Promise<FormationSub[]> {
@@ -283,7 +414,7 @@ export async function buildResolveContext(
   const [chart, subs, roster] = await Promise.all([
     getDepthChart(layer),
     getSubs(layer),
-    getRoster(DEMO_TEAM.id),
+    getRoster(),
   ]);
   const list = formations ?? (await getFormations());
 
@@ -295,18 +426,8 @@ export async function buildResolveContext(
       franchise: player.franchise,
     };
   }
-  // Defensive formations resolve against defensive roles, which live on the same
-  // depth chart; the roster above already covers every role the seed uses.
-  const allRoster = await getRoster();
-  for (const player of allRoster) {
-    playersById[player.id] ??= {
-      id: player.id,
-      position: player.position,
-      franchise: player.franchise,
-    };
-  }
 
-  return { ctx: { depthChart: chart, subs, playersById }, formations: list, roster: allRoster };
+  return { ctx: { depthChart: chart, subs, playersById }, formations: list, roster };
 }
 
 export async function getPlans() {
@@ -688,141 +809,6 @@ export async function listAudit(limit = 25) {
 /* Seeding                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function teamRow(seed: SeedTeam) {
-  return {
-    id: seed.id,
-    name: seed.name,
-    abbr: seed.abbr,
-    conference: seed.conference,
-    division: seed.division,
-    isUserTeam: seed.isUserTeam ?? false,
-    source: 'seed',
-  };
-}
-
-function playerRow(seed: SeedPlayer, teamId: string) {
-  return {
-    id: seed.id,
-    firstName: seed.first,
-    lastName: seed.last,
-    position: seed.position,
-    jersey: seed.jersey,
-    teamId,
-    overall: seed.overall,
-    age: seed.age,
-    heightInches: 72,
-    college: 'Demo State',
-    // Synthetic but deterministic: the demo roster is fictional, and `overall` alone
-    // cannot answer "does he fit the scheme". Replaced wholesale by `import:ratings`.
-    ratings: demoRatings({
-      id: seed.id,
-      position: seed.position,
-      overall: seed.overall,
-      speed: seed.speed,
-    }),
-    salary: (seed.capHit ?? 1_000_000) + 500_000,
-    source: 'seed',
-  };
-}
-
-function franchiseRow(seed: SeedPlayer, teamId: string) {
-  return {
-    playerId: seed.id,
-    teamId,
-    contractYears: seed.contractYears ?? 3,
-    capHit: seed.capHit ?? 1_000_000,
-    devTrait: seed.dev ?? 'normal',
-    injuryStatus: seed.injury ?? 'healthy',
-    injuryWeeks: seed.injury === 'out' ? 3 : 0,
-    rosterStatus: seed.rosterStatus ?? 'active',
-    notes: null,
-  };
-}
-
-/**
- * Best-guess depth chart for a roster.
- *
- * The rule is the one a real roster is built on: a man may appear at more than
- * one spot on the depth chart, but he cannot be the **starter** at two of them.
- * The third tackle can cover both edges; he cannot open the game at left and
- * right tackle at the same time.
- *
- *   1. Situational roles are curated coaching decisions, so they are assigned
- *      first — the nickel back, the third-down back, the sub-package rushers.
- *   2. Every other role then claims a starter who does not start anywhere else,
- *      preferring a player who actually plays that position.
- *   3. Backups spread across players who are not already backing up somewhere,
- *      which is what produces the swing tackle: one backup listed at two spots.
- *
- * A roster thin enough to run out of bodies still ends up repeating someone, and
- * the conflict audit is there to show you exactly where.
- */
-function buildSeedDepthChart(roster: SeedPlayer[]): DepthChartState {
-  const active = roster.filter((p) => (p.rosterStatus ?? 'active') === 'active');
-
-  /** Eligible players, with a real fit at the position ranked first. */
-  const poolFor = (slot: DepthSlot): SeedPlayer[] =>
-    [...active]
-      .sort((a, b) => {
-        const fitA = a.position === slot.code ? 1 : 0;
-        const fitB = b.position === slot.code ? 1 : 0;
-        if (fitA !== fitB) return fitB - fitA;
-        return b.overall - a.overall;
-      })
-      .filter((p) => slot.eligiblePositions.includes(p.position));
-
-  const chart: DepthChartState = { entries: {} };
-  /** Players holding rank 1 somewhere — nobody may hold it twice. */
-  const starters = new Set<string>();
-  /** How many backup spots each player already covers. */
-  const backupUses = new Map<string, number>();
-
-  // 1. Curated situational roles win outright.
-  for (const slot of DEPTH_SLOTS) {
-    const curated = DEMO_SITUATIONAL[slot.code];
-    if (!curated) continue;
-    const ranked = curated.slice(0, slot.ranks);
-    chart.entries[slot.code] = ranked;
-    if (ranked[0]) starters.add(ranked[0]);
-    for (const id of ranked.slice(1)) backupUses.set(id, (backupUses.get(id) ?? 0) + 1);
-  }
-
-  // 2. One distinct starter per remaining role.
-  for (const slot of DEPTH_SLOTS) {
-    if (DEMO_SITUATIONAL[slot.code]) continue;
-    const pool = poolFor(slot);
-    const starter = pool.find((p) => !starters.has(p.id)) ?? pool[0] ?? null;
-    const ranked: (string | null)[] = Array.from({ length: slot.ranks }, () => null);
-    if (starter) {
-      ranked[0] = starter.id;
-      starters.add(starter.id);
-    }
-    chart.entries[slot.code] = ranked;
-  }
-
-  // 3. Backups: never twice on the same chart line, and spread before shared.
-  for (const slot of DEPTH_SLOTS) {
-    if (DEMO_SITUATIONAL[slot.code]) continue;
-    const ranked = chart.entries[slot.code]!;
-    const pool = poolFor(slot);
-    const usedHere = new Set(ranked.filter((id): id is string => Boolean(id)));
-
-    for (let rank = 1; rank < ranked.length; rank += 1) {
-      const choice =
-        pool.find((p) => !usedHere.has(p.id) && !backupUses.has(p.id)) ??
-        pool.find((p) => !usedHere.has(p.id) && (backupUses.get(p.id) ?? 0) < 2) ??
-        pool.find((p) => !usedHere.has(p.id)) ??
-        null;
-      if (!choice) continue;
-      ranked[rank] = choice.id;
-      usedHere.add(choice.id);
-      backupUses.set(choice.id, (backupUses.get(choice.id) ?? 0) + 1);
-    }
-  }
-
-  return chart;
-}
-
 /**
  * Old depth-chart role -> the one Madden 26 gave it, so a chart filled in before
  * the rename carries across instead of going blank. `H` has no successor: Madden
@@ -905,13 +891,11 @@ async function reconcileSlotVocabulary(): Promise<{ retired: string[]; moved: nu
 }
 
 export interface SeedOptions {
-  /** Re-seed depth charts and formation subs even if they already exist. */
+  /** Re-seed the default call sheet even if it already exists. */
   force?: boolean;
 }
 
 export interface SeedResult {
-  teams: number;
-  players: number;
   formations: number;
   /** Roles the vocabulary no longer contains, e.g. everything Madden 26 replaced. */
   retiredRoles: string[];
@@ -922,26 +906,11 @@ export interface SeedResult {
 export async function applySeed(options: SeedOptions = {}): Promise<SeedResult> {
   const db = await getDb();
 
-  // --- teams and players (seed-owned rows only; imported data is left alone) ---
-  const seedTeamIds = [DEMO_TEAM.id, ...CPU_TEAMS.map((t) => t.id)];
-  const seedPlayerIds = [
-    ...DEMO_ROSTER.map((p) => p.id),
-    ...Object.values(CPU_ROSTERS).flatMap((list) => list.map((p) => p.id)),
-  ];
-
-  await db.delete(franchisePlayers).where(inArray(franchisePlayers.playerId, seedPlayerIds));
-  await db.delete(players).where(inArray(players.id, seedPlayerIds));
-  await db.delete(teams).where(inArray(teams.id, seedTeamIds));
-
-  await db.insert(teams).values([DEMO_TEAM, ...CPU_TEAMS].map(teamRow));
-  for (const team of [DEMO_TEAM, ...CPU_TEAMS]) {
-    const seeds = seedPlayersFor(team.id);
-    if (seeds.length === 0) continue;
-    await db.insert(players).values(seeds.map((seed) => playerRow(seed, team.id)));
-    await db.insert(franchisePlayers).values(seeds.map((seed) => franchiseRow(seed, team.id)));
-  }
-
-  // --- league ---
+  // Teams and players are not seeded. The app runs on the Madden 27 ratings import
+  // (`npm run import:ratings`), so a fresh install has no roster until you run it —
+  // there is no demo league to fall back on. This row exists only so the app has a
+  // franchise to hang state on; set your team with `seed:chart --user-team` or on the
+  // League screen once a ratings import has landed.
   await db
     .insert(leagues)
     .values({
@@ -949,12 +918,12 @@ export async function applySeed(options: SeedOptions = {}): Promise<SeedResult> 
       name: 'My Franchise',
       season: 2026,
       week: 1,
-      userTeamId: DEMO_TEAM.id,
+      userTeamId: null,
       capTotal: 279_000_000,
     })
     .onConflictDoUpdate({
       target: leagues.id,
-      set: { userTeamId: DEMO_TEAM.id, capTotal: 279_000_000 },
+      set: { capTotal: 279_000_000 },
     });
 
   // --- depth chart vocabulary ---
@@ -1084,30 +1053,6 @@ export async function applySeed(options: SeedOptions = {}): Promise<SeedResult> 
     }
   }
 
-  // --- depth charts: the game layer starts as a copy of your plan ---
-  const existingEntries = await db
-    .select({ layer: depthChartEntries.layer })
-    .from(depthChartEntries)
-    .limit(1);
-  if (options.force || existingEntries.length === 0) {
-    await db.delete(depthChartEntries).where(eq(depthChartEntries.leagueId, DEFAULT_LEAGUE_ID));
-    const chart = buildSeedDepthChart(DEMO_ROSTER);
-    const rows = (['game', 'plan'] as const).flatMap((layer) =>
-      Object.entries(chart.entries).flatMap(([slotCode, ranked]) =>
-        ranked
-          .map((playerId, index) => ({
-            layer,
-            leagueId: DEFAULT_LEAGUE_ID,
-            slotCode,
-            rank: index + 1,
-            playerId,
-          }))
-          .filter((row) => row.playerId),
-      ),
-    );
-    if (rows.length) await db.insert(depthChartEntries).values(rows);
-  }
-
   // --- default plan and call sheet ---
   await db
     .insert(plans)
@@ -1138,11 +1083,9 @@ export async function applySeed(options: SeedOptions = {}): Promise<SeedResult> 
     if (rows.length) await db.insert(callSheetEntries).values(rows);
   }
 
-  await recordAudit('seed', 'database', null, { players: seedPlayerIds.length, formations: formationCount });
+  await recordAudit('seed', 'database', null, { formations: formationCount });
 
   return {
-    teams: 1 + CPU_TEAMS.length,
-    players: seedPlayerIds.length,
     formations: formationCount,
     retiredRoles: vocabulary.retired,
     migratedEntries: vocabulary.moved,

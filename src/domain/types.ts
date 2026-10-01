@@ -25,6 +25,8 @@ export interface Player {
   overall: number;
   age: number | null;
   heightInches: number | null;
+  /** Weight in pounds, as the feed publishes it. Absent on sources that do not. */
+  weightLbs?: number | null;
   college: string | null;
   /** Raw attribute map, e.g. `{ speed_rating: 93 }`. */
   ratings: Record<string, number | string>;

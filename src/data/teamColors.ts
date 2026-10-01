@@ -11,8 +11,7 @@
  * keeps the team's identity intact in the data while guaranteeing legibility in
  * the UI.
  *
- * Fictional teams (the seeded demo franchise and CPU teams) have no palette and
- * fall back to `NEUTRAL_PALETTE`.
+ * A team we have no palette for falls back to `NEUTRAL_PALETTE`.
  */
 
 export interface TeamPalette {
@@ -25,7 +24,7 @@ export interface TeamPalette {
 
 const SOURCE = 'public NFL brand colour references';
 
-/** Used for any team we have no palette for — the seeded demo teams, for example. */
+/** Used for any team we have no palette for. */
 export const NEUTRAL_PALETTE: TeamPalette = {
   abbr: 'NFL',
   name: 'Neutral',

@@ -20,6 +20,8 @@ export interface PersistRatingsResult {
   teams: number;
   players: number;
   overlayCreated: number;
+  /** Player rows from an earlier ratings pull that this import replaced. */
+  staleRemoved: number;
 }
 
 /**
@@ -66,6 +68,7 @@ export async function persistRatings(
         overall: player.overall,
         age: player.age,
         heightInches: player.heightInches,
+        weightLbs: player.weightLbs ?? null,
         college: player.college,
         ratings: player.ratings,
         salary: player.salary,
@@ -74,11 +77,35 @@ export async function persistRatings(
     );
   }
 
-  const existingOverlay = await db
-    .select({ playerId: franchisePlayers.playerId })
-    .from(franchisePlayers)
-    .where(inArray(franchisePlayers.playerId, ids.slice(0, 2000)));
-  const hasOverlay = new Set(existingOverlay.map((row) => row.playerId));
+  // A complete-league pull replaces the previous one. Without this, importing Madden
+  // 27 on top of the old Madden 24 dump would leave two games' rosters merged on every
+  // team page. Franchise overlay rows are left alone even when their player disappears
+  // — a refresh must never wipe contracts or dev traits (HANDOFF.md §2.5).
+  let staleRemoved = 0;
+  if (result.replacesSource && ids.length > 0) {
+    const fresh = new Set(ids);
+    const existing = await db
+      .select({ id: players.id })
+      .from(players)
+      .where(eq(players.source, 'ea-ratings'));
+    const stale = existing.map((row) => row.id).filter((id) => !fresh.has(id));
+    for (const group of chunk(stale)) {
+      await db.delete(players).where(inArray(players.id, group));
+    }
+    staleRemoved = stale.length;
+  }
+
+  // Checked in chunks: the pull is the whole game now (~3,100 players including free
+  // agents), and a single capped lookup would try to insert a second overlay row for
+  // anyone past the cap, which the primary key rejects.
+  const hasOverlay = new Set<string>();
+  for (const group of chunk(ids)) {
+    const existingOverlay = await db
+      .select({ playerId: franchisePlayers.playerId })
+      .from(franchisePlayers)
+      .where(inArray(franchisePlayers.playerId, group));
+    for (const row of existingOverlay) hasOverlay.add(row.playerId);
+  }
 
   const newOverlay = result.players
     .filter((player) => !hasOverlay.has(player.id))
@@ -87,11 +114,22 @@ export async function persistRatings(
       teamId: player.teamId,
       contractYears: null,
       capHit: player.salary,
-      devTrait: null,
+      // The Madden 27 feed only distinguishes X-Factor and Superstar abilities; a
+      // player with none is `null` (unknown), never guessed as Normal. Rows from the
+      // older feed carry whatever it published.
+      devTrait: player.devTrait ?? null,
       injuryStatus: 'healthy',
       injuryWeeks: 0,
-      rosterStatus: 'active',
-      notes: 'Cap figure approximated from the ratings feed; set the real contract in the app.',
+      // A player the feed leaves without a team is unsigned, and saying so keeps him
+      // out of the depth-chart seed and the team screens without any extra filter.
+      rosterStatus: player.teamId ? 'active' : 'free-agent',
+      // The Madden 27 feed publishes no contract figures at all, so there is nothing
+      // to approximate and no note: the cap fields simply stay empty until you fill
+      // them in. Only say "approximated" when there is actually a number behind it.
+      notes:
+        player.salary !== null
+          ? 'Cap figure approximated from the ratings feed; set the real contract in the app.'
+          : null,
     }));
 
   for (const group of chunk(newOverlay)) {
@@ -106,9 +144,15 @@ export async function persistRatings(
     players: result.players.length,
     teams: result.teams,
     source: result.url,
+    staleRemoved,
   });
 
-  return { teams: result.teams, players: result.players.length, overlayCreated: newOverlay.length };
+  return {
+    teams: result.teams,
+    players: result.players.length,
+    overlayCreated: newOverlay.length,
+    staleRemoved,
+  };
 }
 
 /**
