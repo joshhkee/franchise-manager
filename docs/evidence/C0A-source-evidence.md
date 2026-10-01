@@ -22,9 +22,11 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
   version-specific franchise-mechanics claim worth tracking, not a confirmed depth-chart rule.### 1a. Player source — machine-readable API (resolved feasibility)
 
 - **[Observed]** The ratings UI is backed by two documented-by-inspection endpoints:
-  1. **Per-page JSON** (`ratingDetails.items`, 100 players/page, `totalItems: 1911`):
-     `https://www.ea.com/_next/data/<buildId>/en/games/madden-nfl/ratings.json?franchiseSlug=madden-nfl&page=N`
+  1. **Per-page JSON** (`ratingDetails.items`, 100 players/page):
+     `https://www.ea.com/_next/data/<buildId>/en/games/madden-nfl/ratings.json?franchiseSlug=madden-nfl&page=N&iteration=<iteration>`
      where `<buildId>` is read from the page's `__NEXT_DATA__.buildId`.
+     **The result count depends on the `iteration` parameter** (see §1b) — this is the single most
+     important correction in this register.
   2. **Direct drop-api** (first page only; **no** working offset/page/filter params):
      `https://drop-api.ea.com/rating/madden-nfl?locale=en&limit=100&iteration=madden-ratings-week-2`
      (`limit` is capped at 100 — a larger value returns HTTP 400 "Pagination".)
@@ -37,9 +39,29 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
 - **[Observed] Positions** are version-specific objects, e.g. `WR`/Wide Receiver, `QB`/Quarterback,
   `HB`/Halfback, `TE`, `LT/LG/C/RG/RT`, `LEDG`/Left Edge, `REDG`/Right Edge, `DT`, `MIKE`/Mike Backer,
   `WILL`/Weak Backer, `CB`, `FS`, `SS`.
-- **[Observed]** ~20 pages cover all **1,911** records; a whole-roster scrape is feasible.
-- Open gates: free-agent coverage (whether unsigned players appear), the relationship of 1,911 to the
-  ~3,116 figure, and contract/salary fields (EA exposes no contract data in this payload).
+### 1b. Rating iterations — the full population (corrected 2026-10-02)
+
+- **[Observed]** The database exposes **iterations**. Weekly iterations contain only players who were
+  under contract that week; the **Launch** iteration contains the whole population.
+
+| Iteration | Records | Notes |
+|---|---|---|
+| **`1-base` (Launch)** | **3,111** | the full catalog, including unsigned players — resolves the ~3,116 figure |
+| `madden-ratings-week-1` | 1,891 | partial weekly delta |
+| `madden-ratings-week-2` | 1,911 | partial weekly delta (the default page view) |
+
+- **[Observed] Free agents are present:** 1,240 Launch records have `team: null` (e.g. Bobby Wagner,
+  Tyreek Hill, Joey Bosa, Joe Mixon). The earlier "0 free agents" reading was an artifact of probing the
+  week-2 iteration and is **retracted**.
+- **[Observed] Player ids are stable across iterations:** 200/200 sampled ids from each of launch,
+  week-1 and week-2 also appear in the Launch population.
+- **[Observed] Archetype coverage:** 782 of 3,111 records (25%) have `archetype: null`, concentrated at
+  DT 286, WR 215, QB 61, MIKE 48, RT 41, LEDG 32, LT 32, REDG 30, CB 26, C 11. Confirmed by the owner as
+  a genuine source gap (D110) — rendered as N/A, never as zero.
+- **[Observed] Where the archetype appears in the UI:** the profile page renders it as a labelled row
+  directly after Weight (`player-ratings/jessie-bates-iii/13202` → "Archetype Zone - S"), and the
+  payload carries the same value.
+- Open gates: contract/salary fields (absent from this payload) and Madden 27 depth-chart slot rules.
 
 ## 2. Formation/playbook source — Civil.GG
 
