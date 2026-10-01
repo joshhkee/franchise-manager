@@ -1,7 +1,0 @@
-node_modules
-.next
-data
-.git
-.freebuff
-tsconfig.tsbuildinfo
-*.log

@@ -1,379 +1,207 @@
-# Madden 27 Franchise Manager — Implementation Plan
+# Execution Plan — Approved Checkpoint Sequence
 
-The authoritative plan. **Read this file first in every phase thread.** It holds the
-scope, the stack, the data model, the phase breakdown, the exit workflow, and — in
-section 5 — an honest account of what already exists in this repository so a new
-thread does not rebuild it or assume a greenfield checkout.
-
-A local-only, single-user "GM war room" for one Madden 27 PC franchise. Reads your
-franchise save file, and gives you a full team overview plus a depth chart and
-formation-sub planner you can actually apply in-game from a generated checklist.
-
----
-
-## 0. Before any phase starts — two blockers
-
-### 0.1 Repository plumbing
-
-**Resolved 2026-09-30 — remote and initial commit now exist.**
-
-| Requirement | State |
-| --- | --- |
-| Git remote | `origin` → `https://github.com/joshhkee/franchise-manager.git` |
-| Commits | One (`8563921 Initial Commit`), pushed. `main` tracks `origin/main`; tree clean. |
-| Default branch | **`main`** (not `master`). Phase branches target `main`. |
-| `gh` CLI | Installed (2.101.0) but **still not authenticated** — run `gh auth login` before any phase thread needs to open a PR. |
-
-Everything in the phase-exit checklist (section 6) now runs as written; only **PR
-creation** is gated on `gh auth login`.
-
-Two repo-hygiene notes for phase threads:
-
-- **The local database is not in git.** `data/*.db`, `data/pglite/` and `data/backups/`
-  are gitignored. A thread working in this same checkout keeps its seeded DB on disk;
-  one starting from a fresh clone must run `npm run db:push`, `npm run db:seed`,
-  `npm run import:ratings` and `npm run seed:chart` first. See the README.
-- **`data/imports/ea-ratings-m24-ratings.json` (6 MB) is committed.** It is regenerable
-  and already stale (an `m24` dump, not `m27`). Consider gitignoring it before it grows.
-
-### 0.2 Stack conflict — decide before Phase 0
-
-This plan specifies a stack that **differs from what is already built in this repo**
-(full detail in section 5). The differences are not cosmetic:
-
-- Plan: **SQLite via `better-sqlite3`** · Repo: **PGlite** (embedded Postgres), with `postgres`/Neon if `DATABASE_URL` is set
-- Plan: **Next.js 15** · Repo: **Next.js 16**
-- Plan: **shadcn/ui primitives** · Repo: **hand-rolled Tailwind 4 components**
-- Plan: **local-only, no auth, no deploy** · Repo: **passphrase auth + Vercel/Docker deploy configs + PWA manifest**
-- Plan: **`madden-franchise` for save parsing** · Repo: **no save importer at all** (only an EA ratings API importer and a civil.gg playbook scraper)
-
-**Recommendation (pending your confirmation): keep the existing stack and adopt this
-plan's *phases, data model and scope* on top of it.** Rationale: the data model in
-section 4 is already substantially implemented on Drizzle (section 5), with 315
-passing tests. Swapping the driver from PGlite to `better-sqlite3` would rewrite the
-schema and migrations for no functional gain in a local-only app — PGlite already
-gives us a single local file with the same SQL. Dropping auth/deploy configs is a
-deletion, not a phase. If you would rather migrate to the plan's stack verbatim, say
-so and Phase 0 becomes "migrate stack, then scaffold" instead.
-
-Until this is confirmed, phase threads should assume the existing stack and treat the
-save-import work (Phase 1) as the real gate — it is the same work either way.
-
----
-
-## 1. Confirmed decisions
-
-- **Data source:** your PC franchise save file, read-only. No companion app, no EA login, no cloud.
-- **Hosting:** local-only web app on your machine. No auth, no deploy.
-- **Planning depth:** full per-formation slot assignment (every slot in every formation of the playbook).
-- **In scope:** cap & contracts, draft board + rookie entry, trade log + trade analyzer, scheme-fit grading.
-- **Availability:** injuries/suspensions/inactives are flagged, with next-man-up suggestions — never silent changes.
-- **Write-back:** deferred. We ship an apply-checklist; the write path is kept as an additive module so it can be added later without rework.
-- **Playbooks:** several offense + defense playbooks in parallel, so you can compare schemes and plan against whichever you switch to.
-
-## 2. Stack
-
-- Next.js 15 (App Router) + TypeScript, run with `npm run dev` on localhost.
-- SQLite via `better-sqlite3` + Drizzle ORM + `drizzle-kit` migrations (single local DB file).
-- Tailwind CSS + a handful of shadcn/ui primitives.
-- `madden-franchise` (v4, ESM) used only in server-only code for save parsing.
-- `chokidar` (optional save-folder watching), Playwright (dev-only, for the one-off playbook scraper).
-- Vitest for domain-logic tests.
-
-See section 0.2 — the repo currently differs on several of these.
-
-## 3. Architecture: pluggable ingest
-
-```
-lib/franchise/
-  source.ts        # NormalizedLeague shape shared by all sources
-  save-importer.ts # madden-franchise -> NormalizedLeague (PC save)
-  companion.ts     # (later) companion-app export JSON -> NormalizedLeague
-  tables.ts        # table/field mapping, keyed by stable uniqueId, per game year
-  backup.ts        # timestamped copies of the save before every read
-```
-
-The rest of the app only ever sees `NormalizedLeague`, so adding the companion-app
-path later is a new file, not a refactor.
-
-## 4. Data model
-
-- **league** — name, game year, save path, current week/season, my team, cap total.
-- **team** — Madden team id, abbr, name, conference, division.
-- **player** — Madden player id, name, position, jersey, age, years pro, OVR, dev trait, full ratings JSON, height/weight, college, contract JSON, cap hit, years remaining, injury status + weeks, roster status.
-- **roster_snapshot / snapshot_player** — one row per import, with per-week ratings, so you get history and trending, and drift is detectable.
-- **draft_pick** — year, round, original team, current team (your asset inventory, tradeable).
-- **transaction** — type (trade/draft/signing/cut/extension), week, counterparty, incoming/outgoing players+picks as JSON, analyzer value each way, notes.
-- **playbook / formation / formation_slot** — the seeded playbook data, with source (civil/manual) and a per-formation edit flag.
-- **plan** — a named planning context: `{ playbook, depth_chart, formation subs, personnel rules }`. You can hold several plans (one per playbook you're considering) and diff them.
-- **depth_chart_plan** — position group + ordered player list.
-- **formation_sub_plan** — formation slot → player.
-- **value_chart** — tunable pick/player trade-value table for the analyzer.
-- **scheme_fit_threshold** — tunable attribute thresholds per role/position.
-
-## 5. Current repository state (delta against this plan)
-
-This section exists so a phase thread knows what is already sitting on disk. It was
-verified against the working tree, not remembered.
-
-### Status at handoff (verified 2026-09-30)
-
-Re-checked against the tree and a live run, not recalled: `npx vitest run` → **315
-passed / 20 suites** · `npx tsc --noEmit` clean · production build green. There is no
-`better-sqlite3` migration and no save importer; the stack question in section 0.2 is
-**still open** and is the one decision a phase thread must not guess at.
-
-| Phase | Status | Where / what is missing |
-| --- | --- | --- |
-| 0 — Scaffold | **Done**, on the repo's stack (see §0.2) | `package.json`, `tsconfig.json`, `next.config.ts`, `drizzle.config.ts`, `vitest.config.ts`, `README.md`, 20 suites, `scripts/` |
-| 1 — Save spike + import pipeline | **Deferred** (owner, 2026-09-30) | No `src/lib/franchise/`, no `scripts/inspect-save.ts`; `madden-franchise` is absent from `package.json` (it appears only as a user-agent string). Blocks nothing — the app is authoritative and works without a save. Revisit when a Madden 27 save exists |
-| 2 — Team overview | **Done** | `src/app/page.tsx`, `src/app/team/page.tsx` — position groups, cap sheet, expiring deals, positional need scoring, 3-deep views |
-| 3 — Depth chart + formation planner | **Substantially done** | `src/app/depth-chart/page.tsx`, `src/app/personnel/page.tsx`, `src/app/formations/**`, `src/app/checklist/page.tsx`, `src/domain/{resolution,impact,conflicts,bulk}.ts` — per-formation slot assignment, inherit-vs-override subs, duplicate/empty detection, availability warnings, impact preview, apply checklist. Delivered 2026-09-30: **special-teams units** (`pb-special-teams` — field goal, punt, punt return, kickoff, kick return), the **packages** view (`src/app/packages/page.tsx`), and **checklist export** to Markdown/CSV (`src/app/api/checklist/export/route.ts`). **Remaining gap:** multi-plan selection/diffing |
-| 4 — Playbook data + comparison | **Partly** | `scripts/scrape-playbooks.ts`, `src/lib/importers/civilPlaybooks.ts`, `src/data/seed/playbooks.ts` — real civil.gg scraper, 6 seed playbooks (34 formations, including the five special-teams units). **No playbook comparer**, and no formation editor beyond per-slot rebinding |
-| 5 — Front office — **next active** | **Partly** | `src/app/transactions/page.tsx`, `src/domain/tradeValue.ts` — trade log, trade analyzer, rookie entry, tracked picks. **No scheme-fit grading, no plan diffing** |
-| 6 — Hardening | **Partly** | Suites cover slot validation, conflicts, bulk edits, resolution, the call engine, trade value and the WCAG theme contrast contract. **No save-import idempotency** (blocked on Phase 1), no schema-mismatch error UX |
-| 7 — Write-back | **Deferred by design** | — |
-| — | **Extra, not in this plan** | Deterministic call-sheet engine + tell meter + drive scripting (`src/domain/{engine,callSheet,tendency,drive}.ts`, `src/app/callsheet/page.tsx`); snapshot export/restore; design system (`DESIGN.md`) |
-
-### Missing entirely — the real work
-
-- **Phase 1 — the save spike and import pipeline.** No `madden-franchise` dependency, no `lib/franchise/`, no `scripts/inspect-save.ts`. It is the gate on *assumptions* about the save, **  not** on the rest of the build — everything already covered in this section runs on the EA ratings feed and manual entry with no save file at all. The report it produces is the one artefact that genuinely requires a save.
-- **Compaction/time-series:** `roster_snapshot` / `snapshot_player` (the repo has a JSON *export* called a snapshot — a different thing).
-- **Tunable tables:** `value_chart` and `scheme_fit_threshold` are code constants today, not DB tables.
-- **Multi-plan support:** a `plans` table exists but there is effectively one default plan; there is no plan diffing and no per-playbook plan comparison.
-- ~~**The Madden 26/27 position vocabulary.**~~ **Done.**
-  [`depthSlots.ts`](src/domain/depthSlots.ts) seeds the game's list — `LEDG`/`REDG`,
-  `SAM`/`MIKE`/`WILL`, `LS` as a primary position, `GAD` as a package position — and the seeded
-  fronts are drawn from civil.gg's alignment diagrams. `LE`/`RE`/`LOLB`/`MLB`/`ROLB`/`NB`/`H` are
-  retired, and `applySeed` reconciles an existing depth chart onto the replacements. See
-  [`POSITIONS.md`](POSITIONS.md).
-- **Playbook comparison view** (Phase 4) and **scheme-fit grading** (Phase 5).
-- **`inspect-save` reporting:** nothing enumerates the save's tables or confirms whether depth chart / formation subs are readable.
-
-### Schema present today
-
-`src/db/schema.ts`: `teams`, `players`, `franchisePlayers`, `leagues`, `depthSlots`,
-`depthChartEntries`, `formationSubs`, `playbooks`, `formations`, `formationSlots`,
-`formationPlays`, `plans`, `callSheetEntries`, `drives`, `driveCalls`,
-`transactions`, `draftPicks`, `auditLog`.
-
-Mapping to section 4: `team` ≈ `teams` · `player` ≈ `players` + `franchisePlayers`
-(ratings kept deliberately separate so a ratings refresh never clobbers your
-contracts) · `draft_pick` ≈ `draftPicks` · `transaction` ≈ `transactions` ·
-`playbook`/`formation`/`formation_slot` ≈ `playbooks`/`formations`/`formationSlots` ·
-`league` ≈ `leagues`. **Not present:** `roster_snapshot`, `snapshot_player`,
-`value_chart`, `scheme_fit_threshold`.
-
-## 6. Phase workflow (exit checklist — run at the end of every phase)
-
-Every phase thread finishes by doing all of the following, in order:
-
-1. **Make the website usable.** Run `npm run dev` and click through every route. A phase is not done if the app is broken, blank, unstyled, or returns an error — regardless of test results. Re-verify at desktop and phone width.
-2. **Verify.** `npm run typecheck` and `npm run test` must both be clean. Then do the real end-to-end pass for that phase (section 8).
-3. **Confirm no regressions to existing phases.** The app has working overview, depth chart, planner, checklist and trade log; do not leave them worse than you found them.
-4. **Commit.** Small, descriptive, one logical change per commit. Never commit secrets, `data/`, or a live save file.
-5. **Push** the phase branch to the remote.
-6. **Open a pull request**, then **verify it is mergeable** — no conflicts against the target branch, CI green if CI exists. Report the PR URL and the mergeability check in the thread.
-
-> **One prerequisite remains from section 0.1:** `gh auth login`. Remote and initial
-> commit are done, so steps 4–5 work today; step 6 needs `gh` authenticated.
-
-Branch naming suggestion: `phase-<n>-<slug>` (e.g. `phase-1-save-spike`), PR into the
-default branch, one phase per PR so each is reviewable and revertable on its own.
-
-## 7. Phases
-
-Each phase is written as: goal → deliverable → done-when. **Start a new thread per
-phase**, pasting the phase brief plus a pointer to this file and [`HANDOFF.md`](HANDOFF.md)
-(the instruction set: preferences, conventions, "do not" list, exit checklist).
-
-> **Active order (owner decision, 2026-09-30).** **Phase 1 is deferred** — the save-import
-> path blocks nothing, since the app is authoritative and runs on the EA ratings feed plus
-> manual entry. Phase 3's special-teams units, packages view and checklist export landed on
-> 2026-09-30; what is left of it is multi-plan support, which now needs a schema change
-> because the depth chart is keyed by layer rather than by plan. Phase 5's opening slice —
-> **scheme-fit grading and plan diffing across playbooks** — landed on 2026-09-30. So the next
-> work is **Phase 4's playbook comparer**, or the rest of Phase 5 (the trade analyzer's cap and
-> depth-chart fallout, and a draft board by year/round). Phase 1 is revisited only when a
-> Madden 27 save exists — and a supported-year save (19–26) can validate the approach sooner if
-> wanted.
-
-### Phase 0 — Scaffold
-
-**Goal.** Next.js/TS/Tailwind, SQLite + Drizzle, Vitest, `scripts/` folder, README
-documenting the local run + import workflow.
-
-**Deliverable.** A running skeleton with the test harness wired.
-
-**Done when.** `npm run dev` serves a styled page; `npm run typecheck` and
-`npm run test` are clean. *(See section 0.2: this is largely already true, on the
-existing stack. Phase 0 becomes a thin gap-closing exercise or a migration,
-depending on your decision.)*
-
-### Phase 1 — Save spike + import pipeline (the gate)
-
-**Goal.** Find out what the save actually contains before building anything on
-assumptions.
-
-**Status: deferred by the owner (2026-09-30).** See the active-order note above — the
-save-free work runs first.
-
-**This phase does not block the rest of the app.** The app is already usable with no save
-(EA ratings import, manual entry), so nothing that does not read the save
-needs to wait for this. What it gates is a *claim* — that the save can supply franchise
-state, and whether the depth chart and formation subs are readable at all. `madden-franchise`
-supports Madden 19–27, so the spike can run against any supported year's save; only the final
-confirmation is 27-specific.
-
-**Deliverable.** `scripts/inspect-save.ts` enumerates every table (name, uniqueId,
-record count), dumps the `Player` and `Team` schemas, and hunts for
-depth-chart/formation-sub storage. Then `save-importer.ts` normalizes rosters, teams,
-contracts and draft picks into the DB, with a backup written before every read.
-
-**Done when.** A **written report** states exactly which tables/fields we depend on,
-whether your in-game depth chart is readable, and whether formation subs exist in the
-file. Nothing else gets built around assumptions until you have seen that report.
-
-### Phase 2 — Team overview
-
-**Goal.** The GM's first screen.
-
-**Deliverable.** Team dashboard with position-group cards (starter/backup/depth with
-OVR, age, contract, cap hit), team OVR by side, dev-trait counts, and a positional
-need score (weak starters, thin depth, expiring deals). Dedicated Offense / Defense /
-Special Teams tabs, a 3-deep depth chart view, and a cap sheet with expiring deals by
-season (approximated values labelled as such).
-
-**Done when.** Every figure traces to a save field or is explicitly labelled an
-estimate.
-
-### Phase 3 — Depth chart + formation planner
-
-**Goal.** Plan every slot, then apply it in game.
-
-**Deliverable.** Per-plan depth chart ordering (including K/P/LS/H/KR/PR and all
-defensive groups) and, for each formation in the chosen playbook, full slot
-assignment. Includes auto-fill from depth chart, per-slot eligibility rules,
-duplicate-player and empty-slot detection, and a conflict panel driven by
-injury/availability. Special-teams units (FG/PAT, punt, punt return, kick return,
-kickoff) planned the same way. A grouped "packages" view so you can see every 3-WR
-formation's WR3 at a glance. **Output:** apply checklist — ordered by in-game screen,
-checkable, progress saved, exportable to Markdown/CSV.
-
-**Done when.** You can plan a full offense playbook, generate the checklist, and
-follow it in game without the app guessing.
-
-**Status (2026-09-30).** Everything above is built except multi-plan support: the depth
-chart with both layers, per-formation assignment with inherit/override, conflict
-reporting, bulk assignment, the five special-teams units as ordinary formations, the
-`/packages` role-across-formations view, and the apply checklist — which exports to
-Markdown and CSV from `/api/checklist/export`. Multi-plan selection and diffing is the
-last piece, and it pairs with Phase 5's plan diffing.
-
-### Phase 4 — Playbook data + comparison
-
-**Goal.** Choose a scheme with the data in front of you.
-
-**Deliverable.** `scripts/scrape-playbooks.ts` (Playwright, run manually, on-demand)
-turns civil.gg's public playbook pages into `data/playbooks/*.json`, merged into the
-DB with attribution. Formation slots derived from personnel group + an editable
-per-formation-type template. In-app formation editor so a civil.gg redesign or a bad
-scrape is a 20-second fix, never a blocker. Side-by-side playbook comparer
-(formations, personnel groups, play counts).
-
-**Done when.** A bad scrape is fixable in-app and scraping is never a runtime dependency.
-
-### Phase 5 — Front-office features
-
-**Goal.** Trades, draft, and scheme fit.
-
-**Deliverable.** Trade log (players + picks both directions, CPU counterparty, full
-history) with a trade analyzer using the tunable value chart plus cap and
-depth-chart fallout. Draft board with your picks by year/round and rookie entry that
-adds players and logs the draft transaction. Scheme-fit grading against your plan's
-playbook — attribute thresholds per role, plus "your playbook uses a slot this player
-can't fill" flags. Plan diffing across playbooks.
-
-**Done when.** A real trade produces a sane valuation, and a player's fit is graded
-against the actual playbook.
-
-**Status (2026-09-30).** Scheme fit and plan diffing are built — `/scheme` grades every
-starting role on Madden's own player archetypes plus an attribute floor, lists the
-depth-chart slots the scheme uses that the current starter cannot fill, and diffs the
-plan across playbooks to show the roles a switch would add, the starters it would
-unseat and the holes it would leave. The archetype and scheme tables are a one-time
-committed scrape; `SCHEME_FIT.md` is the researched reference and records which parts
-are the game's and which are ours. Trade log, analyzer, rookie entry and tracked picks
-already existed. Still open in this phase: the analyzer's cap and depth-chart fallout,
-and a draft board grouped by year and round.
-
-**Trade-target board — planned, not built.** The next piece of this phase turns the scouting
-view into a ranking of every player on every other club by scheme fit and trade value. It needs
-two models the app does not have yet — a continuous fit score
-([`SCHEME_FIT.md`](SCHEME_FIT.md) §7–8) and a positional value model
-([`TRADE_TARGETS.md`](TRADE_TARGETS.md)) — so the research, the build phases and the open
-decisions live in that document. Nothing of it is written yet.
-
-**Two dependencies found while researching Madden 27** (see [`POSITIONS.md`](POSITIONS.md)):
-
-1. **Scheme fit is per role, so the role vocabulary has to be right first.** *Settled:* the
-   vocabulary migration landed ahead of this phase, so grading runs against the names the game
-   actually uses (`LEDG`/`REDG`, `SAM`/`MIKE`/`WILL`) rather than retired ones.
-2. **Madden 27 rebuilt contracts.** Guaranteed money, void years, incentives, no-trade clauses and
-   custom structures all exist now, and players can negotiate outside their final year. The plan's
-   cap model — and the trade analyzer's contract-fallout math — is simpler than the game it is
-   modelling, so expect to show raw contract fields alongside any computed figure.
-
-### Phase 6 — Hardening
-
-**Goal.** Trust it with a season.
-
-**Deliverable.** Unit tests for slot validation, next-man-up, cap math and trade
-value; import idempotency (same save twice → no duplicates); save backups verified;
-clear error UX for schema mismatches and unreadable files.
-
-**Done when.** Importing the same save twice is a no-op, and a corrupt save fails loudly and safely.
-
-### Phase 7 (deferred) — Write-back
-
-**Goal.** Optional, gated.
-
-**Deliverable.** Kept behind its own module, gated on the Phase 1 findings.
-
-**Done when.** Only pursued if the spike shows depth chart (and ideally formation
-subs) are safely writable **and** you explicitly want it.
-
-## 8. Verification
-
-`npm run typecheck` and `npm run test` after each phase, **plus a real end-to-end pass
-per phase**: import an actual save and reconcile roster/position counts against the
-in-game screen, plan one full offense playbook, generate the checklist, and confirm
-the trade log and analyzer produce sane values on a real trade.
-
-## 9. Key risks and mitigations
-
-- **Player/team IDs change between exports** (a long-standing Madden complaint) → stable composite keys (name + position + age), snapshot history, and a manual merge UI when a match is ambiguous.
-- **~2,000 tables, 300-field Player records, table-name collisions** → resolve by stable uniqueId with a verified fallback, read only needed fields, keep the field mapping in one file that's cheap to update each game year.
-- **Formation subs may not be stored in the save, or may not persist in-game at all** → the app is authoritative for the plan; the checklist is the delivery mechanism; nothing depends on in-game persistence.
-- **Playbook slot data may be incomplete** → template table + in-app editor; scraping is a cached artifact, never a runtime dependency.
-- **Scraping is ToS-grey and fragile** → one-off script, cached JSON with attribution, manual editing path, madden-school.com as a secondary source.
-- **Cap rules are approximated** → show raw contract fields alongside computed figures and label estimates.
-- **The position vocabulary drifts between Madden releases** → Madden 26 renamed half the defense (`LE`/`RE` → `LEDG`/`REDG`, `LOLB`/`MLB`/`ROLB` → `SAM`/`MIKE`/`WILL`, slot corner `SLCB`) and we shipped the old names. Keep the vocabulary in one file, keyed so a rename is one edit, and re-check it each release — see [`POSITIONS.md`](POSITIONS.md).
-- **Save safety** → strictly read-only; backup copy before any read; never open the save for writing.
-
-## 10. What's needed from you at build time
-
-- The path to your franchise save (and whether it's `CAREER-*`, zipped, or both) plus whether you want folder-watching enabled.
-- Which 3–4 playbooks (offense + defense) you're choosing between, so those get seeded first.
-- Whether you want to tune the trade value chart yourself or start with a standard pick-value table and adjust in-app.
-
----
-
-## Related documents
-
-- [`HANDOFF.md`](HANDOFF.md) — the instruction set for any thread: stated preferences, features, phase status, conventions, exit checklist.
-- [`POSITIONS.md`](POSITIONS.md) — Madden 26/27 primary vs package positions, the gap against this repo, and the migration plan.
-- [`README.md`](README.md) — what the app does today, and how to run it.
-- [`DESIGN.md`](DESIGN.md) — the design system every UI change must follow (serif headings, team-driven accent, WCAG contract enforced by tests).
-- [`SCHEME_FIT.md`](SCHEME_FIT.md) — how fit is graded today, and the football research behind the planned fit score.
-- [`TRADE_TARGETS.md`](TRADE_TARGETS.md) — the value model, the roster-need model, and the plan for the ranked trade-target board.
+Status: phase/checkpoint granularity and GM/Coach-before-Gameday sequencing approved by owner (D084/D089). Research-dependent exact coverage and engineering contracts remain gated. No implementation in the planning thread.
+
+## How to use this plan
+
+Read [DECISIONS.md](DECISIONS.md), [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), and [RESEARCH.md](RESEARCH.md). Each checkpoint is a cohesive commit/push/PR unit, not an obligation to PR every internal task. Owner reviews and merges. A later checkpoint starts from the owner's merged baseline, never assumes an unmerged predecessor has landed.
+
+All checkpoints require: correct scope, relevant tests, type/build checks when code exists, applicable desktop/mobile inspection, no secrets, updated docs/handoff, and a mergeable PR. If a source/account/remote or game rule blocks completion, record the blocker rather than claim done or quietly reduce scope.
+
+## Checkpoint dependencies and staged completeness
+
+This table is the dependency authority; phase packets and launch prompts refer to it rather than imply every lower-numbered phase must finish first. Owner-approved phase order is unchanged.
+
+| Checkpoint | Required accepted/merged baseline | Specific exit evidence |
+|---|---|---|
+| C0A | Approved planning docs available; baseline publication integrated with evidence or a separate owner-authorized docs PR | Versioned evidence/coverage register, feasible initial source strategy, reviewer findings resolved or explicitly open |
+| C0B | C0A and independent review dispositions | One concise contract/ADR + scenario matrix; no application code required |
+| C1A | C0B | Built responsive shell, actual check scripts, owner visual approval |
+| C1B | C1A visual acceptance | Private persistence, player baseline/plan primitive, snapshot import report, backup envelope/round-trip for implemented state |
+| C2A | C1B | Accessible verified depth-chart plans; baseline setup and data-safety fixtures |
+| C2B | C2A | Executable action units, atomic/retry-safe confirmations and safe undo; transaction dependencies tested with fixtures only |
+| C3A | C2B plus verified Falcons mappings | Dynamic personnel/overrides; no redundant inherited-sub checklist items; backup includes formations |
+| C3B | C3A | Reconciled stock-book inventory + special-teams result/owner-approved exception |
+| C4A | C3A; C3B need not be finished | Real transaction/asset integration replaces dependency fixtures; backup includes GM state |
+| C4B | C4A and stable verified selected-book catalog | Tested fit/scouting/Coach rubrics; backup includes notes/dismissals/identity |
+| C5A | C4B and supported chosen books; C3B may still expand independently | Executable tested rule engine + metadata/templates + signed-off coverage grid, not documentation-only examples |
+| C5B | C5A | Integrated phone UI and persistent editable plans; backup includes gameday state |
+| C6A | All above merged, including C3B, or individually recorded owner-approved exceptions | Integrated acceptance, actual iOS test or explicit pending owner waiver, recovery/security/coverage evidence |
+
+A checkpoint's feature is complete for its declared scope, not for future features. Early backup/state primitives must grow with each subsequent feature; don't defer all integration or export updates to C6A. Transactions/promotion UI arrive at C4A: C2/C3 use dependency fixtures or already-recorded roster corrections and must not expose a nonfunctional 'promote' or 'trade' button.
+
+## Lean execution defaults
+
+- Keep approved checkpoint IDs. Do not add mandatory paperwork PRs, integration-only PRs, speculative libraries, or a generic workflow/event-sourcing platform.
+- Freeze only the contracts used by the next pair of workstreams. Later schema changes use normal reviewed migrations; 'freeze' does not mean designing every future implementation in C0B.
+- Full shared-code tests at integration boundaries, targeted tests per change, UI inspection only when UI is affected. Docs-only work marks application checks not applicable.
+- Two parallel code lanes use WORKFLOW.md's explicit independent-or-integration delivery mode. A partial lane does not count as a completed owner-facing checkpoint.
+
+## Phase 0 — Evidence and execution readiness
+
+### C0A — Data and mechanics feasibility
+
+Deliver research/documentation and permitted data-acquisition plan, not a speculative UI feature.
+
+- Verify player schema/coverage/IDs and free-agent availability; reconcile the unverified counts and separate complete-source import from complete-game coverage. Any known omission needs visible disclosure and an owner decision before claiming the full requested catalog is complete.
+- Inventory Madden 27 primary/specialist slots, ranks, eligibility, specialist precedence, and baseline defaults with citations/version/platform.
+- Inspect Civil.gg formation labels/coordinates; establish permitted access/reuse, stock book inventory, and play-art policy.
+- Create a validation matrix with representative Falcons offense/defense mappings sufficient to prove the acquisition/resolver strategy; exhaustive initial-book mapping validation completes at C3A. Inventory special-teams feasibility now; exact special-teams mapping/owner-approved skip completes at C3B.
+- Identify unknowns requiring owner gameplay verification; distinguish prior-year evidence.
+- Record accounts/projects prerequisites and source coverage risks.
+
+Exit: useful initial sources and a documented mapping strategy are established, or owner makes an explicit revised-scope/source decision. Merely finding a webpage is not completion.
+
+### C0B — Contracts and test fixture specification
+
+After C0A, freeze the initial domain vocabulary and implementation interfaces before parallel feature coding:
+
+- Source/franchise identity and isolation, confirmed-vs-planned semantics, semantic diff/dependencies/undo, revision conflicts, source/manual missing values.
+- Verified initial position/formation fixtures and no duplicate-player formation invariant.
+- One concise persistence/API and migration/test-tooling ADR: bounded undo, request retries/idempotency, autosave revision/unsaved navigation behavior, provisional baseline setup, valid ordered-list action units, and baseline-versus-override diff rules. Check existing dependencies when code exists; before that select/document a minimal stack, not a second backend or generic event-sourcing engine.
+- Mark minimum fixture coverage for transaction → depth chart → formation → confirmation.
+
+Exit: one coherent contract set, no rival schema definitions, and owner-approved revised assumptions where research requires changes.
+
+Approved first pairing (D101): source/mechanics researcher plus independent reviewer of evidence/permissions/scope/design. Exclusive docs/worktrees and one integrator; no two writers edit the same decision/schema document simultaneously.
+
+## Phase 1 — Private usable foundation
+
+### C1A — App shell and design acceptance
+
+- Next.js/Tailwind skeleton, agreed desktop/mobile navigation, light/dark, empty/loading/error states, neutral visual tokens, accessible controls.
+- Documentation-only layouts guide implementation; no invented domain calculations or fake dashboard statistics.
+- Demonstrate shell at 1280×720, 1440×900, and narrow phone sizes, subject to actual-device updates.
+
+Exit: owner reviews the implemented shell and approves direction before feature expansion. Type/build/accessibility/browser checks pass. Temporary fixtures clearly identified, never presented as published data.
+
+### C1B — Private persistence and franchise baseline
+
+- Supabase GitHub OAuth with authoritative single-owner allowlisting and policy tests.
+- One logical database, immutable source revisions, isolated franchises, Falcons default, create/switch/archive, custom-player identities.
+- Permitted complete-as-reported player import, missing-data report, editable grouped player data, no invented OVR recalculation.
+- Published/provisional planning baseline distinct from owner-confirmed game state; player planned-vs-recorded primitive precedes C2 checklist UI. Autosave/revision/conflict/network failure, navigation, and session-expiry paths.
+- Versioned backup envelope and atomic validated restore-new for all C1B state, including custom-player identity remapping and missing source-revision handling. Every later checkpoint extends round-trip coverage. Provision only after owner approval; production data never used as test fixtures.
+
+Exit: unauthorized access denied, two franchises isolated, published source untouched by edits, restore safe, multi-device stale writes detected. Initial shell and data integrated, not merely parallel demos.
+
+Possible parallelism after C1A/contracts: A owns persistence/auth/domain; B owns read-only catalog/player UI and visual components with fixture adapters. A alone owns migrations/shared contracts. Freeze adapters before work; integrate only after their PR bases are clear.
+
+## Phase 2 — First payoff: depth chart → checklist
+
+### C2A — Planning state and depth charts
+
+- Verified per-position lists and game-compatible eligibility; active/practice squad separation.
+- Planned/confirmed state, accessible drag + move controls, replacement search, primary/specialist assignments.
+- Intent-aware changes (planned vs already happened), revision-safe writes, visible game-verification state.
+
+Exit: core lineup fixtures pass; same player can have legal primary/specialist roles; invalid assignments and cross-franchise IDs rejected; mobile/keyboard workflows usable.
+
+### C2B — Actionable checklist and recovery
+
+- Final differences, A→B→C consolidation/revert, individual and reviewed bulk confirmations.
+- Prerequisites, valid executable action units (ordered list by default), blocking invalid confirmation, explicit atomic reviewed bulk scope, retry-safe requests, cancel and dependency-aware bounded undo. Partial application is between valid units, not arbitrary per-rank baseline corruption.
+- Verified game-menu guidance only; transaction dependencies may use domain fixtures before full GM UI exists.
+- Overview displays real pending/issues and quick resume.
+
+Exit: stale device confirmations, partial applies, cancel/undo dependencies, and recording already-completed reality are covered by tests and owner manual scenarios. Usable no-game workflow remains clear.
+
+Parallelism: after state contract freeze, A owns diff/dependency/confirmation service; B owns depth-chart/checklist presentation consuming those interfaces. Never let both independently define pending-action semantics.
+
+## Phase 3 — Verified dynamic formation substitutions
+
+### C3A — Falcons offense/defense diagrams and overrides
+
+- Verified labels, coordinates, slot inheritance/precedence, correct opposite diagram orientations.
+- Name/number/OVR detail, optional compact jersey-circle treatment with tap/keyboard access.
+- Inherit changes, retain overrides, explicit reset scope, duplicate/departed-player conflict + offered repair.
+- Checklist receives explicit override set/reset and verified game actions, not redundant tasks for inherited diagram changes caused by a depth-chart edit. Playbook switching retains book-scoped plans without transplanting same-name mappings.
+
+Exit: fixtures prove each initial formation mapping, overrides survive chart changes, distinct on-field personnel, source confidence visible. Both phone and desktop rendered diagrams reviewed, including long names/collision.
+
+### C3B — Coverage expansion and special teams
+
+- Stock team/alternate inventory; validated mappings deduplicated only when genuinely equivalent.
+- Expand all available books with coverage report; do not claim unsupported/partial books complete.
+- Special-teams diagrams if verified feasible; otherwise blocker report and owner-approved skip.
+- Play-art permitted assets/links where available, fallback disclosed. No custom-book builder.
+
+Exit: inventory reconciles implemented vs partial/unsupported; any reduced completion accepted explicitly. Large data catalog does not degrade diagram interactions.
+
+Parallelism: A owns resolver and mapping/schema updates; B owns diagram/selection UI or separate data batches with mutually exclusive files. Special-teams/all-book mapping research may run alongside GM work after C3A if shared catalogs/contracts are frozen.
+
+## Phase 4 — GM War Room and Coach View
+
+### C4A — Roster, assets, manual transactions, contracts
+
+- Manual contract ledger and incomplete-total coverage; no cap simulator.
+- Manually initialized explicit-year pick ledger (no invented assets) and owner-entered proposals; confirmed-vs-planned roster and asset effects.
+- Secondary sign/cut/promotion tools; no generated deals/acceptance prediction.
+- Transaction confirmation feeds checklist prerequisites and flags affected plans with offered repairs; it does not silently change deliberate overrides. App proposal save and owner game-completion confirmation are separate operations; retries never apply a deal twice.
+
+Exit: asset ownership/duplicate trade validation, cross-franchise isolation, incoming/outgoing roster effects, conflicting proposals, unknown contracts, and dependency-safe confirmation tested.
+
+### C4B — Scouting, fit, Trade Block/Targets, Coach tabs
+
+- Published/recorded archetype fit distinct from practical role rubric; research-backed/versioned explanations.
+- Attribute/name/team filters and side-by-side comparison; position-relative athletic anomalies with explicit missing/sample policy.
+- Explained surplus/poor-fit Trade Block, explained targets, pin/dismiss/notes.
+- Coach Scheme & Playbook, Personnel Gaps, Formation Identity with links to authoritative editors.
+
+Exit: no ambiguous magic score, no missing-as-zero bias, no mandatory off-scheme sell decision, persistent dismissals and custom-player behavior covered. Owner approves example recommendations.
+
+Parallelism: A owns transactions/assets/persistence; B owns fit/scouting/Coach read models using frozen roster interfaces. Shared schema changes routed through A with agreed integration window.
+
+## Phase 5 — Phone-first gameday
+
+### C5A — Verified play metadata and curated templates
+
+- Exact supported calls/formation identifiers, personnel/look families, permissible play art or fallback.
+- Research notes separate official game facts, football heuristics, and version-dependent adjustments.
+- Initial target: three offensive themes (under-center/play action, shotgun quick game, motion/misdirection) and three defensive themes with verified useful calls/context. Catalog is extensible. A source gap requires an explicit owner decision, not fabricated calls.
+- Explicit down/distance/field/context rules, empty-formation vs personnel distinction, traceable explanations, no invented calls.
+
+Exit: executable rule tests and an explicit theme×situation coverage grid reviewed by owner, including exact bucket boundaries, unknown-context behavior, valid calls, and intentional unsupported cells. At least one supported situation per theme has three eligible complementary calls; a refreshable theme also demonstrates an eligible non-pinned alternative or explains exhaustion. Source gaps require owner approval, never filler. The grid, not a speculative universal play count, defines useful initial coverage.
+
+### C5B — Gameday UI and editable plans
+
+- Phone situation chips, sticky but compact side/theme controls, THREE complementary eligible calls (fewer if insufficient verified coverage, never filler), optional context, expanded coaching details. Incompatible pins remain browsable but not recommended.
+- Edit/name themes, favorite formations/plays, preserve current context while browsing; refresh eligible calls within theme with resettable current-session recent-menu memory. Eligible pins are prioritized within three slots, never expand the menu or override compatibility; deterministic handling of >3 pins documented. Displayed does not mean run.
+- Fast local situation evaluation against current validated plan; truthful online save/connection status.
+- No play-by-play logging, print/PDF, live sync claims, or offline-edit complexity.
+
+Exit: iOS Safari-oriented browser checks, representative actual-device owner check, no essential horizontal scrolling, no sticky control obstruction, readable play cards, rule/UI explanation agreement. Unsupported context produces an honest empty/fallback state.
+
+Parallelism: A owns rules/metadata/templates; B owns gameday UI once scenario input/output types are frozen. No LLM or paid API added.
+
+## Phase 6 — Integrated hardening and owner handoff
+
+### C6A — Full workflow/security/performance release
+
+- Exercise create franchise → player edit → lineup → sub override → planned trade → prerequisite confirmation → final checklist → gameday → backup/restore.
+- Validate light/dark, keyboard, narrow/short screens, iOS Safari, Chromium/Helium owner test where available.
+- Inspect performance with full verified catalog and representative diagrams/templates; document environment and realistic free-tier caveats.
+- Verify preview/production env isolation, migrations/rollback plan, owner allowlist/policies, secret handling, safe logs, and export integrity.
+- Document project resume, backup cadence, failure recovery, limitations, supported coverage, and future feature exclusions.
+
+Exit: no unresolved critical blockers; coverage is honest; owner accepts supported scope; final PR mergeable. Hosting changes/production migration only with scoped owner approval.
+
+## Scheduling recommendation
+
+Do not keep two coding threads busy artificially. Run in parallel only after shared contracts are stable. Strong candidates:
+- source research + independent design/research review;
+- backend/state services + fixture-driven UI;
+- mapping coverage research + GM UI after formation contract freeze;
+- transaction/contract tooling + scheme/scouting read models;
+- gameday engine/metadata + phone UI.
+
+A completed phase is not just passing isolated unit tests: integrated behavior and owner acceptance must be demonstrated. No time estimates or exact PR count promises until C0 source feasibility is known.
+
+## Approved sequencing and remaining gates
+
+- Sequencing/checkpoint granularity approved; GM/Coach precedes Gameday.
+- Initial gameday target approved as three offense + three defense themes, exact verified calls/buckets reviewed at C5A.
+- See WORKFLOW.md for worktree/PR/integration procedure and SETUP.md for project/auth/environment setup.
+- Node/package manager/GitHub CLI/Docker, primary branch/remote, free project slots, and source feasibility must be inspected, not assumed.
+- Infeasible special-teams diagrams require owner explanation and approval to skip.
+- Proposed performance targets, bounded history retention, and exact scoring thresholds must be documented with tests and limitations before being called complete.

@@ -1,170 +1,190 @@
-# Design guidelines
+# Design Review — Franchise Manager
 
-The rules every change to this site must follow. They exist so the app stays
-minimal, professional, and — the part that is easy to get wrong — **readable no
-matter which team you are running**, in either light or dark mode.
+Status: owner approved overall navigation, neutral schematic direction, phone navigation, and compact marker fallback in Round 15 (D074–D078). Wireframes remain documentation, not a pixel-perfect approved mockup. Fine spacing/tokens and proposed performance targets still need execution review.
 
-If a change conflicts with anything here, fix the change or change this document
-deliberately. Don't quietly break the contract.
+## Visual contract
 
----
+- A working sports-operations application, not a marketing website or an AI assistant.
+- Light default plus optional dark; neutral surfaces, restrained team accents (Atlanta red initially), clear typography, compact readable tables.
+- No decorative stadium art, oversized hero sections, purple gradients, sparkle/copilot treatments, gratuitous glowing/glass panels, or charts without an operational purpose.
+- Proposed typography: a readable system sans-serif; tabular numerals for ranks, ratings, and money. No paid font or external font dependency required.
+- Color does not carry state alone: text/icons identify pending, overridden, unavailable, invalid, saving, failed, and conflicted states.
+- Target keyboard-accessible controls, visible focus, sufficient contrast in both themes, and reduced-motion support. Do not animate ordinary data updates theatrically.
+- Proposed minimum touch target: 44 CSS pixels for main mobile actions. Compact desktop rows must not dictate phone tap size.
+- Keep top-level navigation stable. Tabs organize alternate views; no carousel navigation for operational content.
 
-## 1. Colour: one accent, fixed semantics
+## Proposed information architecture
 
-There are exactly two kinds of colour in the UI, and they must never be confused.
+1. Overview
+2. Lineups — Depth Chart / Formation Subs
+3. GM War Room — Roster / Trade Block / Trade Targets / Assets & Moves
+4. Coach View — Scheme & Playbook / Personnel Gaps / Formation Identity
+5. Gameday — Offense / Defense, editable drive plans
+6. Checklist
 
-### The accent (team colour)
+Franchise selector and APP save status remain globally accessible. Use 'Saved to app', not a generic 'Synced' label that could imply console synchronization. Pending game changes have a separate label; prototype shell controls remain explicitly not connected until C1B. Settings contains theme, data provenance, franchise archive/create, backup/restore, and account controls. Avoid separate settings navigation items for every minor setting.
 
-The accent is the user's franchise colour. It is **presentational and swappable**:
-it changes the moment you change your team. It reaches the UI through CSS custom
-properties resolved per request by [`src/lib/theme.ts`](src/lib/theme.ts).
+A player detail panel is reused across roster, scouting, depth chart, and diagram selection. A formation preview is reused across Coach View, lineup editing, and Gameday. Each workflow has one authoritative editor; other screens link to it rather than creating competing copies.
 
-Use the accent for:
+## Desktop wireframes
 
-- Buttons (`.btn`), focus rings, `.field` focus borders
-- The active navigation pill
-- Links and inline accent text
-- Highlighted diagram markers, selected states, the "this is the call" panel
-- The team badge in the header and the browser/PWA chrome colour
+Target review sizes: 1440×900 and 1280×720 CSS pixels (proposed; actual owner resolution not provided). Long lists may scroll within a focused work area. At small heights, allow safe scrolling rather than clip controls or shrink text. Avoid several independently scrolling tiny panels.
 
-**Accents only.** The accent never becomes a page or panel background. Content
-surfaces stay neutral so legibility never depends on which team you picked.
+### App shell / Overview
 
-### The semantic tones (never team-coloured)
+```text
+┌───────────────┬──────────────────────────────────────────────────────┐
+│ Franchise ▾   │ Overview                              Saved · Theme  │
+│               ├──────────────────────────────────────────────────────┤
+│ Overview      │ Falcons · Published baseline: unverified in-game    │
+│ Lineups       │                                                      │
+│ GM War Room   │ Pending game changes   │ Lineup issues               │
+│ Coach View    │ [review checklist]     │ [resolve issues]            │
+│ Gameday       │                        │                             │
+│ Checklist (n) │ Offense / defense books and schemes                  │
+│               │ [open formation subs]  [open gameday]                │
+│               │                                                      │
+│ Settings      │ Resume recent work; no fabricated records or stats   │
+└───────────────┴──────────────────────────────────────────────────────┘
+```
 
-`good` / `warn` / `bad` / `info` mean something. They are **fixed** and must not
-follow the team, or "verified" would turn red for a red team:
+Show useful counts only. No empty win-loss record, automatic season tracker, fake charts, or placeholder 'AI insight' card. If there are no pending changes/issues, use a quiet empty state with a useful next action.
 
-- `good` — verified, applied, on the field, a trade that favours you
-- `warn` — assumed-until-verified, thin depth, expiring deals
-- `bad` — empty spots, duplicates, errors, unavailability
-- `info` — neutral facts, notes, counts
+### Lineups / Depth Chart
 
-They are defined once as `--tone-*` in [`globals.css`](src/app/globals.css) with a
-light and a dark value, and surfaced through the `Badge` tones in
-[`src/components/ui.tsx`](src/components/ui.tsx).
+```text
+┌───────────────┬──────────────────────────────────────────────────────┐
+│ Navigation    │ Lineups                    Planned ▾ · Saving status │
+│               │ [Depth Chart] [Formation Subs]        Checklist (n) │
+│               ├──────────────┬────────────────────────┬──────────────┤
+│               │ Offense     │ WR                     │ Player info  │
+│               │ Defense     │ Rank / name / # / OVR  │ on selection │
+│               │ Specialists │ 1 … [move] [replace]   │ relevant     │
+│               │             │ 2 … [move] [replace]   │ attributes   │
+│               │ Positions   │ 3 … [move] [replace]   │ and fit      │
+│               │ in verified │                        │              │
+│               │ game order  │ Baseline differences   │              │
+│               └─────────────┴────────────────────────┴──────────────┤
+│               │ Practice squad available separately, not eligible   │
+│               │ for active formation use without promotion           │
+└───────────────┴──────────────────────────────────────────────────────┘
+```
 
-**Rule of thumb:** if turning the team blue would make it a lie, it is semantic.
+Primary workspace is one selected position's ordered list. A compact overview of other positions may be added if it improves comparison without forcing tiny rows. Dragging has move/select alternatives. Planned/confirmed inspection must be unambiguous; default editing changes the plan. Player detail may collapse at narrow desktop widths.
 
----
+### Lineups / Formation Subs
 
-## 2. The accent token contract
+```text
+┌───────────────┬──────────────────────────────────────────────────────┐
+│ Navigation    │ Offense / Defense · Playbook ▾ · Sync status         │
+│               │ [Depth Chart] [Formation Subs]                       │
+│               ├────────────────┬─────────────────────────────────────┤
+│               │ Search         │ Formation name · Personnel · ★      │
+│               │ Formation sets │                                     │
+│               │ Favorites      │              DIAGRAM                │
+│               │ Override badge │ # + name + OVR + slot role          │
+│               │ Conflict badge │                                     │
+│               │                │ Selected slot → replace / reset     │
+│               │                │ Inherited from: SLWR1 (if verified) │
+│               │                │ Override / conflict explanation      │
+│               └────────────────┴─────────────────────────────────────┤
+│               │ Changed slots → checklist; reset scope is explicit   │
+└───────────────┴──────────────────────────────────────────────────────┘
+```
 
-Accent values are never used raw. `deriveAccentTokens` in
-[`src/lib/color.ts`](src/lib/color.ts) takes a team's true colours and returns this
-set, guaranteed WCAG-AA safe:
+**Non-negotiable orientation:**
 
-| Token             | Purpose                                | Guarantee                              |
-| ----------------- | -------------------------------------- | -------------------------------------- |
-| `--accent`        | Solid fill (buttons, active pill)      | ≥ 3:1 vs every surface (AA UI/large)   |
-| `--accent-strong` | Hover/active fill                      | ≥ 4.5:1 with `--accent-fg`             |
-| `--accent-fg`     | Text **on** an accent fill             | ≥ 4.5:1 on `--accent` and `-strong`    |
-| `--accent-text`   | Accent used **as** text on a surface   | ≥ 4.5:1 vs every surface (AA text)     |
-| `--accent-soft`   | Subtle wash (highlight panels)         | decorative only                        |
-| `--accent-border` | Subtle border                          | decorative only                        |
-| `--ring`          | Focus ring                             | ≥ 3:1 vs every surface                 |
-| `--secondary`     | Sparing highlight (charts, hover)      | ≥ 3:1 vs every surface                 |
-| `--secondary-fg`  | Text on `--secondary`                  | ≥ 4.5:1                                |
+```text
+OFFENSE                               DEFENSE
+TOP: WR / TE / offensive line         TOP: secondary / deeper defenders
+     QB / backs below                      linebackers above the front
+BOTTOM: offensive backfield           BOTTOM: defensive line / front
+```
 
-"Every surface" means the page background, the card surface, and the inset
-surface — the binding one is whichever is closest in lightness to the accent.
+Exact slot coordinates, left/right identities, formation labels, and whether a slot inherits a specialist role come from verified version-specific mappings. Do not decide inheritance from visual location alone. No player may appear twice in a resolved eleven-player formation. Invalid overrides remain visible for deliberate repair.
 
-**Why the derivation exists.** Teams brand themselves in colours that are
-routinely unusable on the web: silver, gold, near-black, near-white. Rather than
-guess a "close enough" hex per team, the real colour is stored and
-lightness-shifted (hue and saturation preserved) until it clears the target. The
-team still looks like the team; it just becomes legible.
+For readability, default markers may use abbreviated first names and full surnames, with complete names in the selection panel. Owner approved jersey-number circles when full labels create clutter (D075). Full name/number/OVR must remain available through hover AND click/tap/keyboard selection plus an accessible personnel detail/list; do not make mobile depend on hover. A compact/full toggle is a proposed way to make the choice predictable. Neither mode may hide conflicts or override status.
 
-**You never hand-pick a team's UI colour.** Add the true hexes to
-[`src/data/teamColors.ts`](src/data/teamColors.ts) and the derivation does the
-rest.
+### GM War Room
 
----
+- Roster: compact table with player, position, OVR, selected fit indicators, known years/cap values. Unknown is not zero.
+- Trade Block: a short explained list, not an opaque 'sell score'. Pin/dismiss/notes. Surplus depends on chosen personnel needs, not just roster count.
+- Trade Targets: searchable/filterable other-team candidates, explained scheme match or athletic outlier reasons, same pin/dismiss/notes controls.
+- Comparison: a few selected players, consistent fields, missing-data labels; avoid a 53-column table.
+- Assets & Moves: manual pick ledger and owner-entered trades. Sign/cut/practice-squad tools are secondary actions, not dominant recommendation cards.
+- Contract totals show completeness and do not invent dead-cap calculations.
 
-## 3. Accessibility is enforced, not promised
+### Coach View
 
-The rule: **every team must pass WCAG 2.1 AA in both modes**, and that is checked
-in CI, not by eye.
+- Scheme & Playbook: separate Madden archetype match from practical role suitability. Scheme/playbook choice and roster impact are visible together.
+- Personnel Gaps: identify missing starters/backups and role workload; link to authoritative lineup/roster editors.
+- Formation Identity: favorites, coherent personnel/look families, complementary concepts; link to gameday plan editing instead of duplicating it.
 
-- [`tests/theme.spec.ts`](tests/theme.spec.ts) derives the tokens for all 32 clubs
-  plus the neutral fallback, in light and dark, and asserts the whole contract
-  above. Adding a team that fails makes the suite fail.
-- [`tests/color.spec.ts`](tests/color.spec.ts) covers the colour maths itself.
-- The surface hexes are declared in **two** places — `MODE_SURFACES` in
-  `color.ts` and the CSS in `globals.css` — and a test reads the stylesheet and
-  asserts they match. Change one, change both.
-- `npm run audit:colors` prints the ratios per team/mode for eyeballing.
+### Checklist
 
-Never remove a focus outline. Never signal meaning with colour alone — pair it
-with text (`Badge`, a label, a symbol).
+- Group by useful Madden action/menu workflow, with verified prerequisites determining order—not a fixed transactions/chart/subs/player-edit order when a position edit or another action must happen first. App-only preferences/notes never enter this list.
+- Each item shows current confirmed → planned target, game location where verified, and prerequisites.
+- Offer individual and reviewed bulk confirmation, cancel, undo, and clear conflict explanations.
+- A confirmation attests 'I did this in Madden'; it does not imply app-to-game synchronization.
+- Bulk review reveals exact executable action units and visibly excluded/blocked units before submission. Submit the reviewed valid scope atomically; if revisions/dependencies changed, apply none and request a fresh review. Do not silently skip at submission. A depth-chart ordered list is one unit by default; partial completion is between valid units or recording the actual valid list.
 
----
+## Phone wireframes
 
-## 4. Typography
+Target review widths: 390 and 430 CSS pixels for iOS; include 360 CSS pixels as a narrow stress case. Verify actual iOS Safari when feasible; emulation alone is not proof. Portrait is primary; landscape must remain usable.
 
-- **Serif for headings.** Source Serif 4, loaded via `next/font` in the root
-  layout, applied to `h1`–`h3` in `globals.css`. It gives the app its editorial,
-  professional voice.
-- **Sans for everything else**, including all data: tables, stats, form controls.
-  Micro-labels (`.label`, table `th`, `Card` titles) stay sans, uppercase,
-  letter-spaced.
-- **Numbers are `tabular-nums`.** Any figure in a column — ratings, money, counts
-  — gets it so columns line up.
-- Keep the scale small: `text-xl`/`text-2xl` page titles, `text-lg` stat values,
-  `text-sm` body, `text-xs`/`text-[11px]` metadata. Don't invent new sizes.
-- A `Card` title is a *label*, not a display heading — keep it sans even though
-  it is an `h2`.
+### Gameday — highest-priority phone workflow
 
-## 5. Surface, depth and motion (minimalism)
+```text
+┌────────────────────────────────────┐
+│ Falcons · Gameday        Saved      │
+│ [Offense] [Defense]                 │
+│ Theme: Under center ▾     [edit]     │
+├────────────────────────────────────┤
+│ [1st] [2nd] [3rd] [4th]             │
+│ [Short] [Medium] [Long]              │
+│ Field zone ▾     More context ▾     │
+├────────────────────────────────────┤
+│ Formation · exact play name         │
+│ Purpose / one coaching cue          │
+│ [play art if permitted]             │
+│ [Details ▾]               [Pin ★]   │
+├────────────────────────────────────┤
+│ Another complementary call          │
+│ Why it belongs to this drive theme  │
+│ [Details ▾]                         │
+├────────────────────────────────────┤
+│ [navigate to another workspace]     │
+└────────────────────────────────────┘
+```
 
-- **No decorative gradients, textures or shadows.** Depth comes from a 1px border
-  plus one surface step (`--surface` → `--surface-2`). The only exception is the
-  football field in `FormationDiagram`, which is an illustration.
-- **Radii:** `rounded-lg` for controls and inset panels, `rounded-xl` for cards,
-  `rounded-full` for pills and badges. That's the whole vocabulary.
-- **Spacing:** Tailwind's `gap-3`/`gap-4` between cards, `space-y-4` between page
-  sections, `p-4` inside a card. Keep dense tables dense — this is a data tool.
-- **Motion:** colour transitions only, ~150ms. No entrance animation, no layout
-  movement, no bouncing. The app should feel instant on a phone.
-- Icons-and-emoji: prefer a word. This is a tool, not a storefront.
+- Keep offense/defense, theme, and essential situation controls reachable; do not let sticky areas occupy most of a short screen.
+- Show three complementary eligible calls, or fewer if verified coverage is insufficient; no filler. Eligible pins compete within the same three slots; a >3-pin tie-break is explicit, not an extra unbounded section of recommendations. Incompatible favorites stay browsable but do not override eligibility. Label whether personnel comes from planned or recorded roster; C5A resolves that owner choice before game-ready claims.
+- Clock/score/personnel/tendency remain optional contextual controls, not a mandatory form before seeing calls.
+- Situation choices must use researched, explicit buckets; no unexplained magic numbers.
+- Expanded coaching detail is on demand. Return to the same theme/situation after inspecting art/details.
+- Prefetch/cache current online plan where appropriate for speed, but do not claim offline support. Clearly report connection/save failures.
 
----
+### Other phone workflows
 
-## 6. Theming mechanics (how it actually works)
+- Navigation approved: Overview, Lineups, Gameday, Checklist, plus More for GM/Coach/settings. Verify labels and tap targets at narrow widths; do not cram all sections into the bottom bar.
+- Depth chart: choose category/position, then one full-width ranked list. Drag is optional; rank/move controls stay usable.
+- Formation subs: select book/formation, view a full-width diagram, tap a slot to open a player picker/detail sheet. Never require precision mouse-sized taps.
+- Checklist: full-width grouped actions with prerequisites, confirmation, and undo. No horizontal table scrolling for essential content.
+- GM: prioritize search, shortlist, basic player detail/compare; complex bulk editing may favor desktop as agreed.
 
-- The mode (`light` | `dark`, default **dark**) lives in the `fm_theme` cookie and
-  is read on the server, so the first paint is already correct — **no flash, no
-  client-side theme script**.
-- The root layout resolves `mode + team` and **inlines every token** on `<html>`,
-  then sets `data-theme` so Tailwind's `dark:` variant can key off it.
-- The toggle is a plain form posting to a server action. It works without
-  JavaScript.
-- The PWA manifest and `theme-color` are generated per request from the same
-  resolution.
+## Proposed accessibility and performance acceptance
 
-**Therefore: never hardcode a colour in a component.** Use a token utility
-(`bg-accent`, `text-muted`, `border-line`, `bg-surface-2`, `text-tone-good`) or a
-component class (`.card`, `.btn`, `.field`, `.note`). If you catch yourself typing
-`text-white/60`, `border-emerald-400`, or any literal hex, stop and use a token.
+- Keyboard navigation covers selection, reordering, replacement, confirmation, dialogs, and focus return.
+- Text and status contrast checked in both themes; no color-only warnings. C1A records objective criteria (recommended WCAG AA text contrast and non-text/focus checks) rather than calling unspecified 'meaningful accessibility' sufficient. Do not claim certified compliance without testing.
+- Browser back/forward and deep links preserve understandable franchise context.
+- Long names, unknown attributes, empty lists, failed loads, narrow/short viewports, 200% zoom, iOS safe-area insets and the virtual keyboard do not make core actions inaccessible. C1A documents usable reflow/touch/focus criteria; auto-compact markers preserve full details and invalid/override status.
+- No large player dataset shipped solely to draw a single formation or phone call sheet. Fetch/page/search deliberately.
+- Proposed phone objective: cached/in-memory situation changes feel immediate (rough target <200 ms without a network round trip). C5A/C5B records a repeatable build/device/network/catalog-size/warm-vs-cold measurement protocol first; report deviations and their impact rather than presenting a single unexplained timing as proof.
+- Propose web-vitals targets LCP ≤2.5 s, INP ≤200 ms, CLS ≤0.1 on representative pages, with a documented test environment and real free-tier caveats. These are proposed targets, not owner-approved guarantees.
 
-## 7. Adding or changing a team's colours
+## Owner review items
 
-1. Put the club's **true** colours in `src/data/teamColors.ts` (primary + secondary).
-2. Add any abbreviation aliases other feeds use.
-3. Run `npm test` — the WCAG gate will tell you immediately if it holds.
-4. Optionally `npm run scrape:colors` to re-derive from Wikipedia and diff, and
-   `npm run audit:colors` to see every ratio.
-
-Unlisted teams fall back to the neutral palette by design — a club we have no
-palette for should not pretend to be somebody's real team.
-
-## 8. Checklist for any UI change
-
-- [ ] Accent for brand/interactive; semantic tones for meaning. Not mixed.
-- [ ] No literal colours or `white/opacity` utilities.
-- [ ] Text meets AA on the surface it actually sits on, in both modes.
-- [ ] Numbers are `tabular-nums`; headings are serif; labels are sans.
-- [ ] Focus states present and accent-coloured.
-- [ ] Works with a team on the neutral palette and with a low-contrast team like the
-      Raiders or the Steelers.
-- [ ] `npm test` green, including the theme contract.
+- Navigation, combined Lineups, phone navigation, neutral field, and compact-marker fallback approved in D074–D076.
+- Review actual coded long-name/collision behavior during the formation-sub checkpoint; full details must remain touch/keyboard accessible.
+- Per-PR tests/browser/owner acceptance is approved in D069. Review exact performance benchmarks and rendered accessibility behavior during execution; optional inspiration references must not override the approved restrained direction.
+- Do not treat this document's proposed pixel sizes or performance values as already approved decisions.
