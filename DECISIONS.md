@@ -243,6 +243,8 @@ Owner-provided position labels from memory (research candidates, not authoritati
 - D103 — One Supabase Free project (owner-created) serves as production. Only one free slot is available, so there is no separate dev/prod project pair. Local development and automated tests use an isolated local/embedded database; the Vercel Preview scope must not receive production write credentials or run production migrations.
 - D104 — `main` is both the PR target and the Vercel production branch. The agent may create checkpoint-scoped branches, push, and open PRs; the owner reviews and merges (no agent self-merge).
 - D105 — Automatic Vercel preview deployments remain enabled by owner choice; preview environments must be configured so they cannot mutate production data.
+- D106 — Source reuse: the owner authorizes use of Civil.GG's public play and play-art data and confirms we will not access member-only schematics. Public availability is treated as the owner's risk decision; play art stays replaceable and source provenance is retained.
+- D107 — Initial depth-chart baseline is auto-generated from the scraped roster: primary positions sorted by overall rating, with specialist/secondary slots left for manual owner edit. This is a provisional PLANNING baseline (D096), not the game's actual default chart, and remains fully editable.
 
 ## Confirmed architecture summary
 

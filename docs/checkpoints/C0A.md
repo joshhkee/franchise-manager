@@ -47,11 +47,18 @@
 4. Recovery/undo: none needed (docs).
 5. Known limitation: reuse/licensing is unresolved; several outputs remain blocked on Madden 27 access.
 
+## Implemented (continued)
+- Player source feasibility **resolved**: a reproducible paginated JSON path yields all 1,911 players
+  with stable IDs, team/position objects, archetype, and full attribute stats (see evidence §1a).
+- Owner authorizations recorded: D106 (Civil.GG public play/art reuse) and D107 (auto-generated
+  provisional depth-chart baseline).
+
 ## Open items (blockers)
-- **Reuse:** Civil.GG content/art licensing unconfirmed — blocks the C0B source schema and C3A/C3B art.
 - **Madden 27 access:** owner has none, so the depth-chart/specialist matrix and special-teams
-  feasibility are **blocked** pending gameplay or authoritative evidence.
-- **Player dataset:** EA page exposes "1,911 results"; full schema/IDs/coverage unverified.
+  feasibility are **blocked** pending gameplay or authoritative evidence; D107 mitigates the depth
+  chart with a clearly provisional baseline.
+- **Coverage gaps to quantify:** free-agent presence in the EA payload; whether 1,911 matches the
+  ~3,116 figure in FEATURES.md; EA exposes no contract/salary fields.
 - Remaining C0A outputs not yet produced: Madden 27 depth-chart matrix, representative Falcons
   offense/defense mapping evidence, stock/alternate playbook inventory, special-teams feasibility.
 

@@ -19,13 +19,27 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
   exposes league/team filters (e.g. Buffalo Bills, Miami Dolphins, New England Patriots, NY Jets).
 - **[Official]** The same page promotes Madden 27's **"Persona Engine"**, described as turning
   Franchise into a living, evolving league influenced by NFL athlete personalities. This is a
-  version-specific franchise-mechanics claim worth tracking, not a confirmed depth-chart rule.
-- Open gates:
-  - The **1,911** figure is a displayed result count, not a confirmed dataset size. Dynamic loading,
-    filters, free-agent coverage, and the ~3,116 figure remain **unverified**.
-  - **Blocked:** underlying field schema, stable player IDs, jersey numbers, contract fields, and a
-    reproducible permitted import path. The page is JS-rendered and exposes no static machine-readable
-    dataset in the fetched HTML.
+  version-specific franchise-mechanics claim worth tracking, not a confirmed depth-chart rule.### 1a. Player source — machine-readable API (resolved feasibility)
+
+- **[Observed]** The ratings UI is backed by two documented-by-inspection endpoints:
+  1. **Per-page JSON** (`ratingDetails.items`, 100 players/page, `totalItems: 1911`):
+     `https://www.ea.com/_next/data/<buildId>/en/games/madden-nfl/ratings.json?franchiseSlug=madden-nfl&page=N`
+     where `<buildId>` is read from the page's `__NEXT_DATA__.buildId`.
+  2. **Direct drop-api** (first page only; **no** working offset/page/filter params):
+     `https://drop-api.ea.com/rating/madden-nfl?locale=en&limit=100&iteration=madden-ratings-week-2`
+     (`limit` is capped at 100 — a larger value returns HTTP 400 "Pagination".)
+- **[Observed] Item schema** (stable for scraping): `id`, `firstName`, `lastName`, `birthdate`,
+  `height` (in), `weight` (lb), `overallRating`, `college`, `handedness`, `age`, `jerseyNum`,
+  `yearsPro`, `playerAbilities[]`, `avatarUrl`, `archetype{id,label}`, `team{id,label,imageUrl}`,
+  `position{id,shortLabel,label,positionType}`, `iteration`, `availableIterations[]`, and `stats{}`
+  with **full attribute ratings** (acceleration, agility, awareness, catching, carrying, blockShedding,
+  breakTackle, …).
+- **[Observed] Positions** are version-specific objects, e.g. `WR`/Wide Receiver, `QB`/Quarterback,
+  `HB`/Halfback, `TE`, `LT/LG/C/RG/RT`, `LEDG`/Left Edge, `REDG`/Right Edge, `DT`, `MIKE`/Mike Backer,
+  `WILL`/Weak Backer, `CB`, `FS`, `SS`.
+- **[Observed]** ~20 pages cover all **1,911** records; a whole-roster scrape is feasible.
+- Open gates: free-agent coverage (whether unsigned players appear), the relationship of 1,911 to the
+  ~3,116 figure, and contract/salary fields (EA exposes no contract data in this payload).
 
 ## 2. Formation/playbook source — Civil.GG
 
@@ -56,7 +70,7 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
   are baked into the diagram image. No slot coordinates or labels are exposed as DOM text or a public
   structured API. Individual play pages show a play diagram image plus routes; no textual position map.
 
-### 2a. Reuse / licensing (unresolved — owner decision required)
+### 2a. Reuse / licensing (owner-authorized, residual risk noted)
 
 - **[Observed]** Formation and play art is served from Civil.GG's public Supabase Storage bucket
   (paths such as `…/storage/v1/object/public/assets/formation_macros/cfb27/*.webp` and
@@ -64,9 +78,10 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
   redistribute.
 - **[Observed]** The site states "Plays are free. Schemes are for members." Commercial schematics are
   gated behind membership. Terms/privacy links exist but a reuse grant was not found.
-- **Gate:** C0A must establish permitted access/reuse for labels/coordinates/art, or adopt an
-  alternate source, before any ingestion approach is committed. Do **not** infer license from public
-  availability. This blocks C3A/C3B art handling and the C0B source schema.
+- **[Owner decision D106]** The owner authorized use of Civil.GG's **public** play and play-art data
+  and confirmed we will **not** access member-only schematics. Recorded as an explicit owner
+  authorization; residual licensing risk is noted (public availability is not a formal grant), so
+  play art stays replaceable and attribution/source provenance is retained.
 
 ## 3. Depth chart and specialist slots
 
@@ -76,6 +91,10 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
 - **[Hypothesis] Blocked:** exact Madden 27 primary/specialist labels, rank limits, eligibility,
   specialist precedence, active vs practice-squad behavior, and formation inheritance require
   in-game or official Madden 27 evidence. Civil.GG does not expose these as structured data.
+- **[Owner decision D107] Initial planning baseline:** auto-generate a *provisional* depth chart from
+  the scraped roster by sorting each primary position by `overallRating` (ties broken deterministically),
+  and leave specialist/secondary slots for manual owner edit. This is explicitly a **provisional
+  PLANNING baseline per D096**, not the game's actual default chart, and remains editable.
 
 ## 4. Special teams
 
