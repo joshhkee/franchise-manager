@@ -246,6 +246,13 @@ Owner-provided position labels from memory (research candidates, not authoritati
 - D106 — Source reuse: the owner authorizes use of Civil.GG's public play and play-art data and confirms we will not access member-only schematics. Public availability is treated as the owner's risk decision; play art stays replaceable and source provenance is retained.
 - D107 — Initial depth-chart baseline is auto-generated from the scraped roster: primary positions sorted by overall rating, with specialist/secondary slots left for manual owner edit. This is a provisional PLANNING baseline (D096), not the game's actual default chart, and remains fully editable.
 
+### Round 22 — C0A closure and review model (confirmed)
+
+- D108 — Owner **waives the separate independent-review thread for C0A**. A same-thread review was delivered and its findings dispositioned (R1 accepted, R2 retracted, R4 reduced, R5 accepted); its independence limitation is recorded in `docs/reviews/C0A-independent-review.md` and `docs/checkpoints/C0A-REVIEW.md` rather than hidden. Interim model: the execution thread performs an explicit self-review on each checkpoint; the timing of any independently owned review is deferred and remains an owner decision.
+- D109 — Source baseline is the EA **Launch ratings iteration (`1-base`)** — 3,111 records including 1,240 unsigned players. Weekly iterations are partial deltas (week-1: 1,891, week-2: 1,911) and must never be used as the catalog baseline. This resolves the long-open ~3,116 figure.
+- D110 — Archetype is `null` for 782 of 3,111 records in every iteration and on their profile pages. Render these as **N/A/unknown**; never treat a missing archetype as zero, as a default archetype, or as a reason to exclude a player from fit features. Revisit if EA backfills them.
+- D111 — Source rights are an **owner-accepted risk** for a personal, non-commercial project, covering both Civil.GG public play data/art and the EA ratings data, with sources attributed on the site. Retained engineering constraint: art stays reference-by-URL or replaceable with a text/personnel fallback, so a takedown, license change, or bucket move cannot break the catalog.
+
 ## Confirmed architecture summary
 
 Logical franchise isolation, focused panels/tabs, separate worktrees, familiar stack, and private OAuth are approved by later rounds. Separate dev/production database *projects* are superseded by D103 (only one free slot); environment isolation is instead achieved through local/embedded test data and preview-configuration protection. Earlier open-question entries document interview history, not a reversal of those approvals.

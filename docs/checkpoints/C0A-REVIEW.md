@@ -20,8 +20,10 @@ Dev/test environment:        n/a (docs-only)
 
 ## Status
 
-- State: **review revised after owner feedback.** R1 accepted by owner, R2 retracted as a week-2 artifact,
-  R5 open pending owner confirmation. Not an accepted C0B precondition (independence caveat below).
+- State: **closed.** Review revised after owner feedback: R1 accepted, R2 retracted as a week-2 artifact,
+  R4 reduced, R5 accepted as N/A (D110).
+- **Owner waived the separate independent-review thread for C0A (D108).** The independence limitation is
+  recorded rather than hidden; the interim review model is same-thread self-review per checkpoint.
 - Updated by: same agent as the primary evidence register — **independence caveat applies**; see the
   report's disclosure section. D101's separate-thread intent is not satisfied by this delivery.
 
@@ -74,7 +76,7 @@ Full detail and proposed corrections: [docs/reviews/C0A-independent-review.md](.
   iteration carries 1,240 free agents).
 - Still-open C0A outputs: Madden 27 depth-chart matrix, representative Falcons mappings, stock-book
   inventory, special-teams feasibility.
-- Independence: a separately owned reviewer should run, or the owner records a waiver.
+- Independence: **owner waived** the separate reviewer for C0A (D108), recorded here and in DECISIONS.md.
 
 ## Next thread — pasteable launch
 
