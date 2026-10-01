@@ -153,8 +153,6 @@ Stage only explicitly owned relevant paths/hunks, then use a why-focused message
 git commit -m "$(cat <<'EOF'
 Establish a consistent private workspace for franchise planning.
 
-Generated with Codebuff 🤖
-Co-Authored-By: Codebuff <noreply@codebuff.com>
 EOF
 )"
 ```
