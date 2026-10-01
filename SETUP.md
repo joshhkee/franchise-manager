@@ -36,6 +36,8 @@ Follow WORKFLOW.md. Confirm actual current branch/remote; do not infer main from
 
 ## 3. Create separate Supabase Free projects
 
+> **Superseded for this execution (D103).** Only one Supabase Free slot is available, so a single project serves as production and there is no separate dev project. The steps below remain the reference for the ideal two-project setup if a second slot ever frees up. Local development and automated tests must use isolated local/embedded data, and the Vercel Preview scope must not receive production write credentials.
+
 Owner performs or explicitly authorizes provisioning:
 1. Sign in to Supabase and verify organization is Free, not a trial/paid upgrade.
 2. Check available active-project slots. Current documented Free maximum is two; recheck. Existing unrelated projects are not disposable.

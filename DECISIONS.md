@@ -237,15 +237,24 @@ Owner-provided position labels from memory (research candidates, not authoritati
 - D100 — Incompatible pinned favorites remain pinned and browsable, but are excluded from the current suggested menu. Pinning does not override situation/personnel eligibility.
 - D101 — Initial two-thread arrangement: source/mechanics research plus independent review. Reviewer checks evidence/permissions/scope/design risks in owned documents; no rival contracts or shared-file edits. Begin after the shared documentation baseline is available in isolated worktrees.
 
+### Round 21 — execution setup (confirmed)
+
+- D102 — Execution begins as a fresh build. A prior implementation exists in this repository's git history but was deleted from `main`; it is reference-only and is not restored.
+- D103 — One Supabase Free project (owner-created) serves as production. Only one free slot is available, so there is no separate dev/prod project pair. Local development and automated tests use an isolated local/embedded database; the Vercel Preview scope must not receive production write credentials or run production migrations.
+- D104 — `main` is both the PR target and the Vercel production branch. The agent may create checkpoint-scoped branches, push, and open PRs; the owner reviews and merges (no agent self-merge).
+- D105 — Automatic Vercel preview deployments remain enabled by owner choice; preview environments must be configured so they cannot mutate production data.
+- D106 — Source reuse: the owner authorizes use of Civil.GG's public play and play-art data and confirms we will not access member-only schematics. Public availability is treated as the owner's risk decision; play art stays replaceable and source provenance is retained.
+- D107 — Initial depth-chart baseline is auto-generated from the scraped roster: primary positions sorted by overall rating, with specialist/secondary slots left for manual owner edit. This is a provisional PLANNING baseline (D096), not the game's actual default chart, and remains fully editable.
+
 ## Confirmed architecture summary
 
-Logical franchise isolation, focused panels/tabs, separate worktrees, familiar stack, private OAuth, and dev/production isolation are approved by later rounds. Earlier open-question entries document interview history, not a reversal of those approvals.
+Logical franchise isolation, focused panels/tabs, separate worktrees, familiar stack, and private OAuth are approved by later rounds. Separate dev/production database *projects* are superseded by D103 (only one free slot); environment isolation is instead achieved through local/embedded test data and preview-configuration protection. Earlier open-question entries document interview history, not a reversal of those approvals.
 
 ## Remaining material unknowns
 
 - Actual Madden 27 primary/specialist ranks, eligibility, formation inheritance and stock/special-teams coverage: C0 evidence gates, not resolved by owner recollection.
 - Data acquisition/reuse and source completeness: C0 evidence gates; exact counts are not verified.
-- Exact primary branch/remote, authenticated CLI state, local tools, free Supabase slots, OAuth bootstrap/provider configuration: setup inventory required.
+- Resolved at C0A: primary branch/remote = `main`; local tools inventoried; one Supabase project approved as production (D103). OAuth bootstrap/provider configuration still to be designed at C1B.
 - Practical-fit/anomaly rubrics and exact template calls/buckets: research-backed checkpoint review, not arbitrary formulas.
 - Difficulty/gameplay settings, exact desktop resolution/iPhone model: not specified; use broad defaults only where they do not misrepresent behavior, ask when actually needed.
 - Undo retention, detailed conflict UI, transaction cancellation resolution: engineering ADR/fixtures must satisfy confirmed product semantics; material behavior changes require owner review.
