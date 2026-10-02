@@ -87,15 +87,16 @@ The project ref, URL, and GitHub user id are not secrets; API keys, DB password,
    OAuth App's Client ID/Secret; at `.../auth/url-configuration`: Site URL = the Vercel production URL, and
    Redirect URLs include `http://localhost:3000/**`, `http://localhost:3100/**`, and the Vercel
    preview/production hosts.
-4. **DECISION — local/embedded test isolation (D103, IR-10).** No Docker/`psql`/Supabase CLI is installed.
-   **Recommended: (b) `@electric-sql/pglite`** — a real Postgres (WASM) in Node, no install beyond npm,
-   running the actual migrations and RLS policies plus a small `auth`-schema shim, with auth flows
-   owner-verified against the real project. Alternatives: (a) install Docker Desktop for the full local
-   Supabase stack, (c) install local PostgreSQL, (d) other owner preference.
-5. **DECISION — applying migrations to the cloud project (D088).** **Recommended: the C1B thread writes
-   versioned SQL and the owner applies it** — either paste it into the dashboard **SQL editor** (no install),
-   or use the CLI (`npx supabase link` + `db push` with an access token from
-   `https://supabase.com/dashboard/account/tokens` and the project's DB password). Never during a build.
+4. **RESOLVED (owner, 2026-10-02) — local/embedded test isolation (D103, IR-10).** The owner approved
+   **`@electric-sql/pglite`**: a real Postgres (WASM) in Node, no Docker install. C1B runs the actual
+   migrations and RLS policies against it, with a small `auth`-schema shim (`auth.uid()`, `authenticated`
+   role) so policy tests exercise real SQL; OAuth/session flows are owner-verified against the live project.
+   Docker Desktop or local PostgreSQL remain optional upgrades, not prerequisites.
+5. **RESOLVED (owner, 2026-10-02) — applying migrations to the cloud project (D088).** C1B writes versioned
+   SQL migration files and the **owner applies them** via the Supabase dashboard **SQL editor** (no install)
+   or the CLI if they prefer (`npx supabase link` + `db push`; access token from
+   `https://supabase.com/dashboard/account/tokens`, plus the project DB password). Nothing applies
+   migrations automatically, and never during a build.
 6. **Vercel env scopes** — Preview vs Production variable scoping, so previews never receive production
    write credentials (D103/D105).
 
@@ -103,7 +104,8 @@ The project ref, URL, and GitHub user id are not secrets; API keys, DB password,
 
 - **IR-10 preview/production isolation with a single project:** design and verify that a preview cannot
   write to the production project's data.
-- **Single-project reality:** dev/test isolation mechanism (owner decision 4).
+- **Single-project reality:** dev/test isolation runs on PGlite (owner decision 4); only auth/session flows
+  touch the live project, and previews must stay read-only against it (IR-10).
 - **Local OAuth caveat:** one GitHub OAuth App allows exactly one callback URL; using the local Supabase
   CLI stack (`http://localhost:54321/auth/v1/callback`) requires a second OAuth app dedicated to local.
 - **Archive/resume behavior:** document read-only/resume semantics before implementing (contract §11).
@@ -124,8 +126,9 @@ The project ref, URL, and GitHub user id are not secrets; API keys, DB password,
 
 ## Next steps (owner flow)
 
-1. **Answer items 1–6 above** — owner: you; **OWNER APPROVAL/CHECK:** the test-isolation choice (4) and the
-   migration path (5) block C1B's exit gate, not its first commits.
+1. **Provide items 1–3 and 6 above** — owner: you (Supabase keys → `.env.local`, Vercel production URL,
+   dashboard confirmation, Vercel env scopes). Items 4 (PGlite test isolation) and 5 (owner-applied
+   versioned migrations) are resolved as D119.
 2. **Open the new C1B thread/worktree** from the merge commit of this handoff PR — owner: you; artifact:
    the pasteable launch below.
 3. **C1B implementation** — owner: C1B thread; schema/migrations against `C0B-v2`, auth + allowlisting,
@@ -135,7 +138,8 @@ The project ref, URL, and GitHub user id are not secrets; API keys, DB password,
    D088 requires a separate reviewed migration step with a recovery path.
 5. **Owner merge of the single integrated C1B PR** — owner: you; see `WORKFLOW.md` Step 6.
 
-Immediate next step: **answer items 1–6, then open the new C1B thread with the launch package below.**
+Immediate next step: **merge this handoff PR, then open the new C1B thread with the launch package below
+(items 1–3 and 6 can be completed in parallel).**
 
 ## Next thread — pasteable launch
 
