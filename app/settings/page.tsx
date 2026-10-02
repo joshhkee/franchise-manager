@@ -1,4 +1,5 @@
 import { BackupPanel } from "../../components/backup-panel";
+import { ImportSourcePanel } from "../../components/import-source-panel";
 import { PageHeader } from "../../components/page-header";
 import { ThemeToggle } from "../../components/theme-toggle";
 import { loadFranchiseContext } from "../../lib/data/current";
@@ -60,8 +61,10 @@ export default async function SettingsPage() {
         )}
         <p className="mt-2 max-w-prose text-xs text-ink-muted">
           &ldquo;Complete as imported&rdquo; describes what the source published, not full game
-          coverage; no claim is made about records the source never listed.
+          coverage; no claim is made about records the source never listed. Published records are
+          immutable: a franchise edit never changes the catalog.
         </p>
+        <ImportSourcePanel hasRevision={revisions.ok && revisions.data.length > 0} />
       </section>
 
       <section className="rounded-lg border border-line bg-surface p-5">
