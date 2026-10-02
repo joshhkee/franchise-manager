@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
 
   if (registrationError) {
     await supabase.auth.signOut();
-    return failure("not_allowlisted");
+    const text = registrationError.message ?? "";
+    const setupIncomplete = /does not exist|schema cache|PGRST202|function .*not found/i.test(text);
+    return failure(setupIncomplete ? "setup_incomplete" : "not_allowlisted");
   }
 
   return NextResponse.redirect(`${origin}${next}`);

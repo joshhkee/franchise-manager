@@ -8,6 +8,8 @@ const FAILURE_MESSAGES: Record<string, string> = {
   exchange_failed: "GitHub sign-in could not be completed. Try again.",
   no_github_identity: "That account did not provide a GitHub identity, so it cannot be admitted.",
   not_allowlisted: "That GitHub account is not on this app's owner allowlist.",
+  setup_incomplete:
+    "The owner allowlist command is not in the database yet, so sign-in cannot be admitted. Apply the C1B migrations (see docs/checkpoints/C1B.md), then try again.",
 };
 
 export default async function SignInPage({
