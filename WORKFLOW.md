@@ -138,6 +138,7 @@ New checkpoint branches start from the latest merged accepted base. Do not carry
 9. Open PR against the verified base, with tests, scope, screenshots where useful, migrations, limitations, and manual acceptance checklist.
 10. Confirm remote checks/base/mergeability after push. A local clean merge is not proof GitHub considers the PR mergeable. If pending/blocked, report the exact state.
 11. Stop for owner review; do not merge the primary-target PR. Put post-commit PR URL/check/commit facts in the PR body or next checkpoint's startup record, referencing the committed handoff; do not leave mandatory uncommitted handoff edits solely to record a self-referential commit hash.
+12. End the delivery record — and any independent-review report and lane record — with a concise **Next steps** block (D118): at most six ordered actions, each naming its owner and the exact artifact/command, **OWNER APPROVAL/CHECK** items marked explicitly, and exactly one identified immediate next step. The owner should never have to infer what happens next.
 
 Before the checkpoint commit, review both unstaged and staged changes plus recent message style:
 

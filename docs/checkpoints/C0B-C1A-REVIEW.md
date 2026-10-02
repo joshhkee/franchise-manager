@@ -31,8 +31,8 @@ Dev/test environment:        Node v26.7.0, npm 11.19.0 (only package manager pre
 - Independence basis: a separate execution thread in its own worktree that authored neither the contract
   nor any C1A shell file (D101/WORKFLOW operational definition; not an external audit). The review was
   executed before the owner-directed closeout applied the corrections, so its findings are unaffected.
-- Updated by: independent review thread. Owner acceptance recorded 2026-10-02; merging this closeout PR
-  confirms it on `main`.
+- Updated by: independent review thread. Owner acceptance recorded 2026-10-02; the closeout PR merged as
+  `9b30693`.
 
 ## Scope and authority
 
@@ -130,6 +130,22 @@ The owner accepted C0B and C1A (D115/D116), accepted merge-triggered Vercel Prod
   (`PLAN.md`: C1B requires C1A visual acceptance) remain open until the owner records them.
 - IR-10 preview/production write isolation is still a C1B/C6A verification; CA-1 now shows Production
   hosts the shell (protected), which C1B should account for.
+
+## Next steps (owner flow)
+
+1. **Start C1B** from the accepted merged baseline (`origin/main` @ `9b30693`) with the canonical C1B launch —
+   owner: next thread; artifact: [LAUNCH_PROMPTS.md](../../LAUNCH_PROMPTS.md) C1B +
+   [docs/checkpoints/C1A.md](C1A.md) launch section; **OWNER APPROVAL/CHECK:** authorize the Supabase Free
+   project provisioning and any installs (D072/D103) before the thread provisions anything.
+2. **Verify the baseline before edits** — owner: next thread; command:
+   `git fetch origin && git merge-base --is-ancestor 9b30693 origin/main`; no owner approval needed.
+3. **Keep the C0A evidence supplement and special-teams gate tracked** — owner: owner + next thread; artifact:
+   contract §11 and PLAN.md; **OWNER APPROVAL/CHECK:** the D113 supplement must land before C2A/C3A/C3B, and
+   the D114 special-teams gate stays open until C3B.
+4. **Nothing else is outstanding from this review** — every CB/CA item is dispositioned above; no further
+   review, fix, or closeout PR is required.
+
+Immediate next step: **start C1B once the scoped Supabase/install authorization is granted (D117).**
 
 ## Next thread — pasteable launch
 
