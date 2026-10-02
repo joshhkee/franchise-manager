@@ -1,15 +1,15 @@
 # C0A — Source/Mechanics Evidence (initial register)
 
 ## Status
-- State: **in progress — initial evidence register; checkpoint not complete.** Open gates listed below.
+- State: **closed — owner accepted with exceptions (D113); independent review delivered and dispositions recorded (D112–D114).** Accepted exceptions listed below.
 - Updated by: execution thread (fresh build)
 - Workspace root: this worktree (repo-relative paths only)
 - Feature branch: `checkpoint/c0a-evidence`
 - Verified PR target: `main`
 - Started from merged base commit: `d4cf2fd`
-- Current commit / PR URL (if known): see PR opened against `main`
+- Current commit / PR URL (if known): PRs #1–#4 merged; independent review PR #5 merged (`main` @ `1627d96`); this disposition update follows.
 - Remote mergeability/check state: docs-only; application checks N/A
-- Owner merge confirmed? No
+- Owner merge confirmed? Yes — C0A evidence merged; C0A accepted with exceptions (D113).
 - Production deploy status: not applicable
 - Production migration status: not applicable (during builds)
 
@@ -21,8 +21,8 @@
 - Explicit exclusions: no application code, no provisioning, no installs, no migrations.
 - File/module ownership and integration owner: single docs lane, no parallel lane active.
 - Shared contract version: n/a (C0B owns contracts).
-- Other active lane / delivery mode / merge order: none; the approved independent review lane has not
-  started and requires the shared baseline to land first.
+- Other active lane / delivery mode / merge order: independent review lane executed in its own
+  worktree and merged as PR #5; dispositions D112–D114 recorded. No other active lane; C0B not started.
 
 ## Implemented
 - Evidence register: [docs/evidence/C0A-source-evidence.md](../evidence/C0A-source-evidence.md).
@@ -45,30 +45,37 @@
 3. Expected result: counts, formation names, and the "depth-chart positions" alignment image match
    the register.
 4. Recovery/undo: none needed (docs).
-5. Known limitation: reuse/licensing is unresolved; several outputs remain blocked on Madden 27 access.
+5. Known limitation: the accepted exceptions remain outstanding and are due before C3A/C3B (D113);
+   special teams are deferred with a gate (D114).
 
 ## Implemented (continued)
-- Player source feasibility **resolved**: a reproducible paginated JSON path yields all 1,911 players
-  with stable IDs, team/position objects, archetype, and full attribute stats (see evidence §1a).
+- Player source feasibility **resolved**: the Launch iteration yields all 3,111 records with no
+  duplicate ids, team/position objects, archetype/field coverage, and the full attribute stats
+  (see evidence §1b).
 - Owner authorizations recorded: D106 (Civil.GG public play/art reuse) and D107 (auto-generated
   provisional depth-chart baseline).
 
-## Open items (blockers)
-- **Madden 27 access:** owner has none, so the depth-chart/specialist matrix and special-teams
-  feasibility are **blocked** pending gameplay or authoritative evidence; D107 mitigates the depth
-  chart with a clearly provisional baseline.
-- **Coverage gaps to quantify:** free-agent presence in the EA payload; whether 1,911 matches the
-  ~3,116 figure in FEATURES.md; EA exposes no contract/salary fields.
-- Remaining C0A outputs not yet produced: Madden 27 depth-chart matrix, representative Falcons
-  offense/defense mapping evidence, stock/alternate playbook inventory, special-teams feasibility.
+## Accepted exceptions and open items (D113/D114)
+- **Accepted exceptions, tracked as a C0A evidence supplement required before C3A/C3B:** Madden 27
+  depth-chart matrix; representative Falcons offense/defense slot-mapping evidence; stock team/alternate
+  playbook coverage inventory; Civil.GG alternate-source contingency report.
+- **Deferred to C3B with an explicit gate (D114):** special-teams feasibility; C3B must attempt it and
+  ask the owner before any skip (D081 in force, no pre-approved skip). Madden 27 access is still absent,
+  so the depth-chart/specialist matrix remains blocked pending gameplay or authoritative evidence; D107
+  mitigates with a clearly provisional baseline.
+- **Resolved after this record:** free-agent presence (1,240 unsigned players at Launch) and the ~3,116
+  discrepancy (Launch = 3,111, D109); EA still exposes no contract/salary fields.
 
 ## Next thread — pasteable launch
-- Exact next checkpoint: continue **C0A** (evidence) to close the remaining outputs, or start the
-  approved independent review lane once this baseline lands.
-- Required merged baseline: this PR merged into `main`.
-- Files/docs to read first: `START_HERE.md`, `phases/00-evidence.md`, `docs/evidence/C0A-source-evidence.md`.
-- Owned paths/modules: `docs/`; `DECISIONS.md`/`RESEARCH.md` are single-writer.
-- Dependencies that MUST land first: none beyond this baseline.
-- Allowed implementation outcomes: evidence/coverage documentation only.
-- Things NOT to change: no app code, no provisioning, no scope changes.
+- Exact next checkpoint: **C0B** (contracts) using the canonical launch prompt.
+- Required merged baseline: `main` with PRs #1–#5 plus this disposition update merged; verify the
+  merge commit before starting.
+- Files/docs to read first: `START_HERE.md`, `phases/00-evidence.md` (C0B), this record, the
+  independent review report, `docs/evidence/C0A-source-evidence.md`, `DECISIONS.md` (Rounds 22–23).
+- Owned paths/modules: one contract/ADR + scenario matrix (single writer).
+- Dependencies that MUST land first: D112–D114 recorded (this update); C0A accepted with exceptions
+  (D113) as the recorded prerequisite. The accepted-exception evidence supplement is required before
+  C3A/C3B, not before C0B.
+- Allowed implementation outcomes: one concise contract set; no application code.
+- Things NOT to change: no rival schema, no app scaffold, no scope changes.
 - Verification and PR exit gate: docs consistency/links; owner review.

@@ -1,6 +1,6 @@
 # C0A — Source and Mechanics Evidence Register
 
-Status: **initial evidence gathered; checkpoint not complete.** This register records what a fresh
+Status: **evidence register — C0A accepted with exceptions (D113); independent review dispositions recorded (D112–D114).** This register records what a fresh
 execution thread could verify on **2026-10-02** using permitted browser/static inspection. It does
 not claim game parity. Items marked *blocked* cannot be resolved without Madden 27 access, which the
 owner does not currently have.
@@ -19,7 +19,9 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
   exposes league/team filters (e.g. Buffalo Bills, Miami Dolphins, New England Patriots, NY Jets).
 - **[Official]** The same page promotes Madden 27's **"Persona Engine"**, described as turning
   Franchise into a living, evolving league influenced by NFL athlete personalities. This is a
-  version-specific franchise-mechanics claim worth tracking, not a confirmed depth-chart rule.### 1a. Player source — machine-readable API (resolved feasibility)
+  version-specific franchise-mechanics claim worth tracking, not a confirmed depth-chart rule.
+
+### 1a. Player source — machine-readable API (resolved feasibility)
 
 - **[Observed]** The ratings UI is backed by two documented-by-inspection endpoints:
   1. **Per-page JSON** (`ratingDetails.items`, 100 players/page):
@@ -38,7 +40,7 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
   breakTackle, …).
 - **[Observed] Positions** are version-specific objects, e.g. `WR`/Wide Receiver, `QB`/Quarterback,
   `HB`/Halfback, `TE`, `LT/LG/C/RG/RT`, `LEDG`/Left Edge, `REDG`/Right Edge, `DT`, `MIKE`/Mike Backer,
-  `WILL`/Weak Backer, `CB`, `FS`, `SS`.
+  `WILL`/Weak Backer, `CB`, `FS`, `SS`. These are EA's **ratings taxonomy** (the full probe vocabulary also includes `SAM`, `FB`, `K`, `P`, `LS`) and are **not verified** as Madden 27 depth-chart slot names/order/rank limits (see §3).
 ### 1b. Rating iterations — the full population (corrected 2026-10-02)
 
 - **[Observed]** The database exposes **iterations**. Weekly iterations contain only players who were
@@ -46,15 +48,15 @@ Evidence classes used below, per [RESEARCH.md](../../RESEARCH.md):
 
 | Iteration | Records | Notes |
 |---|---|---|
-| **`1-base` (Launch)** | **3,111** | the full catalog, including unsigned players — resolves the ~3,116 figure |
+| **`1-base` (Launch)** | **3,111** | EA's full published ratings population, including unsigned players — resolves the ~3,116 figure; source-import completeness, not proof of complete game-catalog coverage |
 | `madden-ratings-week-1` | 1,891 | partial weekly delta |
 | `madden-ratings-week-2` | 1,911 | partial weekly delta (the default page view) |
 
 - **[Observed] Free agents are present:** 1,240 Launch records have `team: null` (e.g. Bobby Wagner,
   Tyreek Hill, Joey Bosa, Joe Mixon). The earlier "0 free agents" reading was an artifact of probing the
   week-2 iteration and is **retracted**.
-- **[Observed] Player ids are stable across iterations:** 200/200 sampled ids from each of launch,
-  week-1 and week-2 also appear in the Launch population.
+- **[Observed] Player ids are sampled stable across iterations:** 200/200 ids from each of launch,
+  week-1 and week-2 also appear in the Launch population (pages 1–2 per iteration; full-set reconciliation is a C0B requirement).
 - **[Observed] Archetype coverage:** 782 of 3,111 records (25%) have `archetype: null`, concentrated at
   DT 286, WR 215, QB 61, MIKE 48, RT 41, LEDG 32, LT 32, REDG 30, CB 26, C 11. Confirmed by the owner as
   a genuine source gap (D110) — rendered as N/A, never as zero.

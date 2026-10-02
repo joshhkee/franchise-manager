@@ -20,8 +20,9 @@ Dev/test environment:        n/a (docs-only)
 
 ## Status
 
-- **State: report and this record delivered on the owned branch; PR opened against `main` (URL and
-  check state in the PR body/metadata). Lane ready for owner review — not owner-accepted.**
+- **State: closed — owner merged PR #5 (`main` @ `1627d96`, 2026-10-02) and recorded dispositions
+  D112–D114: C0A accepted with exceptions (D113); special teams deferred to C3B with an explicit
+  gate (D114).** The proposed D112 below was adopted and extended; see `DECISIONS.md` Round 23.
 - **The owner reinstated the separately owned independent review for C0A, reversing the D108 waiver.**
   This lane supersedes the same-thread self-review merged as PR #3 (git history retains it). The
   decision-log correction is a primary-writer/owner action; proposed text in "Proposed D112" below.
@@ -48,8 +49,8 @@ Dev/test environment:        n/a (docs-only)
 
 | ID | Severity | Issue | Disposition needed |
 |---|---|---|---|
-| IR-1 | important | C0A "closure" contradicts its own delivery record ("checkpoint not complete") and required outputs | Owner records acceptance-with-exceptions or reopens C0A; primary writer updates `C0A.md`/`START_HERE.md` |
-| IR-2 | important | Special-teams feasibility still lacks the required structured owner decision (D081) | Owner answers the option question |
+| IR-1 | important | C0A "closure" contradicts its own delivery record ("checkpoint not complete") and required outputs | **Done — D113 acceptance with exceptions; `C0A.md`/`START_HERE.md` refreshed** |
+| IR-2 | important | Special-teams feasibility still lacks the required structured owner decision (D081) | **Done — D114: deferred to C3B with an explicit gate; no pre-approved skip** |
 | IR-3 | important | "Full catalog" wording risks source-import vs game-catalog conflation | Relabel to "EA's full published Launch population" (primary writer) |
 | IR-4 | important | EA ratings taxonomy still conflatable with depth-chart slots (prior R3) | C0B correction |
 | IR-5 | important | Identity stability is sample-verified; endpoint/fetch fragility (prior R4) | C0B reconciliation + fetch-failure policy |
@@ -78,7 +79,15 @@ re-confirmed); R5 closed as N/A per D110 with the IR-6 wording note. Full detail
 - Checks NOT run and why: all application checks; documentation/research review only.
 - No secrets, private exports, or copyrighted payloads were committed.
 
-## Proposed D112 (primary writer applies; not adopted by this lane)
+## Dispositions (adopted — `DECISIONS.md` Round 23)
+
+- D112 — independent review reinstated; the review's proposed corrections accepted (original text below,
+  extended to cover the corrections).
+- D113 — C0A accepted with exceptions; blocked/missing outputs tracked as an evidence supplement
+  required before C3A/C3B.
+- D114 — special-teams feasibility deferred to C3B with an explicit gate; no pre-approved skip.
+
+Original proposed text (adopted and extended):
 
 > D112 — Owner reinstates the separately owned independent review for C0A, superseding the D108 waiver.
 > The review report and lane record are delivered as a separate PR; C0B requires the owner's recorded
@@ -87,11 +96,11 @@ re-confirmed); R5 closed as N/A per D110 with the IR-6 wording note. Full detail
 
 ## Owner manual acceptance
 
-1. Preconditions: `main` @ `6351033`; read the PR and the report.
-2. Actions: disposition IR-1 and IR-2 first (both are direct owner questions), then IR-3–IR-8;
-   confirm the C0A status you want recorded.
-3. Expected result: decisions/corrections recorded by the primary writer; D112 recorded; this lane
-   closed as owner-accepted.
+1. Preconditions: `main` @ `1627d96` (PR #5 merged); read the report and `DECISIONS.md` Round 23.
+2. Actions (already taken): IR-1/IR-2 answered and recorded as D113/D114; confirm the dispositions
+   match your intent. IR-3–IR-11 corrections/gates are applied or assigned per D112.
+3. Actual result: D112–D114 recorded; status docs refreshed; this lane closed as owner-accepted
+   (2026-10-02).
 4. Recovery/undo: docs only; close/revert the PR without effect on application state.
 5. Known limitation: live source counts are dated 2026-10-02 and will drift; independence is
    separate-thread, not an external/human audit.
@@ -110,11 +119,12 @@ re-confirmed); R5 closed as N/A per D110 with the IR-6 wording note. Full detail
 - Exact next checkpoint: **C0B** (contracts) — only after the owner's recorded dispositions above and
   a recorded C0A acceptance disposition (PLAN.md prerequisite: "C0A and independent review
   dispositions").
-- Required merged baseline: this report PR merged or explicitly owner-accepted; PRs #1–#4 merged.
+- Required merged baseline: PR #5 merged plus the disposition update (D112–D114) merged; verify `main`.
 - Files/docs to read first: `phases/00-evidence.md` (C0B), this record, the review report,
-  `docs/evidence/C0A-source-evidence.md`, `DECISIONS.md` (Round 22 + D112 once recorded).
+  `docs/evidence/C0A-source-evidence.md`, `DECISIONS.md` (Rounds 22–23).
 - Owned paths/modules: one contract/ADR + scenario matrix (single writer).
-- Dependencies that MUST land first: owner dispositions of IR-1/IR-2; D112 recorded.
+- Dependencies that MUST land first: D112–D114 recorded (done in the disposition update); C0A accepted
+  with exceptions (D113). The accepted-exception evidence supplement is required before C3A/C3B.
 - Allowed implementation outcomes: one concise contract set; no application code.
 - Things NOT to change: no rival schema, no app scaffold, no scope expansion.
 - Verification and PR exit gate: docs consistency/links; owner review.
