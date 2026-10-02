@@ -29,11 +29,16 @@ Authorization on record:      owner authorized dependency installs and Supabase 
   single writer. Branch `checkpoint/c1b-foundation` is cut from `1de3cfd`; `.env.local` was imported from the
   main checkout at bootstrap (never printed).
 - Deviation on record: **D120** — C1B runs in this repurposed thread/worktree rather than a new one.
-- **Exit-gate state (2026-10-02): implementation complete and locally verified; owner verification pending.**
-  Every slice listed below is pushed to `checkpoint/c1b-foundation`; application checks and 68 automated
-  tests pass, and the auth gate was exercised on a running dev server. Background mode is unavailable in
-  this build, so the dev server was detached on port 3200 (port 3100 belongs to another worktree and was
-  left untouched).
+- **Exit-gate state (2026-10-02): implementation complete, browser-verified, and merged; owner acceptance
+  pending.** Every slice listed below is on `checkpoint/c1b-foundation`; application checks and 70 automated
+  tests pass. Background mode is unavailable in this build, so the dev server was detached on port 3200
+  (port 3100 belongs to another worktree and was left untouched).
+- **Merged (2026-10-02):** [PR #13](https://github.com/joshhkee/franchise-manager/pull/13) merged into `main`
+  as `4c137f1`. The owner applied migrations `0001`–`0005` and the allowlist row to the live project, and the
+  browser pass below ran against the merged `main`.
+- **Browser verification pass (2026-10-02): passed, with one display defect found and fixed** — see
+  [Browser verification pass](#browser-verification-pass-2026-10-02) and fix
+  [PR #14](https://github.com/joshhkee/franchise-manager/pull/14).
 - **Contract §5 closed (second pass, 2026-10-02):** autosave with truthful `saving | saved | failed |
   conflict` statuses and unsaved-input protection (guard on navigation, franchise switch, dialog close,
   sign-out, and session expiry, with stay/retry/discard choices) are now built, not deferred. This was
@@ -43,7 +48,8 @@ Authorization on record:      owner authorized dependency installs and Supabase 
   GitHub provider verified enabled; Vercel env vars owner-reported. Only the Supabase **URL Configuration**
   confirmation (Site URL + Redirect URLs) remains — it cannot be verified remotely.
 - PGlite/migration decisions resolved (D119).
-- Owner merge confirmed? n/a (not started). Production deployment/migration: none.
+- Owner merge confirmed? **yes** — PR #13 → `main` (`4c137f1`), 2026-10-02. Production deployment tracks
+  `main` via Vercel; the database migration was applied by the owner to the single Supabase project (D088).
 
 ## Scope and authority
 
@@ -259,8 +265,8 @@ branch rather than from an unpushed worktree (D120).
   label is populated.
 - **Action units, partial/bulk confirmation, cancel, bounded undo:** contract §4 semantics belong to C2B
   and are not started.
-- **Live OAuth sign-in, cloud migration application, multi-device conflict, and iOS checks:** owner steps
-  or later verification (runbook below).
+- **iOS/Safari checks:** not run — later verification (C5B is phone-first). Live sign-in, cloud migration
+  application, and the two-tab stale-write conflict were verified in the browser pass below.
 
 ## Verification evidence
 
@@ -278,6 +284,8 @@ branch rather than from an unpushed worktree (D120).
 | Auth unit tests | `npx vitest run tests/auth.test.ts`, 2026-10-02 | pass — 8/8 (identity extraction, admission, redirect guard) |
 | Backup validation tests | `npx vitest run tests/backup.test.ts`, 2026-10-02 | pass — 7/7 (round trip, unsupported version, dangling refs, secret-like content, size) |
 | Full project checks | `npm run checks` with `.env.local` imported into the worktree, 2026-10-02 | pass — typecheck, lint, 68 tests, build (14 route entries) |
+| Browser verification pass | shared preview browser → `http://localhost:3000` (merged `main`), 2026-10-02 | pass — every C1B feature exercised end to end against the live project; one display defect found and fixed (PR #14); console clean |
+| Post-verification checks | `npm run typecheck` + `npx vitest run` on the fix branch from `main`, 2026-10-02 | pass — 10 files / 70 tests; PR #14 `checks` SUCCESS |
 | Live app check | `npm run dev -- -p 3200` (detached) + curl, 2026-10-02 | `/sign-in` 200; `/` → 307 to `/sign-in` (auth gate); top bar reports "Signed out" and "App storage connected"; port 3100 left to the other worktree |
 
 - Checks NOT run and why: live OAuth sign-in (owner browser action), cloud migration application (D088
@@ -285,6 +293,66 @@ branch rather than from an unpushed worktree (D120).
   (import path not built).
 - No secrets, private exports, or credentials are included in this record; the imported `.env.local` is
   gitignored and never printed.
+
+## Browser verification pass (2026-10-02)
+
+The owner signed in to `http://localhost:3000` (merged `main`) in the shared preview browser, and every C1B
+surface was driven end to end against the live project.
+
+| Feature | Result |
+|---|---|
+| GitHub OAuth sign-in (allowlisted owner) | pass — session established, shell renders |
+| Auth gate on every route | pass — `/gm`, `/settings`, `/franchises`, `/lineups`, `/gameday`, `/checklist`, and `/api/backup/export` all `307` → `/sign-in?next=…` while signed out |
+| Overview | pass — real counts only (revision, players, pending edits); no invented ratings, charts, or statistics |
+| Roster and custom player | pass — custom player carries a `c_…` app id; plan vs recorded shown per field |
+| Autosave | pass — truthful `Saving… → Saved to app` |
+| Failed save | pass — invalid number → **Not saved** with the exact reason, input preserved, Retry/Discard offered |
+| Unsaved-input guard | pass — navigation blocked, pending field named, **Stay** kept the input, **Discard** reverted to the last saved value and then continued |
+| Plan → already-happened | pass — recorded value set, redundant plan cleared, revision incremented |
+| Unknown ≠ zero | pass — recorded `0` persisted as a real value, not as unknown |
+| Clear a field | pass — returned to **Unknown** (row removed) |
+| Two-tab stale write | pass — stale tab reported **Conflict — nothing written**, kept its input, and did not overwrite the other tab |
+| Backup export | pass — `no-store`, attachment filename, envelope v1 / `c1b/1`, custom key preserved, no secrets |
+| Restore-new | pass — new non-default franchise; the database confirms the same `c_…` key with a **new** row id (ids remapped) |
+| Invalid backup | pass — refused ("not valid JSON") and no franchise was created |
+| Rename / Make active / Archive / Resume | pass — after the fix below |
+| Provenance | pass — honestly reports that no source revision has been imported |
+| Console | pass — no errors; only HMR notices and one benign CSS-preload warning |
+| Sign-out | pass — session revoked; `/gm` → `/sign-in?next=%2Fgm` |
+
+**Defect found and fixed (display only):** after **Make active**, the top-bar "Active franchise" picker kept
+showing the previous franchise until a full navigation. The stored state was correct — the list showed the
+right `Active` badge and a reload showed the right selection — because the picker is an uncontrolled
+`<select defaultValue>` and React never rewrites its value after a server-driven change. Fixed by keying the
+select on the server-provided id; the regression test `tests/franchise-picker.test.tsx` rerenders with a
+different id and fails without the fix. Fix
+[PR #14](https://github.com/joshhkee/franchise-manager/pull/14) is open with green checks (the test file
+lands with that PR).
+
+**Test data:** the pass created a second franchise ("Restored Test", from the round-trip) and modified one
+player in the live project. The owner approved a cleanup that removes the test-created franchise and test
+player so the project returns to its pre-test state; the franchise revision stays monotonic and is bumped so
+any tab left open sees a conflict rather than writing against out-of-band changes. The app has no delete
+command by design and the `app` schema is not exposed through PostgREST, so the owner runs it in the
+Supabase SQL editor:
+
+```sql
+delete from app.franchises
+ where id = '702ad0d3-b565-4de0-ac5c-9eae1faed9c8';
+
+delete from app.franchise_players
+ where id = '90b4d672-1ae0-4c6a-8357-a1c97e12f023';
+
+update app.franchises
+   set revision = revision + 1, updated_at = now()
+ where id = '8df75d43-ffa1-4f3a-bcda-abb605b46a67';
+```
+
+Expected end state: one franchise (Atlanta Falcons, default, one higher revision, 0 players, 0 field rows).
+This is cleanup, not imported data.
+
+Checks not covered by this pass: iOS/Safari device runs (later verification) and the source-import round trip
+(the import path is not built).
 
 ## Owner runbook — turn C1B on
 
@@ -314,20 +382,26 @@ branch rather than from an unpushed worktree (D120).
 
 ## Next steps (owner flow)
 
-1. **Apply migrations `0001`–`0005` and add the allowlist row** — owner: you; runbook above.
-   **OWNER APPROVAL/CHECK:** D088 requires a separate reviewed migration step with a recovery path.
-2. **Sign in and run the four manual scenarios** — owner: you. **OWNER CHECK.**
-3. **Review the checkpoint PR** — owner: you; [PR #13](https://github.com/joshhkee/franchise-manager/pull/13)
-   is marked ready for review with green checks.
-4. **Decide the remaining open item** — owner: you; (a) the source-import path needs C0A source data before
-   it can populate the catalog. (The former autosave item is resolved: contract §5 was built in this
-   thread, so no owner decision is outstanding there.)
-5. **Owner merge of the C1B PR** — owner: you; C2A then starts from the merged base.
+1. ~~Apply migrations `0001`–`0005` and add the allowlist row~~ — **done** (owner, 2026-10-02).
+2. ~~Sign in and run the manual scenarios~~ — **done**; the browser pass above replaced and exceeded them.
+3. ~~Merge the checkpoint PR~~ — **done**; PR #13 merged into `main` as `4c137f1`.
+4. **Merge the picker fix** — owner: you; [PR #14](https://github.com/joshhkee/franchise-manager/pull/14) is
+   open with green checks. **OWNER APPROVAL/CHECK.**
+5. **Run the approved test-data cleanup** — owner: you; the cleanup SQL in the browser-pass notes removes the
+   test-created franchise and test player. **OWNER CHECK.**
+6. **Confirm the Supabase URL Configuration** — owner: you; Site URL + Redirect URLs, which cannot be
+   verified remotely.
+7. **Decide the remaining open item** — owner: you; the source-import path needs the C0A source data before
+   it can populate the catalog.
+8. **Owner acceptance of C1B, then start C2A** from the merged, verified base.
 
-Immediate next step: **apply the migrations and the allowlist row, then sign in and run the four manual
-scenarios.**
+Immediate next step: **merge PR #14 and run the cleanup SQL.**
 
 ## Next thread — pasteable launch
+
+C1B is complete and merged (`main` `4c137f1`); the next checkpoint is **C2A**. Use the canonical **C2A**
+prompt from [LAUNCH_PROMPTS.md](../../LAUNCH_PROMPTS.md) in a fresh thread/worktree and fill that record's
+own assignment header. The block below is retained as the C1B launch record:
 
 Fill the assignment header above, then paste the canonical **C1B** prompt from
 [LAUNCH_PROMPTS.md](../../LAUNCH_PROMPTS.md) plus its shared instruction, and add:
