@@ -35,8 +35,18 @@ export default function SettingsPage() {
       <section className="rounded-lg border border-line bg-surface p-5">
         <h2 className="text-sm font-semibold">Account</h2>
         <p className="mt-1 max-w-prose text-sm text-ink-muted">
-          Not connected. Private GitHub OAuth with a single allowlisted owner is implemented in C1B.
+          Signed in with private GitHub OAuth. Franchise data is reachable only by the allowlisted owner
+          account; every other identity is refused and signed out, and the database denies it independently
+          of this screen.
         </p>
+        <form action="/auth/sign-out" method="post" className="mt-3">
+          <button
+            type="submit"
+            className="min-h-11 rounded-md border border-line bg-background px-3 text-sm font-medium"
+          >
+            Sign out
+          </button>
+        </form>
       </section>
     </div>
   );
