@@ -56,25 +56,48 @@ Authorization on record:      owner authorized dependency installs and Supabase 
 | Tooling present | Node v26.7.0, npm 11.19.0, `gh` authenticated |
 | Tooling absent | **Docker, `psql`, Supabase CLI, corepack: not installed** (drives the decision below) |
 
+## Known project facts (recorded 2026-10-02)
+
+| Fact | Value |
+|---|---|
+| Supabase project name | `franchise-manager` |
+| Supabase project ref | `xueymrywpvegslbkdnpf` |
+| Supabase project URL | `https://xueymrywpvegslbkdnpf.supabase.co` |
+| Supabase region | `ap-southeast-2` |
+| OAuth callback for the GitHub OAuth App | `https://xueymrywpvegslbkdnpf.supabase.co/auth/v1/callback` |
+| Allowlisted owner | GitHub `joshhkee` (numeric id `21141160`) |
+| Local dev ports | 3000 (default) and/or 3100 (C1A used 3100) |
+| Vercel production URL | owner to supply (see input 2) |
+
+The project ref, URL, and GitHub user id are not secrets; API keys, DB password, and OAuth client secret are.
+
 ## Owner inputs still required before C1B's exit gate can pass
 
-1. **Non-secret facts:** Supabase project ref/URL, region; Vercel production URL; the GitHub identity to
-   allowlist (username plus numeric user ID); the local dev port.
-2. **Secrets** (in the C1B worktree's ignored `.env.local`, never in chat/docs/PRs):
-   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
-3. **Supabase dashboard confirmation:** Authentication → Sign In / Providers → GitHub is **enabled** with
-   the OAuth App's Client ID/Secret; Authentication → URL Configuration has the Site URL and redirect URLs
-   for localhost and the Vercel preview/production hosts.
-4. **DECISION — local/embedded test isolation (D103, IR-10).** With no Docker/`psql`/Supabase CLI, choose:
-   - (a) install Docker Desktop → local Supabase CLI stack (most faithful: real Auth + RLS + policies);
-   - (b) approve `@electric-sql/pglite` (embedded Postgres in Node, no Docker) for schema/RLS tests, with
-     auth flows verified against the cloud project;
-   - (c) install a local PostgreSQL and run migrations/policies manually;
-   - (d) another owner preference.
-5. **DECISION — applying migrations to the cloud project** (separate reviewed operation per D088): approve
-   the path (e.g. `npx supabase` CLI + owner access token/DB password, or owner-run SQL) and the timing.
-6. **Vercel env scopes:** confirm Preview vs Production variable scoping, so previews never receive
-   production write credentials (D103/D105).
+1. **Supabase API keys → the C1B worktree's ignored `.env.local`** (never in chat, docs, or PRs). Open
+   `https://supabase.com/dashboard/project/xueymrywpvegslbkdnpf/settings/api` and copy:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL` (non-secret);
+   - **`anon` / publishable key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY` (client-safe);
+   - **`service_role` / secret key** → `SUPABASE_SERVICE_ROLE_KEY` (**secret; server-only, never client
+     code, never printed**).
+   The C1B thread creates `.env.example`; the owner fills `.env.local` in the C1B worktree after it exists.
+2. **Vercel production URL** — Vercel → the project → **Settings → Domains** → copy the production domain
+   (e.g. `franchise-manager-*.vercel.app`). Needed for Supabase's Site URL.
+3. **Supabase dashboard confirmation** — at
+   `https://supabase.com/dashboard/project/xueymrywpvegslbkdnpf/auth/providers`: GitHub **enabled** with the
+   OAuth App's Client ID/Secret; at `.../auth/url-configuration`: Site URL = the Vercel production URL, and
+   Redirect URLs include `http://localhost:3000/**`, `http://localhost:3100/**`, and the Vercel
+   preview/production hosts.
+4. **DECISION — local/embedded test isolation (D103, IR-10).** No Docker/`psql`/Supabase CLI is installed.
+   **Recommended: (b) `@electric-sql/pglite`** — a real Postgres (WASM) in Node, no install beyond npm,
+   running the actual migrations and RLS policies plus a small `auth`-schema shim, with auth flows
+   owner-verified against the real project. Alternatives: (a) install Docker Desktop for the full local
+   Supabase stack, (c) install local PostgreSQL, (d) other owner preference.
+5. **DECISION — applying migrations to the cloud project (D088).** **Recommended: the C1B thread writes
+   versioned SQL and the owner applies it** — either paste it into the dashboard **SQL editor** (no install),
+   or use the CLI (`npx supabase link` + `db push` with an access token from
+   `https://supabase.com/dashboard/account/tokens` and the project's DB password). Never during a build.
+6. **Vercel env scopes** — Preview vs Production variable scoping, so previews never receive production
+   write credentials (D103/D105).
 
 ## Open design items C1B must resolve (with evidence)
 
