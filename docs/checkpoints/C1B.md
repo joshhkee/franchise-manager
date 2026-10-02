@@ -231,10 +231,13 @@ branch rather than from an unpushed worktree (D120).
 | Foundation migration | [supabase/migrations/0001_c1b_foundation.sql](../../supabase/migrations/0001_c1b_foundation.sql) — `app` schema, authoritative `owner_allowlist`, `owners` mapping, `franchises` (per-franchise `revision`, one default per owner), RLS policies, `public.register_owner` bootstrap, `public.touch_franchise` revision contract | applied and exercised on PGlite |
 | Local DB harness | [tests/db/harness.ts](../../tests/db/harness.ts) — PGlite plus a Supabase `auth` shim (`auth.uid()`, anon/authenticated/service_role) that applies the real migrations | `npm run test:db` |
 | Policy/isolation tests | [tests/db/foundation.test.ts](../../tests/db/foundation.test.ts) — allowlist accept/reject, client-role denial, per-owner visibility, cross-franchise write refusal, stale-revision refusal, cross-franchise function call refusal | 7/7 pass |
+| Source catalog migration | [supabase/migrations/0002_source_catalog.sql](../../supabase/migrations/0002_source_catalog.sql) — `source_revisions`, `source_player_records` (revision-scoped `sourceId`, nullable archetype), franchise dataset-pin FK, read-only RLS for allowlisted owners, and a database-level immutability guard with an explicit import window | applied on PGlite |
+| Reconciliation keys (CB-1) | [lib/identity.ts](../../lib/identity.ts) — declared normalization plus `matched` / `new` / `conflict` classification (never name-only or `sourceId`-only); unit tests in [tests/identity.test.ts](../../tests/identity.test.ts) | 10/10 pass |
+| Source catalog tests | [tests/db/source-catalog.test.ts](../../tests/db/source-catalog.test.ts) — owner reads, stranger sees nothing, client writes denied, immutability guard plus import window, duplicate `sourceId` rejected, pin FK enforced | 6/6 pass |
 
-Remaining C1B slices: source revisions + reconciliation keys (C0B-v2 §2/§15), franchise players and custom
-IDs, planned-vs-recorded primitives, immutable-revision coverage reporting, `@supabase/ssr` auth routes
-(middleware, `/auth/callback`, sign-out), and the backup envelope with restore-new plus its round-trip tests.
+Remaining C1B slices: franchise players and custom IDs, planned-vs-recorded primitives,
+immutable-revision coverage reporting, `@supabase/ssr` auth routes (middleware, `/auth/callback`, sign-out),
+and the backup envelope with restore-new plus its round-trip tests.
 
 ## Verification evidence
 
@@ -246,8 +249,9 @@ IDs, planned-vs-recorded primitives, immutable-revision coverage reporting, `@su
 | Remote reachability probes | anonymous GETs, 2026-10-02 | Supabase `/auth/v1/health` 401 (keyless request rejected — expected); immutable Production deployment URL 401 (Deployment Protection); stable alias `https://franchise-manager-j.vercel.app` and `/gm` **200** (C1A shell live) |
 | Supabase key probe | `/auth/v1/settings` + publishable → 200; `/auth/v1/admin/users` + secret → 200 (`{"users":[]}`); admin + publishable → 401 (role separation) | pass — both keys valid, live 2026-10-02 |
 | Env file read by the real loader | `@next/env` `loadEnvConfig` over the main checkout, 2026-10-02 | pass — all three names parsed to the expected values; nothing printed |
-| DB policy/isolation tests | `npm run test:db` (PGlite, real migrations), 2026-10-02 | pass — 7/7 |
-| Full project checks | `npm run checks` with `.env.local` imported into the worktree, 2026-10-02 | pass — typecheck, lint, 15 tests, build (10 route entries) |
+| DB policy/isolation tests | `npm run test:db` (PGlite, real migrations), 2026-10-02 | pass — foundation 7/7, source catalog 6/6 |
+| Reconciliation-key unit tests | `npx vitest run tests/identity.test.ts`, 2026-10-02 | pass — 10/10 |
+| Full project checks | `npm run checks` with `.env.local` imported into the worktree, 2026-10-02 | pass — typecheck, lint, 31 tests, build (10 route entries) |
 
 - Checks NOT run and why: live OAuth sign-in (owner browser action), cloud migration application (D088
   owner step), and the backup/restore round-trip (slice not built yet).
