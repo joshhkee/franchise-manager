@@ -29,6 +29,11 @@ Authorization on record:      owner authorized dependency installs and Supabase 
   single writer. Branch `checkpoint/c1b-foundation` is cut from `1de3cfd`; `.env.local` was imported from the
   main checkout at bootstrap (never printed).
 - Deviation on record: **D120** — C1B runs in this repurposed thread/worktree rather than a new one.
+- **Exit-gate state (2026-10-02): implementation complete and locally verified; owner verification pending.**
+  Every slice listed below is pushed to `checkpoint/c1b-foundation`; application checks and 61 automated
+  tests pass, and the auth gate was exercised on a running dev server. Background mode is unavailable in
+  this build, so the dev server was detached on port 3200 (port 3100 belongs to another worktree and was
+  left untouched).
 - Updated by: this thread (C1B execution lane).
 - Owner inputs (2026-10-02): `.env.local` written and **verified live**; Vercel production domain verified;
   GitHub provider verified enabled; Vercel env vars owner-reported. Only the Supabase **URL Configuration**
@@ -234,10 +239,24 @@ branch rather than from an unpushed worktree (D120).
 | Source catalog migration | [supabase/migrations/0002_source_catalog.sql](../../supabase/migrations/0002_source_catalog.sql) — `source_revisions`, `source_player_records` (revision-scoped `sourceId`, nullable archetype), franchise dataset-pin FK, read-only RLS for allowlisted owners, and a database-level immutability guard with an explicit import window | applied on PGlite |
 | Reconciliation keys (CB-1) | [lib/identity.ts](../../lib/identity.ts) — declared normalization plus `matched` / `new` / `conflict` classification (never name-only or `sourceId`-only); unit tests in [tests/identity.test.ts](../../tests/identity.test.ts) | 10/10 pass |
 | Source catalog tests | [tests/db/source-catalog.test.ts](../../tests/db/source-catalog.test.ts) — owner reads, stranger sees nothing, client writes denied, immutability guard plus import window, duplicate `sourceId` rejected, pin FK enforced | 6/6 pass |
+| Franchise + player commands | [supabase/migrations/0003_franchise_players.sql](../../supabase/migrations/0003_franchise_players.sql) — default Atlanta club, custom ids in a distinct namespace, grouped fields where unknown is absence (never zero), recorded-vs-planned reconciliation, request-outcome ledger (200 per owner) | 12/12 pass |
+| Auth gate and allowlist | [proxy.ts](../../proxy.ts), [app/auth/callback/route.ts](../../app/auth/callback/route.ts), [lib/auth/identity.ts](../../lib/auth/identity.ts) — session refresh and verification, callback admitting only allowlisted GitHub ids and signing refusals back out, open-redirect guard, honest refusal messages | 8/8 pass |
+| Backup envelope + restore-new | [lib/backup.ts](../../lib/backup.ts), [supabase/migrations/0005_restore.sql](../../supabase/migrations/0005_restore.sql) — validation before any write, id remapping, custom identity and source references preserved by revision key, atomic refusal when a revision is missing | 7/7 + 3/3 pass |
+| Integrated persistence in the shell | [app/page.tsx](../../app/page.tsx), [app/franchises/page.tsx](../../app/franchises/page.tsx), [components/roster-panel.tsx](../../components/roster-panel.tsx), [components/player-field-editor.tsx](../../components/player-field-editor.tsx), [components/backup-panel.tsx](../../components/backup-panel.tsx), read-model views in [0004](../../supabase/migrations/0004_read_models.sql) | build + live dev check |
 
-Remaining C1B slices: franchise players and custom IDs, planned-vs-recorded primitives,
-immutable-revision coverage reporting, `@supabase/ssr` auth routes (middleware, `/auth/callback`, sign-out),
-and the backup envelope with restore-new plus its round-trip tests.
+### Not done in this checkpoint (open, not silently implied)
+
+- **Source import path and coverage surface:** the immutable catalog tables, their policies, the
+  immutability guard, and the CB-1 reconciliation library exist, but nothing yet parses/imports a real
+  source revision (that needs the C0A source data), so the catalog is legitimately empty and no coverage
+  label is populated.
+- **Autosave and unsaved-input protection:** field edits save explicitly per field with revision checks.
+  The packet's autosave wording and the navigation/sign-out/session-expiry unsaved-input flow are not
+  built — a scope deviation for the owner to accept or send back, not something this record claims.
+- **Action units, partial/bulk confirmation, cancel, bounded undo:** contract §4 semantics belong to C2B
+  and are not started.
+- **Live OAuth sign-in, cloud migration application, multi-device conflict, and iOS checks:** owner steps
+  or later verification (runbook below).
 
 ## Verification evidence
 
@@ -249,34 +268,59 @@ and the backup envelope with restore-new plus its round-trip tests.
 | Remote reachability probes | anonymous GETs, 2026-10-02 | Supabase `/auth/v1/health` 401 (keyless request rejected — expected); immutable Production deployment URL 401 (Deployment Protection); stable alias `https://franchise-manager-j.vercel.app` and `/gm` **200** (C1A shell live) |
 | Supabase key probe | `/auth/v1/settings` + publishable → 200; `/auth/v1/admin/users` + secret → 200 (`{"users":[]}`); admin + publishable → 401 (role separation) | pass — both keys valid, live 2026-10-02 |
 | Env file read by the real loader | `@next/env` `loadEnvConfig` over the main checkout, 2026-10-02 | pass — all three names parsed to the expected values; nothing printed |
-| DB policy/isolation tests | `npm run test:db` (PGlite, real migrations), 2026-10-02 | pass — foundation 7/7, source catalog 6/6 |
+| DB policy/isolation tests | `npm run test:db` (PGlite, real migrations), 2026-10-02 | pass — foundation 7/7, source catalog 6/6, franchise-players 12/12, restore 3/3 |
 | Reconciliation-key unit tests | `npx vitest run tests/identity.test.ts`, 2026-10-02 | pass — 10/10 |
-| Full project checks | `npm run checks` with `.env.local` imported into the worktree, 2026-10-02 | pass — typecheck, lint, 31 tests, build (10 route entries) |
+| Auth unit tests | `npx vitest run tests/auth.test.ts`, 2026-10-02 | pass — 8/8 (identity extraction, admission, redirect guard) |
+| Backup validation tests | `npx vitest run tests/backup.test.ts`, 2026-10-02 | pass — 7/7 (round trip, unsupported version, dangling refs, secret-like content, size) |
+| Full project checks | `npm run checks` with `.env.local` imported into the worktree, 2026-10-02 | pass — typecheck, lint, 61 tests, build (14 route entries) |
+| Live app check | `npm run dev -- -p 3200` (detached) + curl, 2026-10-02 | `/sign-in` 200; `/` → 307 to `/sign-in` (auth gate); top bar reports "Signed out" and "App storage connected"; port 3100 left to the other worktree |
 
 - Checks NOT run and why: live OAuth sign-in (owner browser action), cloud migration application (D088
-  owner step), and the backup/restore round-trip (slice not built yet).
+  owner step), multi-device conflict and iOS runs (later verification), and the source-import round trip
+  (import path not built).
 - No secrets, private exports, or credentials are included in this record; the imported `.env.local` is
   gitignored and never printed.
 
+## Owner runbook — turn C1B on
+
+1. **Apply the migrations to the project** (D088/D119; never during a build). Paste each file from
+   `supabase/migrations/` into the dashboard **SQL editor** in order (`0001` → `0005`), or use the CLI:
+
+   ```bash
+   npx supabase link --project-ref xueymrywpvegslbkdnpf
+   npx supabase db push
+   ```
+
+   Export a backup first if the project ever holds data; it currently holds none, so the forward path is
+   risk-free. The files are not idempotent — apply each once, in order.
+2. **Add the allowlist row** in the same SQL editor (GitHub numeric id `21141160`, login `joshhkee`):
+
+   ```sql
+   insert into app.owner_allowlist (github_user_id, github_login)
+   values (21141160, 'joshhkee')
+   on conflict (github_user_id) do nothing;
+   ```
+
+3. **Sign in** at `/sign-in` locally (`http://localhost:3000`) or on the production domain. A refusal
+   explains itself; `setup_incomplete` means the migrations are not applied yet.
+4. **Run the four manual scenarios** and report anything that looks wrong: create the Atlanta franchise →
+   add a custom player → plan a field and then record it as already-happened → download a backup, restore it
+   as a new franchise, and confirm the custom player keeps its `c_*` app id while gaining a new row id.
+
 ## Next steps (owner flow)
 
-1. **Confirm the Supabase URL Configuration** (Input 3, steps 3–4) — owner: you; still the only owner item
-   that cannot be verified remotely. **OWNER CHECK.**
-2. **Review the pushed C1B progress** — owner: you; branch `checkpoint/c1b-foundation` (D120 record,
-   `0001_c1b_foundation.sql`, PGlite harness, 7 policy tests, `npm run checks` green). The PR stays a draft
-   until this record's exit gate passes.
-3. **Continue the remaining C1B slices** — next writer: source revisions + reconciliation keys, franchise
-   players/custom IDs, planned-vs-recorded primitives, auth routes, backup envelope + restore tests.
-   **OWNER CHECK:** if this thread's session ends first, resume only from the pushed branch — never from an
-   unpushed worktree.
-4. **Apply `0001_c1b_foundation.sql` to the cloud project once the schema slice is agreed** — owner: you;
-   **OWNER APPROVAL/CHECK:** D088 requires a separate reviewed migration step with a recovery path, never
-   during a build.
-5. **Owner merge of the single integrated C1B PR** — owner: you; the draft PR becomes the checkpoint PR once
-   the exit gate passes.
+1. **Apply migrations `0001`–`0005` and add the allowlist row** — owner: you; runbook above.
+   **OWNER APPROVAL/CHECK:** D088 requires a separate reviewed migration step with a recovery path.
+2. **Sign in and run the four manual scenarios** — owner: you. **OWNER CHECK.**
+3. **Review the checkpoint PR** — owner: you; [PR #13](https://github.com/joshhkee/franchise-manager/pull/13)
+   is marked ready for review with green checks.
+4. **Decide the two open items** — owner: you; (a) the source-import path needs C0A source data before it can
+   populate the catalog, and (b) whether explicit per-field save satisfies C1B or autosave plus
+   unsaved-input protection must be added before acceptance.
+5. **Owner merge of the C1B PR** — owner: you; C2A then starts from the merged base.
 
-Immediate next step: **keep this thread on the next C1B slice, or open a new thread from
-`origin/checkpoint/c1b-foundation` — the work is pushed, not only on disk.**
+Immediate next step: **apply the migrations and the allowlist row, then sign in and run the four manual
+scenarios.**
 
 ## Next thread — pasteable launch
 
