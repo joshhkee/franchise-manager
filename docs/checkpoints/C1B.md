@@ -220,6 +220,22 @@ verifiable from this thread; the first C1B deployment is the real check.
 - **C0A evidence supplement / D114 special-teams gate:** remain outside C1B, but keep them visible for
   C2A/C3A/C3B.
 
+## Progress (C1B execution in this thread)
+
+Branch `checkpoint/c1b-foundation` from `1de3cfd`, pushed as it goes so any later thread can resume from the
+branch rather than from an unpushed worktree (D120).
+
+| Slice | Artifact | Evidence |
+|---|---|---|
+| Governance | D120 recorded; record workspace/state updated | commit `a79e98f` |
+| Foundation migration | [supabase/migrations/0001_c1b_foundation.sql](../../supabase/migrations/0001_c1b_foundation.sql) — `app` schema, authoritative `owner_allowlist`, `owners` mapping, `franchises` (per-franchise `revision`, one default per owner), RLS policies, `public.register_owner` bootstrap, `public.touch_franchise` revision contract | applied and exercised on PGlite |
+| Local DB harness | [tests/db/harness.ts](../../tests/db/harness.ts) — PGlite plus a Supabase `auth` shim (`auth.uid()`, anon/authenticated/service_role) that applies the real migrations | `npm run test:db` |
+| Policy/isolation tests | [tests/db/foundation.test.ts](../../tests/db/foundation.test.ts) — allowlist accept/reject, client-role denial, per-owner visibility, cross-franchise write refusal, stale-revision refusal, cross-franchise function call refusal | 7/7 pass |
+
+Remaining C1B slices: source revisions + reconciliation keys (C0B-v2 §2/§15), franchise players and custom
+IDs, planned-vs-recorded primitives, immutable-revision coverage reporting, `@supabase/ssr` auth routes
+(middleware, `/auth/callback`, sign-out), and the backup envelope with restore-new plus its round-trip tests.
+
 ## Verification evidence
 
 | Check | Exact command/environment | Result |
@@ -230,25 +246,33 @@ verifiable from this thread; the first C1B deployment is the real check.
 | Remote reachability probes | anonymous GETs, 2026-10-02 | Supabase `/auth/v1/health` 401 (keyless request rejected — expected); immutable Production deployment URL 401 (Deployment Protection); stable alias `https://franchise-manager-j.vercel.app` and `/gm` **200** (C1A shell live) |
 | Supabase key probe | `/auth/v1/settings` + publishable → 200; `/auth/v1/admin/users` + secret → 200 (`{"users":[]}`); admin + publishable → 401 (role separation) | pass — both keys valid, live 2026-10-02 |
 | Env file read by the real loader | `@next/env` `loadEnvConfig` over the main checkout, 2026-10-02 | pass — all three names parsed to the expected values; nothing printed |
+| DB policy/isolation tests | `npm run test:db` (PGlite, real migrations), 2026-10-02 | pass — 7/7 |
+| Full project checks | `npm run checks` with `.env.local` imported into the worktree, 2026-10-02 | pass — typecheck, lint, 15 tests, build (10 route entries) |
 
-- Checks NOT run and why: any C1B application/DB/policy test — the checkpoint has not started.
-- No secrets, private exports, or credentials are included in this record.
+- Checks NOT run and why: live OAuth sign-in (owner browser action), cloud migration application (D088
+  owner step), and the backup/restore round-trip (slice not built yet).
+- No secrets, private exports, or credentials are included in this record; the imported `.env.local` is
+  gitignored and never printed.
 
 ## Next steps (owner flow)
 
-1. **Confirm the Supabase URL Configuration** (Input 3, steps 3–4) — owner: you; it is the only owner item
-   that cannot be verified remotely. Inputs 1, 2, and 4 are in (Input 1 verified live 2026-10-02).
-2. **Open the new C1B thread/worktree** from the merge commit of this handoff PR — owner: you; artifact:
-   the pasteable launch below. Tell the C1B agent to import `.env.local` from the main checkout at bootstrap.
-3. **C1B implementation** — owner: C1B thread; schema/migrations against `C0B-v2`, auth + allowlisting,
-   franchise isolation, player baseline/plan primitive, backup envelope, and the required integration
-   tests.
-4. **Apply migrations to the cloud project** — owner: C1B thread with your approval; **OWNER APPROVAL/CHECK:**
-   D088 requires a separate reviewed migration step with a recovery path.
-5. **Owner merge of the single integrated C1B PR** — owner: you; see `WORKFLOW.md` Step 6.
+1. **Confirm the Supabase URL Configuration** (Input 3, steps 3–4) — owner: you; still the only owner item
+   that cannot be verified remotely. **OWNER CHECK.**
+2. **Review the pushed C1B progress** — owner: you; branch `checkpoint/c1b-foundation` (D120 record,
+   `0001_c1b_foundation.sql`, PGlite harness, 7 policy tests, `npm run checks` green). The PR stays a draft
+   until this record's exit gate passes.
+3. **Continue the remaining C1B slices** — next writer: source revisions + reconciliation keys, franchise
+   players/custom IDs, planned-vs-recorded primitives, auth routes, backup envelope + restore tests.
+   **OWNER CHECK:** if this thread's session ends first, resume only from the pushed branch — never from an
+   unpushed worktree.
+4. **Apply `0001_c1b_foundation.sql` to the cloud project once the schema slice is agreed** — owner: you;
+   **OWNER APPROVAL/CHECK:** D088 requires a separate reviewed migration step with a recovery path, never
+   during a build.
+5. **Owner merge of the single integrated C1B PR** — owner: you; the draft PR becomes the checkpoint PR once
+   the exit gate passes.
 
-Immediate next step: **merge this handoff PR, then open the new C1B thread with the launch package below —
-all owner inputs are in except the Supabase URL-Configuration confirmation.**
+Immediate next step: **keep this thread on the next C1B slice, or open a new thread from
+`origin/checkpoint/c1b-foundation` — the work is pushed, not only on disk.**
 
 ## Next thread — pasteable launch
 
