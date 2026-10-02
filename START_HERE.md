@@ -60,7 +60,7 @@ The [documentation audit](AUDIT.md) records corrected contradictions and remaini
 
 ## Next launch — a NEW execution thread
 
-Use [LAUNCH_PROMPTS.md: C1B](LAUNCH_PROMPTS.md#c1b--private-auth-data-and-franchise-foundation), filling its assignment header and appending its shared instruction. It is the canonical launch, not a separate competing set of requirements. C0B and C1A are closed and merged; C1B implements against `C0B-v2`. Start from the accepted merged baseline, not an unmerged predecessor.
+Use [LAUNCH_PROMPTS.md: C1B](LAUNCH_PROMPTS.md#c1b--private-auth-data-and-franchise-foundation), filling its assignment header and appending its shared instruction. It is the canonical launch, not a separate competing set of requirements. C0B and C1A are closed and merged; C1B implements against `C0B-v2`. Start from the accepted merged baseline, not an unmerged predecessor — and read the [C1B startup handoff](docs/checkpoints/C1B.md) first, which carries the verified base, the owner inputs, and the open test-isolation/migration decisions.
 
 ## Next-checkpoint launches
 

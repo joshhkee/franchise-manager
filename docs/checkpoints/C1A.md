@@ -263,11 +263,12 @@ horizontal overflow. Accepted C1A baseline = `ff9975d` plus this closeout commit
 
 - Exact next checkpoint: **C1B** (private auth, isolated data, franchise lifecycle) per
   [phases/01-foundation.md](../../phases/01-foundation.md), using the canonical C1B prompt.
-- Required merged baseline and how to verify it: `main` with the C1A PR merged (`ff9975d`) **and the
-  closeout review/disposition PR merged** (`git log --oneline -1 origin/main`;
-  `git merge-base --is-ancestor ff9975d origin/main`). The owner C1A visual acceptance was recorded
-  2026-10-02 (D116) and the independent review is closed (C0B-C1A-REVIEW), so C1B is no longer blocked on
-  either.
+- Required merged baseline and how to verify it: `origin/main` @ `8c82b5d` (PRs #1–#10 merged; C1A merge
+  `ff9975d` plus the closeout and next-steps docs PRs). Verify with
+  `git merge-base --is-ancestor 8c82b5d origin/main`, then read
+  [docs/checkpoints/C1B.md](C1B.md) — the C1B startup handoff. The owner C1A visual acceptance was
+  recorded 2026-10-02 (D116) and the independent review is closed (C0B-C1A-REVIEW), so C1B is no longer
+  blocked on either.
 - Files/docs to read first: `START_HERE.md`, `phases/01-foundation.md` (C1B + parallel lanes), `SPEC.md`,
   `DESIGN.md`, `SETUP.md`, `ACCEPTANCE.md` (A31–A41), `docs/contracts/C0B-contract-spec.md` (**C0B-v1** is the
   binding interface set: §2 source/identity, §3 state model, §5 revision/idempotency, §8 backup envelope,

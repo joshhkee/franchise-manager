@@ -112,8 +112,8 @@ Dev/test environment:        n/a (docs-only)
 - Exact next checkpoint: **C1B** (private auth, isolated data, franchise lifecycle) per
   [phases/01-foundation.md](../../phases/01-foundation.md) and the C1B launch section of
   [docs/checkpoints/C1A.md](C1A.md). C0B and C1A are both owner-accepted and merged.
-- Required merged baseline: `main` containing PR #7 (`236886f`), the C1A merge (`ff9975d`), and the
-  closeout review/disposition PR; verify `git merge-base --is-ancestor ff9975d origin/main`.
+- Required merged baseline: `origin/main` @ `8c82b5d` (PRs #1–#10 merged), plus the [C1B startup
+  handoff](C1B.md) merged on top; verify `git merge-base --is-ancestor 8c82b5d origin/main`.
 - Files/docs to read first: `START_HERE.md`, `phases/01-foundation.md` (C1B), this record,
   `docs/contracts/C0B-contract-spec.md` (**C0B-v2**: §2 reconciliation, §4/§5 retention constants,
   §8 backup, §10 tooling, §11 gates, §12 change control, §15 minimum fixtures), `DECISIONS.md`
