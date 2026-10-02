@@ -13,6 +13,15 @@ function isPublicPath(pathname: string): boolean {
  * Session gate for every non-public route: refreshes the Supabase session
  * cookies and verifies the user with the auth server before the app renders.
  */
+/**
+ * Server actions are POSTs carrying a `next-action` header. They are never
+ * redirected to sign-in: an expired session must surface as a truthful failed
+ * save with the local input preserved, not as a silent navigation away.
+ */
+function isServerAction(request: NextRequest): boolean {
+  return request.method === "POST" && request.headers.has("next-action");
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -44,7 +53,7 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && !isPublicPath(pathname)) {
+  if (!user && !isPublicPath(pathname) && !isServerAction(request)) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
     url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname)}`;

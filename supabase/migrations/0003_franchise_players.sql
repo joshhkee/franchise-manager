@@ -202,8 +202,11 @@ begin
     return;
   end if;
 
+  -- A command with no stored row (for example clearing a field to unknown) still
+  -- records an applied outcome; the jsonb literal 'null' keeps the ledger column
+  -- NOT NULL and makes the replay distinguishable from "never applied".
   insert into app.request_outcomes (owner_uid, request_id, command, result)
-  values (p_owner, p_request_id, p_command, p_result)
+  values (p_owner, p_request_id, p_command, coalesce(p_result, 'null'::jsonb))
   on conflict (owner_uid, request_id) do nothing;
 
   delete from app.request_outcomes
@@ -425,12 +428,20 @@ declare
 begin
   v_prior := app.replay_outcome(v_uid, p_request_id);
   if v_prior is not null then
+    -- A cleared field stores a jsonb 'null' outcome; replay it as a null row.
+    if v_prior = 'null'::jsonb then
+      return null;
+    end if;
     return jsonb_populate_record(null::app.franchise_player_fields, v_prior);
   end if;
 
   if p_intent not in ('plan', 'recorded') then
     raise exception 'validation_failed: intent must be plan or recorded' using errcode = 'P0006';
   end if;
+
+  -- An explicit JSON null means "no value": unknown is the absence of a value,
+  -- never a stored literal null. Clearing a field must delete the row.
+  p_value := nullif(p_value, 'null'::jsonb);
 
   select p.franchise_id into v_franchise_id
     from app.franchise_players p

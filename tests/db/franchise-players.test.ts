@@ -63,6 +63,15 @@ async function fieldRow(playerId: string, key: string): Promise<FieldRow | undef
   return result.rows[0];
 }
 
+async function currentRevision(id: string): Promise<number> {
+  await asOwnerSession(db);
+  const result = await db.query<{ revision: number }>(
+    "select revision from app.franchises where id = $1",
+    [id],
+  );
+  return result.rows[0].revision;
+}
+
 beforeAll(async () => {
   db = await createTestDb();
   await allowOwner(db, OWNER_GITHUB_ID, "joshhkee");
@@ -233,6 +242,44 @@ describe("grouped editable fields", () => {
     const team = await fieldRow(customPlayerId, "team");
     expect(team?.plan_value).toBe("ATL");
     expect(team?.baseline_value).toBeNull();
+  });
+
+  it("clears a field back to unknown without breaking the applied-request ledger", async () => {
+    const atNote = await currentRevision(franchiseId);
+    await asRole(db, "authenticated", OWNER_UID);
+    await db.query("select * from public.set_player_field($1, $2, $3::jsonb, $4, $5, $6)", [
+      customPlayerId,
+      "notes",
+      JSON.stringify("temporary note"),
+      "plan",
+      atNote,
+      REQUEST(23),
+    ]);
+    expect((await fieldRow(customPlayerId, "notes"))?.plan_value).toBe("temporary note");
+
+    const atClear = await currentRevision(franchiseId);
+    await asRole(db, "authenticated", OWNER_UID);
+    await db.query("select * from public.set_player_field($1, $2, $3::jsonb, $4, $5, $6)", [
+      customPlayerId,
+      "notes",
+      "null",
+      "plan",
+      atClear,
+      REQUEST(24),
+    ]);
+    expect(await fieldRow(customPlayerId, "notes")).toBeUndefined();
+
+    // Replaying the clear after a lost response stays a no-op rather than failing.
+    await asRole(db, "authenticated", OWNER_UID);
+    await db.query("select * from public.set_player_field($1, $2, $3::jsonb, $4, $5, $6)", [
+      customPlayerId,
+      "notes",
+      "null",
+      "plan",
+      0,
+      REQUEST(24),
+    ]);
+    expect(await fieldRow(customPlayerId, "notes")).toBeUndefined();
   });
 
   it("refuses a stale revision without mutating anything", async () => {

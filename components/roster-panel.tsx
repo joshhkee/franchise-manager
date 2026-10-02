@@ -1,4 +1,5 @@
 import { AddCustomPlayerForm } from "./add-custom-player-form";
+import { AutosaveScope } from "./autosave/autosave-provider";
 import { EmptyState } from "./empty-state";
 import { PlayerFieldEditor } from "./player-field-editor";
 import type { FranchisePlayer, FranchiseSummary, Loaded, PlayerField } from "../lib/data/franchises";
@@ -9,11 +10,9 @@ function unknown(value: string | null): string {
 
 function PlayerCard({
   player,
-  revision,
   fields,
 }: {
   player: FranchisePlayer;
-  revision: number;
   fields: PlayerField[];
 }) {
   return (
@@ -31,7 +30,7 @@ function PlayerCard({
           ? ` · App id ${player.customKey}`
           : ""}
       </p>
-      <PlayerFieldEditor playerId={player.id} revision={revision} fields={fields} />
+      <PlayerFieldEditor playerId={player.id} fields={fields} />
     </li>
   );
 }
@@ -58,8 +57,9 @@ export function RosterPanel({
   }
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-lg border border-line bg-surface p-5">
+    <AutosaveScope franchiseId={franchise.id} revision={franchise.revision}>
+      <div className="space-y-4">
+        <section className="rounded-lg border border-line bg-surface p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold">{franchise.name} roster</h2>
           <p className="text-xs text-ink-muted">
@@ -68,33 +68,34 @@ export function RosterPanel({
             {franchise.pendingFieldCount === 1 ? "" : "s"}
           </p>
         </div>
-        <p className="mt-1 max-w-prose text-xs text-ink-muted">
-          Every save is revision-checked: if this franchise changed elsewhere, nothing is written and the
-          edit is reported instead of overwriting it. Unknown values stay unknown — never zero.
-        </p>
-        <div className="mt-3">
-          <AddCustomPlayerForm franchiseId={franchise.id} revision={franchise.revision} />
-        </div>
-      </section>
+          <p className="mt-1 max-w-prose text-xs text-ink-muted">
+            Edits autosave a moment after you stop typing. Every save is revision-checked: if this franchise
+            changed elsewhere, nothing is written and the edit is reported instead of overwriting it. Unknown
+            values stay unknown — never zero.
+          </p>
+          <div className="mt-3">
+            <AddCustomPlayerForm franchiseId={franchise.id} revision={franchise.revision} />
+          </div>
+        </section>
 
-      {players.data.length === 0 ? (
-        <EmptyState
-          title="No players in this franchise yet"
-          detail="Add a custom player above. Source-backed players are attached once a source revision is imported into the catalog."
-          hint="Unknown contract and attribute values stay visibly unknown; nothing is invented."
-        />
-      ) : (
-        <ul className="space-y-3">
-          {players.data.map((player) => (
-            <PlayerCard
-              key={player.id}
-              player={player}
-              revision={franchise.revision}
-              fields={fields.data.filter((field) => field.franchisePlayerId === player.id)}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
+        {players.data.length === 0 ? (
+          <EmptyState
+            title="No players in this franchise yet"
+            detail="Add a custom player above. Source-backed players are attached once a source revision is imported into the catalog."
+            hint="Unknown contract and attribute values stay visibly unknown; nothing is invented."
+          />
+        ) : (
+          <ul className="space-y-3">
+            {players.data.map((player) => (
+              <PlayerCard
+                key={player.id}
+                player={player}
+                fields={fields.data.filter((field) => field.franchisePlayerId === player.id)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+    </AutosaveScope>
   );
 }

@@ -61,7 +61,10 @@ export async function restoreBackup(_prev: ActionState, formData: FormData): Pro
     }
   }
 
-  const restored = await restoreNewFranchise(envelope.franchise, randomUUID());
+  const providedRequestId = formData.get("requestId");
+  const requestId =
+    typeof providedRequestId === "string" && providedRequestId ? providedRequestId : randomUUID();
+  const restored = await restoreNewFranchise(envelope.franchise, requestId);
   if (!restored.ok) return { status: "error", message: restored.message };
 
   for (const path of ["/", "/franchises", "/gm", "/settings"]) revalidatePath(path);

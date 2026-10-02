@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { addCustomPlayer } from "../lib/actions/franchises";
 import { IDLE } from "../lib/actions/state";
+import { useIdempotentAction } from "./autosave/use-idempotent-action";
 
 export function AddCustomPlayerForm({
   franchiseId,
@@ -11,7 +12,8 @@ export function AddCustomPlayerForm({
   franchiseId: string;
   revision: number;
 }) {
-  const [state, formAction, pending] = useActionState(addCustomPlayer, IDLE);
+  const idempotent = useIdempotentAction(addCustomPlayer);
+  const [state, formAction, pending] = useActionState(idempotent, IDLE);
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">

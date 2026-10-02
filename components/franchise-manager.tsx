@@ -3,10 +3,12 @@
 import { useActionState } from "react";
 import { renameFranchise, selectFranchise, setFranchiseArchived } from "../lib/actions/franchises";
 import { IDLE } from "../lib/actions/state";
+import { useIdempotentAction } from "./autosave/use-idempotent-action";
 import type { FranchiseSummary } from "../lib/data/franchises";
 
 function RenameForm({ franchise }: { franchise: FranchiseSummary }) {
-  const [state, formAction, pending] = useActionState(renameFranchise, IDLE);
+  const idempotent = useIdempotentAction(renameFranchise);
+  const [state, formAction, pending] = useActionState(idempotent, IDLE);
 
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-2">
@@ -41,7 +43,8 @@ function RenameForm({ franchise }: { franchise: FranchiseSummary }) {
 }
 
 function ArchiveForm({ franchise }: { franchise: FranchiseSummary }) {
-  const [state, formAction, pending] = useActionState(setFranchiseArchived, IDLE);
+  const idempotent = useIdempotentAction(setFranchiseArchived);
+  const [state, formAction, pending] = useActionState(idempotent, IDLE);
   const archived = Boolean(franchise.archivedAt);
 
   return (

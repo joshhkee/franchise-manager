@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { restoreBackup } from "../lib/actions/backup";
 import { IDLE } from "../lib/actions/state";
+import { useIdempotentAction } from "./autosave/use-idempotent-action";
 
 export function BackupPanel({
   franchiseId,
@@ -11,7 +12,8 @@ export function BackupPanel({
   franchiseId: string | null;
   franchiseName: string | null;
 }) {
-  const [state, formAction, pending] = useActionState(restoreBackup, IDLE);
+  const idempotent = useIdempotentAction(restoreBackup);
+  const [state, formAction, pending] = useActionState(idempotent, IDLE);
 
   return (
     <div className="mt-3 space-y-4">

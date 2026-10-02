@@ -3,9 +3,11 @@
 import { useActionState } from "react";
 import { createFranchise } from "../lib/actions/franchises";
 import { IDLE } from "../lib/actions/state";
+import { useIdempotentAction } from "./autosave/use-idempotent-action";
 
 export function CreateFranchiseForm({ defaultName = "Atlanta Falcons" }: { defaultName?: string }) {
-  const [state, formAction, pending] = useActionState(createFranchise, IDLE);
+  const idempotent = useIdempotentAction(createFranchise);
+  const [state, formAction, pending] = useActionState(idempotent, IDLE);
 
   return (
     <form action={formAction} className="mt-3 flex flex-wrap items-end gap-2">
