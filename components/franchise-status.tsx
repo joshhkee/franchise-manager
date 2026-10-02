@@ -1,20 +1,54 @@
-export function FranchiseStatus() {
+import Link from "next/link";
+import { cookies } from "next/headers";
+import { loadFranchiseContext } from "../lib/data/current";
+import { isSupabaseConfigured } from "../lib/supabase/config";
+import { FranchisePicker } from "./franchise-picker";
+
+export function FranchiseStatusBadge({ label }: { label: string }) {
   return (
-    <div
-      className="flex min-w-0 items-center gap-2"
-      title="Shell prototype: franchise selection arrives with persistence in C1B"
-    >
-      <button
-        type="button"
-        disabled
-        className="min-h-11 truncate rounded-md border border-line bg-background px-3 text-xs font-medium text-ink-muted"
+    <span className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-3 text-xs font-medium text-ink-muted">
+      {label}
+    </span>
+  );
+}
+
+export async function FranchiseStatus() {
+  if (!isSupabaseConfigured()) {
+    return <FranchiseStatusBadge label="Franchise: not connected" />;
+  }
+
+  // Cookie presence only: the proxy already verified the session, and this keeps
+  // the shell from making an auth call (or a build-time network request).
+  const store = await cookies();
+  const hasSession = store
+    .getAll()
+    .some((cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("auth-token"));
+  if (!hasSession) {
+    return <FranchiseStatusBadge label="Signed out" />;
+  }
+
+  const result = await loadFranchiseContext();
+  if (!result.ok) {
+    return <FranchiseStatusBadge label="Franchise data unavailable" />;
+  }
+
+  const { summaries, current } = result.data;
+  if (!current) {
+    return (
+      <Link
+        href="/franchises"
+        className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-3 text-xs font-medium"
       >
-        <span className="hidden md:inline">Franchise: none</span>
-        <span className="md:hidden">No franchise</span>
-      </button>
-      <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
-        Prototype
-      </span>
-    </div>
+        Set up franchise
+      </Link>
+    );
+  }
+
+  return (
+    <FranchisePicker
+      summaries={summaries}
+      currentId={current.id}
+      archived={Boolean(current.archivedAt)}
+    />
   );
 }
