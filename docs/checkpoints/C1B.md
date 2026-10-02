@@ -4,11 +4,11 @@
 
 ```text
 Checkpoint:                   C1B (private auth, isolated data, franchise lifecycle)
-Workspace/worktree:           NEW Freebuff thread + worktree (owner-created)
+Workspace/worktree:           .freebuff/worktrees/39626366-e8b3-401c-8ac9-f072a158e51f (this thread, repurposed per D120)
 Owned feature branch:         checkpoint/c1b-foundation
 Verified PR target:           main
 Production deployment branch: main
-Started from merged base:     <merge commit of this handoff PR> (on top of PRs #1-#10; verify 8c82b5d is an ancestor)
+Started from merged base:     1de3cfd (merge of handoff PR #12; contains 8c82b5d and 545bcfc)
 Predecessor PRs/records:      PRs #1-#10 merged; C0B-v2 accepted (D115); C1A accepted & merged (D116);
                               independent review closed (D117); next-steps standard (D118)
 Integration owner:            owner; this lane is the single writer for C1B
@@ -24,9 +24,12 @@ Authorization on record:      owner authorized dependency installs and Supabase 
 
 ## Status
 
-- **State: not started — handoff ready.** This record is the startup handoff for a NEW C1B thread/worktree;
-  the C1B thread owns and updates it from here.
-- Updated by: review/closeout thread at owner direction.
+- **State: in progress — C1B execution started (2026-10-02).** The owner repurposed this thread/worktree
+  for C1B instead of opening a new one (D120); this record is now the live C1B record and this thread is its
+  single writer. Branch `checkpoint/c1b-foundation` is cut from `1de3cfd`; `.env.local` was imported from the
+  main checkout at bootstrap (never printed).
+- Deviation on record: **D120** — C1B runs in this repurposed thread/worktree rather than a new one.
+- Updated by: this thread (C1B execution lane).
 - Owner inputs (2026-10-02): `.env.local` written and **verified live**; Vercel production domain verified;
   GitHub provider verified enabled; Vercel env vars owner-reported. Only the Supabase **URL Configuration**
   confirmation (Site URL + Redirect URLs) remains — it cannot be verified remotely.

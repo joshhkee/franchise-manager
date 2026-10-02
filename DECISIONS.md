@@ -273,6 +273,10 @@ Owner-provided position labels from memory (research candidates, not authoritati
 
 - D119 — Owner approves C1B's **local/embedded test isolation via `@electric-sql/pglite`** (a real Postgres compiled to WASM, run in Node with no Docker): C1B executes its actual migrations and RLS policies against PGlite with a small `auth`-schema shim, and verifies OAuth/session flows against the live project. Docker Desktop or a local PostgreSQL remain optional upgrades. Owner also approves the **migration path**: C1B writes versioned SQL migration files and the **owner applies them** to the single Supabase project (dashboard SQL editor, or CLI if chosen) as a separate reviewed step per D088, never automatically and never during a build.
 
+### Round 27 — C1B execution thread (confirmed)
+
+- D120 — Owner **repurposes the review/closeout thread as the C1B execution thread** instead of opening a new thread and worktree, to use the thread's remaining session time. C1B therefore runs in the existing worktree `.freebuff/worktrees/39626366-e8b3-401c-8ac9-f072a158e51f` on branch `checkpoint/c1b-foundation` cut from the merged handoff base `1de3cfd`, and the C1B record's workspace/worktree identity is updated to match. This is a deliberate, recorded deviation from the "new execution thread in its own worktree" rule in LAUNCH_PROMPTS.md; the owner stays the integration owner and primary reviewer, and progress is pushed incrementally so any later thread can resume from the pushed branch if this thread's session ends first.
+
 ## Confirmed architecture summary
 
 Logical franchise isolation, focused panels/tabs, separate worktrees, familiar stack, and private OAuth are approved by later rounds. Separate dev/production database *projects* are superseded by D103 (only one free slot); environment isolation is instead achieved through local/embedded test data and preview-configuration protection. Earlier open-question entries document interview history, not a reversal of those approvals.
