@@ -1,14 +1,22 @@
 import { render, screen, within } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import type { AnchorHTMLAttributes, ReactNode } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockPathname = vi.hoisted(() => ({ current: "/" }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => mockPathname.current,
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children }: { href: string; children: ReactNode }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    href,
+    children,
+    ...rest
+  }: { href: string; children: ReactNode } & AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
   ),
 }));
 
@@ -18,6 +26,11 @@ import { FranchiseStatus } from "../components/franchise-status";
 import { SaveStatus } from "../components/save-status";
 import { SidebarNav } from "../components/sidebar-nav";
 import { isActivePath } from "../lib/nav";
+import { coachTabs, gamedayTabs, gmTabs, lineupsTabs } from "../lib/tabs";
+
+beforeEach(() => {
+  mockPathname.current = "/";
+});
 
 describe("shell navigation", () => {
   it("renders the approved desktop primary navigation and settings", () => {
@@ -49,6 +62,37 @@ describe("shell navigation", () => {
     expect(isActivePath("/lineups", "/")).toBe(false);
     expect(isActivePath("/lineups", "/lineups")).toBe(true);
     expect(isActivePath("/lineups/formations", "/lineups")).toBe(true);
+  });
+
+  it("marks More active on its child routes", () => {
+    for (const child of ["/gm", "/coach", "/settings"]) {
+      expect(isActivePath(child, "/more", ["/gm", "/coach", "/settings"])).toBe(true);
+      expect(isActivePath(`${child}/detail`, "/more", ["/gm", "/coach", "/settings"])).toBe(true);
+    }
+    expect(isActivePath("/gameday", "/more", ["/gm", "/coach", "/settings"])).toBe(false);
+
+    mockPathname.current = "/gm";
+    render(<BottomNav />);
+    expect(screen.getByRole("link", { name: "More" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("keeps the section-view query values the docs reference", () => {
+    expect(lineupsTabs.map((tab) => tab.value)).toEqual(["depth", "formations"]);
+    expect(gmTabs.map((tab) => tab.value)).toEqual([
+      "roster",
+      "trade-block",
+      "trade-targets",
+      "assets",
+    ]);
+    expect(gmTabs.map((tab) => tab.label)).toEqual([
+      "Roster",
+      "Trade Block",
+      "Trade Targets",
+      "Assets & Moves",
+    ]);
+    expect(coachTabs.map((tab) => tab.value)).toEqual(["scheme", "gaps", "identity"]);
+    expect(gamedayTabs.map((tab) => tab.value)).toEqual(["offense", "defense"]);
   });
 });
 

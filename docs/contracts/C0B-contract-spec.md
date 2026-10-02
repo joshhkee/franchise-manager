@@ -1,4 +1,10 @@
-# C0B — Contract and Fixture Specification (C0B-v1)
+# C0B — Contract and Fixture Specification (C0B-v2)
+
+Version history: **C0B-v2 (2026-10-02)** adopts the accepted independent-review corrections CB-1
+(identity reconciliation rules), CB-2 (minimum fixture chain) and CB-3 (declared retention constants);
+it supersedes `C0B-v1` for C1B–C4A. No previously frozen behavior changes meaning, so the merged C1A
+shell (`ff9975d`, which implements none of these semantics) remains valid against it. **C0B-v1
+(2026-10-02)** was the initial freeze.
 
 Status: **frozen near-term interfaces for C1B–C4A**, implementation-independent. This is the single
 shared contract set the phase packet requires; no application code or physical schema lives here.
@@ -17,7 +23,7 @@ sections and gates in §13.
 
 ## 1. Scope and non-goals
 
-Frozen in C0B-v1:
+Frozen here (C0B-v1, extended by the C0B-v2 corrections):
 
 - Source identity, revision pinning, and reconciliation outcome types (§2).
 - Franchise isolation and the source/franchise/custom boundary (§2).
@@ -61,6 +67,16 @@ mutate a source record or revision; franchise edits are franchise-scoped overlay
   idempotent — no duplicate identities.
 - **Fetch failure is not absence.** A failed or partial fetch records a retryable failure; it never
   marks a player/revision as missing and never partially pins a revision. This is IR-5.
+- **Reconciliation keys (CB-1)**: identity is decided by a declared composite key — never names alone
+  and never `sourceId` alone. Within one revision, `sourceId` identifies the record, and a repeated
+  `sourceId` with materially different data is a `conflict`. Across revisions a record is `matched`
+  only when the normalized composite key agrees (name plus at least one corroborating field —
+  birthdate, team, or listed position — with every available corroborating field consistent);
+  `sourceId` agreement with a contradictory key, several candidates agreeing, or any partial
+  agreement is a `conflict` for owner disposition, never a silent `matched`; no key match is `new`.
+  Custom players are never reconciled against source records. The composite key and its
+  normalization are a declared constant of this contract (C1B records the concrete normalization it
+  implements); changing them is a §12 amendment.
 - **Coverage labels** distinguish (a) records imported from a source revision, (b) the source's
   actual published coverage, and (c) game-catalog coverage that has no evidence yet. The app never
   presents (a) as complete game coverage. This is IR-3.
@@ -144,13 +160,14 @@ not a single click.
 - **Confirmation is an app-record assertion** ("I did this in Madden"), not game synchronization.
   Confirming one item does not verify the franchise/source globally.
 - **Cancel** discards the pending scope back to its baseline and previews dependent consequences.
-- **Bounded undo**: keep, per franchise, the most recent **50 action batches or those from the last
-  30 days, whichever set is smaller**; a batch stores minimal deltas (scope, before/after,
-  revision, timestamps) and never full snapshots. Oldest batches prune first. Undo is offered only
-  while its batch is retained and no later dependent change conflicts; otherwise show a resolution
-  workflow. Undo corrects app records only and never reverses a real game action. Retained history
-  is included in backups; the bound is a declared constant, and changing it is a normal reviewed
-  change rather than a semantic change (D097; SPEC; ACCEPTANCE A12).
+- **Bounded undo**: keep, per franchise, only the batches that are both within the most recent
+  **50 action batches** and no older than **30 days** — prune any batch older than 30 days or beyond
+  the most recent 50, whichever prunes more. A batch stores minimal deltas (scope, before/after,
+  revision, timestamps) and never full snapshots. Undo is offered only while its batch is retained
+  and no later dependent change conflicts; otherwise show a resolution workflow. Undo corrects app
+  records only and never reverses a real game action. Retained history is included in backups; both
+  retention bounds are declared constants of this contract (see §5), and changing one is a normal
+  reviewed change rather than a semantic change (D097; SPEC; ACCEPTANCE A12).
 - **Prerequisite examples**: a pending incoming trade player cannot confirm a lineup unit until the
   transaction is confirmed; a practice-squad player cannot enter an active formation until a
   promotion unit exists and is confirmed; unsupported/unknown eligibility is disclosed, never
@@ -164,8 +181,12 @@ not a single click.
 - Consequential mutations (confirm/cancel/undo, transactions, restores, imports, pin changes)
   carry a `requestId`. The server records applied request outcomes per franchise; a retry after a
   lost response returns the same effective result and never double-applies. Timeouts are never
-  inferred as success. Request-outcome records are bounded (e.g., retain ~200 per franchise); once
-  pruned, a stale replay still fails safely on the revision check (ACCEPTANCE A34).
+  inferred as success. Request-outcome records are bounded to a declared **200 per franchise**,
+  oldest pruned first; once pruned, a stale replay still fails safely on the revision check
+  (ACCEPTANCE A34).
+- **Declared retention constants (CB-3)**: undo history = the most recent 50 batches and 30 days
+  (§4); request-outcome records = 200 per franchise. Both are contract constants; changing either
+  is a §12 amendment, and C1B records the concrete values it implements.
 - Autosave statuses: `saving | saved | failed | conflict`, shown truthfully.
 - **Unsaved input**: on navigation, franchise switch, dialog close, sign-out, or session expiry,
   pending/failed input is preserved in the current session with retry/discard/stay choices; the app
@@ -336,8 +357,13 @@ silent reinterpretations.
 | IR-9 orientation | §6 evidence marker; §11 gate |
 | IR-10 preview write isolation | §10 requirement + gate |
 | IR-11 backup/recovery | §8 |
+| CB-1 reconciliation keys | §2 |
+| CB-2 minimum fixture chain | §15 |
+| CB-3 declared retention constants | §4, §5 |
 
-(IR-1, IR-2, IR-7, IR-8 are C0A process items closed by D113/D114 and the disposition update.)
+(IR-1, IR-2, IR-7, IR-8 are C0A process items closed by D113/D114 and the disposition update.
+CB-1…CB-3 are the C0B/C1A independent-review corrections adopted as `C0B-v2`; dispositions are
+recorded in [docs/checkpoints/C0B-C1A-REVIEW.md](../checkpoints/C0B-C1A-REVIEW.md).)
 
 ## 14. Scenario matrix
 
@@ -378,15 +404,28 @@ with unknowns; two franchises from one snapshot plus a later revision; archived 
 pending state; primary+specialist reuse; duplicate-in-formation; missing specialist rank; departed
 override; pending incoming trade; duplicate/concurrent asset use; unknown money vs zero; manual
 pick with changed owner; two-device revision pair; invalid/corrupt/oversized/foreign backup;
-missing source revision. Each owning checkpoint wires the relevant records into its tests and names
-the seeded IDs in its delivery record.
+  missing source revision. Each owning checkpoint wires the relevant records into its tests and names
+  the seeded IDs in its delivery record.
+
+**Minimum chain coverage (CB-2).** The end-to-end chain — transaction → depth chart → formation →
+confirmation — must be provable from this minimum subset, each row closed by the named checkpoint:
+
+| Chain step | Minimum records | Closed by |
+|---|---|---|
+| Transaction | pending incoming trade; duplicate/concurrent asset use; two-device revision pair | C4A (fixtures seeded from C2B) |
+| Depth chart | source player complete; source player missing number/contract/OVR/archetype; baseline→plan ordered list; two-device revision pair | C2A/C2B |
+| Formation | primary + specialist reuse; duplicate-in-formation; missing specialist rank; departed override; inherited-vs-explicit override diff | C3A |
+| Confirmation | stale-revision atomic batch; lost-response retry; corrupt/oversized/foreign backup; missing source revision | C1B/C2B |
+
+The remaining records above are still required by their owning checkpoints; these rows are the ones a
+checkpoint may not defer past its own exit.
 
 ## 16. Delivery and next interfaces
 
 This specification is the C0B deliverable ("one concise contract/ADR + scenario matrix; no
 application code"). Delivery mode: single checkpoint PR against `main`, owner review/merge; the
 contract version is recorded in [docs/checkpoints/C0B.md](../checkpoints/C0B.md). C1A starts only
-after C0B is merged or explicitly owner-accepted; C1B implements against `C0B-v1` and records:
+after C0B is merged or explicitly owner-accepted; C1B implements against `C0B-v2` and records:
 chosen test runner/browser tooling, physical schema/migrations, and the preview-isolation
 configuration. Later checkpoints consume §14 rows assigned to them and extend the backup envelope
 in their own PRs.

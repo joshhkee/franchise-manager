@@ -259,6 +259,12 @@ Owner-provided position labels from memory (research candidates, not authoritati
 - D113 — Owner **accepts C0A with exceptions**. Closed: player-source feasibility and coverage, source reuse (D106/D111), Launch-iteration baseline (D109), and the independent review disposition. Accepted exceptions, tracked as a **C0A evidence supplement required before C3A/C3B**: Madden 27 depth-chart matrix; representative Falcons offense/defense slot-mapping evidence; stock team/alternate playbook coverage inventory; Civil.GG alternate-source contingency report; special-teams feasibility per D114. C0B may start from the accepted source/reuse/baseline evidence, keeping slot identifiers configurable until in-game evidence exists.
 - D114 — Special-teams feasibility is **deferred to C3B with an explicit gate**, not skipped: C3B must attempt the feasibility check and ask the owner before any skip; D081 remains in force and no skip is pre-approved.
 
+### Round 24 — C0B/C1A independent review, acceptance, and closeout (confirmed)
+
+- D115 — Owner **accepts C0B** and adopts the independent review's contract corrections as **`C0B-v2`**: declared identity reconciliation keys (CB-1), the minimum transaction → depth chart → formation → confirmation fixture chain (CB-2), and declared retention constants for undo history and request-outcome replay (CB-3). `C0B-v2` supersedes `C0B-v1` for C1B–C4A; no previously frozen behavior changes meaning.
+- D116 — Owner **records the C1A visual acceptance** (shell direction, navigation, light/dark, density, and honest prototype states approved) and directs the review's shell corrections to ship in the same closeout: honest loading/error states, More-group active navigation, ≥44px phone controls, and corrected C1A record evidence. Owner **accepts merge-triggered Vercel Production auto-deploy** under D088, noting the deployment is protection-gated (anonymous 401) and holds no private data at C1A. Accepted C1A baseline = `ff9975d` plus the closeout commit.
+- D117 — **C1B is the next checkpoint** from the accepted merged baseline; the independent review lane is closed with no open blockers. Supabase provisioning and any installs remain separate scoped owner authorizations under D072/D103 (one Free project serves as production; isolation is local/embedded test data plus preview credential protection per D103/D105).
+
 ## Confirmed architecture summary
 
 Logical franchise isolation, focused panels/tabs, separate worktrees, familiar stack, and private OAuth are approved by later rounds. Separate dev/production database *projects* are superseded by D103 (only one free slot); environment isolation is instead achieved through local/embedded test data and preview-configuration protection. Earlier open-question entries document interview history, not a reversal of those approvals.
@@ -270,7 +276,7 @@ Logical franchise isolation, focused panels/tabs, separate worktrees, familiar s
 - Resolved at C0A: primary branch/remote = `main`; local tools inventoried; one Supabase project approved as production (D103). OAuth bootstrap/provider configuration still to be designed at C1B.
 - Practical-fit/anomaly rubrics and exact template calls/buckets: research-backed checkpoint review, not arbitrary formulas.
 - Difficulty/gameplay settings, exact desktop resolution/iPhone model: not specified; use broad defaults only where they do not misrepresent behavior, ask when actually needed.
-- Undo retention, detailed conflict UI, transaction cancellation resolution: engineering ADR/fixtures must satisfy confirmed product semantics; material behavior changes require owner review.
+- Undo retention is frozen at `C0B-v2` (most recent 50 batches and 30 days); detailed conflict UI and transaction cancellation resolution still need engineering ADR/fixtures within the confirmed semantics; material behavior changes require owner review.
 - Gameday roster view (planned or recorded with pending-change warnings) and theme/pin-overflow grid: resolve at C5A; the audit did not silently select these owner-facing defaults.
 - Special-teams feasibility is deferred to C3B (D114); any skip needs owner approval (D081).
 

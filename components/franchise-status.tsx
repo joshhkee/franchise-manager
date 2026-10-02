@@ -7,7 +7,7 @@ export function FranchiseStatus() {
       <button
         type="button"
         disabled
-        className="min-h-9 truncate rounded-md border border-line bg-background px-3 text-xs font-medium text-ink-muted"
+        className="min-h-11 truncate rounded-md border border-line bg-background px-3 text-xs font-medium text-ink-muted"
       >
         <span className="hidden md:inline">Franchise: none</span>
         <span className="md:hidden">No franchise</span>
