@@ -42,6 +42,15 @@ For each issue:
 
 Also list independently verified claims and remaining uncertainty. Do not present every disagreement as a blocker; distinguish factual falsity, incomplete evidence, and reversible engineering preference.
 
+End every review report **and** its lane record with a **Next steps** block (**D118**):
+
+- a concise ordered list of at most six concrete follow-on actions;
+- each item names its owner (owner / next thread / primary writer) and the exact artifact, command, or decision;
+- **OWNER APPROVAL/CHECK** items are marked explicitly, with what the owner must confirm and the consequence of not confirming;
+- exactly one item is identified as the immediate next step.
+
+The owner must never have to infer what happens next from the rest of the record.
+
 ## Interaction with primary lane
 
 Communicate findings via report/owner, not shared-file edits. Primary/integration owner incorporates accepted corrections into the authoritative evidence/contracts. Don't assume access to the other thread's uncommitted files/provider state. If owner references the other thread explicitly, a saved transcript excerpt may aid context, but delivered docs are still the durable source.

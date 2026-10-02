@@ -12,6 +12,8 @@ Update delivery records in the checkpoint commit, including the proposed next in
 
 The template is a checklist, not a requirement to manufacture identical reports in three places. One checkpoint record plus a short PR body linking it is sufficient. Mark irrelevant sections N/A; docs-only work has no app typecheck/browser requirement. Lane records can be abbreviated to ownership/base, contract, changed outcomes, verification, blockers, and integration instructions. Reuse PLAN.md/ACCEPTANCE.md references instead of pasting the entire specification.
 
+Every delivery record — and every independent-review report and lane record — ends with the short **Next steps** block in the template (**D118**): at most six concrete actions, each with its owner and the exact artifact/command, any **OWNER APPROVAL/CHECK** item marked explicitly, and one identified immediate next step. Keep it short; it is a flow guide, not a status database.
+
 Fields such as workspace root and project identities may contain machine/account-specific information: use repo-relative paths and non-sensitive aliases in committed records; keep sensitive local locations private. Include no credentials/private exports.
 
 ## Required delivery record
@@ -88,6 +90,12 @@ Fields such as workspace root and project identities may contain machine/account
 - Bugs/limitations with severity:
 - Deferred work explicitly outside scope:
 - Other-editor/uncommitted work left untouched:
+
+## Next steps (owner flow)
+1. <Immediate next action> — owner: <owner / next thread / primary writer>; artifact/command: <path or command>; **OWNER APPROVAL/CHECK:** <what must be confirmed and the consequence, or "none">
+2. <Next action> — owner: <...>; artifact/command: <...>; **OWNER APPROVAL/CHECK:** <...>
+
+Immediate next step: **<the single action to take now>.**
 
 ## Next thread — pasteable launch
 - Exact next checkpoint:

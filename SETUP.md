@@ -69,14 +69,14 @@ Exact bootstrap implementation is an ADR at C0B/C1B. Auth configuration is not c
 | Environment | Data target | Mutations | Secret location |
 |---|---|---|---|
 | Automated unit/domain tests | synthetic/approved fixtures | isolated in-memory/local | no production credentials |
-| DB integration tests | isolated local DB or reviewed dev test scope | isolated test data | ignored test env |
-| Local development | dev Supabase | dev only | ignored local env |
-| Vercel preview | dev Supabase | dev only | Vercel Preview environment |
-| Vercel production | prod Supabase | prod only | Vercel Production environment |
+| DB integration tests | isolated local/embedded DB | isolated test data | ignored test env |
+| Local development | isolated local/embedded DB (per D103) | test data only | ignored local env |
+| Vercel preview | must not receive production write credentials or mutate the single project's data (D103/D105); the exact mechanism is designed and verified at C1B (IR-10) | none against production data | Vercel Preview environment |
+| Vercel production | the single Supabase Free project (D103) | production | Vercel Production environment |
 
 - Verify actual env-variable naming from implementation; expose only deliberately public client configuration.
 - Production credentials must not be inherited by preview builds or test scripts.
-- Multiple previews may share a dev project only with explicit fixture namespaces and one migration owner; no concurrent destructive reset.
+- There is no separate dev cloud project (D103): previews must not write to the single production project, and any shared local/test scope still needs explicit fixture namespaces and one migration owner; no concurrent destructive reset.
 - Do not run migrations in application startup or ordinary Vercel build commands.
 - In-session pending/failed edits require retry/discard/stay behavior before franchise switch/navigation/sign-out; session expiry cannot be treated as successful autosave. This is failure safety, not a durable offline mutation queue.
 - Environment examples list names/placeholders only, never real secrets.
