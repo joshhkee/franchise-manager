@@ -269,6 +269,10 @@ Owner-provided position labels from memory (research candidates, not authoritati
 
 - D118 — Owner requires a standing **next-steps flow**: every independent-review deliverable and every checkpoint delivery record ends with a concise **Next steps** block — at most six ordered actions, each naming its owner (owner / next thread / primary writer) and the exact artifact or command, with **OWNER APPROVAL/CHECK** items marked explicitly and one identified immediate next step — so what happens next is always clear without reading the whole record. Encoded in [WORKFLOW.md](WORKFLOW.md) Step 6, the [HANDOFF.md](HANDOFF.md) template, [phases/00-independent-review.md](phases/00-independent-review.md), and the [LAUNCH_PROMPTS.md](LAUNCH_PROMPTS.md) shared instruction.
 
+### Round 26 — C1B execution inputs (confirmed)
+
+- D119 — Owner approves C1B's **local/embedded test isolation via `@electric-sql/pglite`** (a real Postgres compiled to WASM, run in Node with no Docker): C1B executes its actual migrations and RLS policies against PGlite with a small `auth`-schema shim, and verifies OAuth/session flows against the live project. Docker Desktop or a local PostgreSQL remain optional upgrades. Owner also approves the **migration path**: C1B writes versioned SQL migration files and the **owner applies them** to the single Supabase project (dashboard SQL editor, or CLI if chosen) as a separate reviewed step per D088, never automatically and never during a build.
+
 ## Confirmed architecture summary
 
 Logical franchise isolation, focused panels/tabs, separate worktrees, familiar stack, and private OAuth are approved by later rounds. Separate dev/production database *projects* are superseded by D103 (only one free slot); environment isolation is instead achieved through local/embedded test data and preview-configuration protection. Earlier open-question entries document interview history, not a reversal of those approvals.
