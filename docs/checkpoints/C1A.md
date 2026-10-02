@@ -14,7 +14,7 @@ Predecessor PRs/records:     C0A evidence/spike/self-review (PRs #1–#4), C0A i
 Integration owner:           owner; this lane is the single writer for the shell
 Owned paths/modules:         app/**, components/**, lib/nav.ts, tests/**, .github/workflows/checks.yml,
                              package.json, package-lock.json, tsconfig.json, next.config.ts,
-                             postcss.config.mjs, eslint.config.mjs, vitest.config.ts, .gitignore,
+                             postcss.config.mjs, eslint.config.mjs, vitest.config.ts, .gitignore, vercel.json,
                              docs/checkpoints/C1A.md
 Shared contract version:     C0B-v1 (frozen; the shell deliberately implements none of its domain semantics)
 Other active lane:           none. Delivery mode: one independent checkpoint PR. Merge order: owner
@@ -82,7 +82,8 @@ Dev/test environment:        Node v26.7.0, npm 11.19.0 (the only package manager
   [.github/workflows/checks.yml](../../.github/workflows/checks.yml),
   [eslint.config.mjs](../../eslint.config.mjs), [vitest.config.ts](../../vitest.config.ts),
   [.gitignore](../../.gitignore)): `npm run checks` = `typecheck && lint && test && build`, mirrored in a
-  free GitHub Actions job (Node 26, `npm ci`) that runs on every PR and on pushes to `main`.
+  free GitHub Actions job (Node 26, `npm ci`) that runs on every PR and on pushes to `main`. Deployment
+  detection is pinned in [vercel.json](../../vercel.json) (`framework: nextjs`).
 - **Important choices / provenance**: the repository had no `package.json` before this checkpoint, so this
   checkpoint establishes the toolchain, the single package manager (**npm**, the only one present at
   inspection per `C0B-v1` §10), and the lockfile. No source data, ratings, thresholds, or game rules were
@@ -124,9 +125,9 @@ Dev/test environment:        Node v26.7.0, npm 11.19.0 (the only package manager
 | Phone browser | **390×844** (`/gameday`), **430** (`/checklist`), **360×740** (`/gm?view=transactions`) | pass — bottom nav visible with active indicator, top bar wraps to two rows without truncation, tabs wrap cleanly at 360, no clipped actions | emulated viewport only — see limitations |
 | Console/network | preview console + request log over the sessions above | pass — no console errors or warnings (only React DevTools notice and HMR logs in dev); all requests 200 | dev-mode only; production bundle inspected via `next build` output, not a hosted deploy |
 | Contrast measurement | computed WCAG contrast ratios from the actual token values in `app/globals.css` | pass — see the measured table below | computed from token values, not a pixel-sampled screenshot |
-| Docs link/anchor check | fresh throwaway Node parser over repo Markdown (excluding `.git`, `node_modules`, `.next`, `.freebuff`) | pass — 29 files, 192 relative links, 15 anchors, 0 missing | slug heuristics; checker is temporary and not committed |
+| Docs link/anchor check | fresh throwaway Node parser over repo Markdown (excluding `.git`, `node_modules`, `.next`, `.freebuff`) | pass — 29 files, 196 relative links, 15 anchors, 0 missing | slug heuristics; checker is temporary and not committed |
 | Reproducible remote checks | GitHub Actions workflow `checks` (`.github/workflows/checks.yml`) on the PR | **pass** — the run for the first push of this branch completed successfully in 36s (typecheck/lint/test/build on Node 26); the run for this record commit is in the PR metadata | first-ever run of this workflow; watch it on the next commit too |
-| Vercel preview deploy | automatic Vercel integration on this PR | **fail** — deployment failed; the deployment URL returns 401 and no Vercel token/CLI was available in the worktree, so the log could not be read | Vercel is not a required check (GitHub reports the PR `MERGEABLE`/`UNSTABLE`); the local build and GitHub Actions both pass, so this is a hosting-configuration issue, not a code failure — see Open items |
+| Vercel preview deploy | automatic Vercel integration on this PR | **pass** — the first attempt failed, then [vercel.json](../../vercel.json) pinned the `nextjs` framework preset and the deployment completed (`Deployment has completed`) | the preview sits behind Vercel's login/SSO protection, so the hosted page was **not** visually verified here (see Open items) |
 
 - Checks NOT run and why: no database/policy/isolation tests (no backend exists), no E2E/browser automation
   (unit tests plus manual inspection were chosen instead of adding a heavy framework), no hosted/production
@@ -193,11 +194,13 @@ and ≥ 3:1 for non-text/UI components.
 - Backup and rollback/recovery: n/a; no data exists.
 - Preview server port/process owner: the execution thread started a dev server on **port 3100** (detached,
   log at `/tmp/c1a-dev.log`). It is safe to stop; no other worktree's server was touched.
-- Hosted preview: the repository has a Vercel integration that deploys a preview per PR, but its preview
-  deployment for this PR **failed** (see Open items); no preview URL is claimed as working. Vercel's production
-  deployment for the previous merged base did succeed, and that deployment contains no application code.
-  Any preview hosts the shell only — **no private franchise data, production keys, or pretend authenticated
-  state**, per `SETUP.md`. Preview credential isolation is still a C1B/C6A requirement (IR-10).
+- Hosted preview: the repository's Vercel integration deploys a preview per PR, and the deployment for this
+  branch now completes after [vercel.json](../../vercel.json) pinned the `nextjs` preset (see Open items).
+  The deployment URL is behind Vercel's login/SSO protection, so the hosted page was not visually verified
+  from this worktree; the owner can open it while signed in to Vercel. Any preview hosts the shell only —
+  **no private franchise data, production keys, or pretend authenticated state**, per `SETUP.md`. Preview
+  credential isolation is still a C1B/C6A requirement (IR-10), and **production has never hosted this app**
+  (the last production deployment predates any application code).
 - No secret values included; `.gitignore` ignores `.env*` (allowing `.env.example`) and `.vercel`.
 
 ## Open items
@@ -212,16 +215,14 @@ and ≥ 3:1 for non-text/UI components.
   - `vitest.config.ts` triggers a Vite config-loader warning (ESM syntax in a CommonJS-loaded file); tests
     pass, but the file could be renamed `.mts` later (low, cosmetic).
   - Tab state is link/query-driven by design; there is no client-side router prefetch tuning yet (low).
-  - **Vercel preview deployment fails (medium, hosting configuration)**: this is the first deployment that has
-    ever built real code in this Vercel project — the docs-only deployments before it succeeded trivially. The
-    cause is not yet confirmed because the build log is unreachable from the worktree (deployment URL returns
-    401; no Vercel token or CLI is available, and installing one was not authorized). The most likely cause is
-    that the project was created while the repository had no `package.json`, so it still uses a non-Next.js
-    framework preset and fails with `No Output Directory named "public" found after the Build completed.`
-    Resolution is an owner decision: set the Vercel project's Framework Preset to Next.js, or commit a
-    `vercel.json` containing `{"framework": "nextjs"}`. This should be settled before C1B configures preview
-    credential isolation (IR-10); it does not block the code, since `npm run checks` and the Actions workflow
-    both pass and Vercel is not a required check.
+  - **Vercel preview deployment (was failing, now resolved — low)**: the first code deployment failed because
+    the Vercel project was created while this repository had no `package.json`, so it was still treating the
+    build as a non-framework static deploy and rejected the real output. Adding [vercel.json](../../vercel.json)
+    with `framework: nextjs` fixed it and the deployment completes; the Vercel build log was never readable
+    from the worktree (deployment URL returns 401, no token/CLI), so the *preset* explanation is inferred from
+    the failure signature rather than read from Vercel. Keep it in mind before C1B configures preview
+    credential isolation (IR-10): the project's stored preset may still be unset, and the preview is behind
+    Vercel SSO so nobody has visually confirmed the hosted shell yet.
 - **Deferred work explicitly outside scope**: auth, Supabase projects/policies/migrations, persistence,
   autosave/revision/undo semantics, imports, domain logic, gameday play metadata, and any real franchise,
   player, formation, or transaction data. Special teams remain deferred to C3B behind the explicit
