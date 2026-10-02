@@ -22,7 +22,11 @@ export function FranchisePicker({
         <label className="sr-only" htmlFor="franchiseId">
           Active franchise
         </label>
+        {/* key on the server-provided id so the picker follows the active franchise
+            after a server action; an uncontrolled select would keep showing the
+            previous choice until a full navigation. */}
         <select
+          key={currentId}
           id="franchiseId"
           name="franchiseId"
           defaultValue={currentId}
