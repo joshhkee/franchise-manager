@@ -22,7 +22,7 @@ vi.mock("next/link", () => ({
 
 import { BottomNav } from "../components/bottom-nav";
 import { EmptyState } from "../components/empty-state";
-import { FranchiseStatus } from "../components/franchise-status";
+import { FranchiseStatusBadge } from "../components/franchise-status";
 import { SaveStatus } from "../components/save-status";
 import { SidebarNav } from "../components/sidebar-nav";
 import { isActivePath } from "../lib/nav";
@@ -103,10 +103,16 @@ describe("honest prototype states", () => {
     expect(screen.queryByText(/saved/i)).not.toBeInTheDocument();
   });
 
-  it("labels the franchise selector as a prototype with nothing connected", () => {
-    render(<FranchiseStatus />);
-    expect(screen.getByRole("button", { name: /Franchise: none/i })).toBeDisabled();
-    expect(screen.getByText("Prototype")).toBeInTheDocument();
+  it("reports the real storage and franchise state instead of a prototype badge", () => {
+    render(
+      <>
+        <SaveStatus />
+        <FranchiseStatusBadge label="Franchise: not connected" />
+      </>,
+    );
+    expect(screen.getByText("Not connected")).toBeInTheDocument();
+    expect(screen.getByText("Franchise: not connected")).toBeInTheDocument();
+    expect(screen.queryByText("Prototype")).not.toBeInTheDocument();
   });
 
   it("renders empty states with actionable detail", () => {
