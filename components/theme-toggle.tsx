@@ -34,7 +34,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggleTheme}
       aria-pressed={isDark}
-      className="inline-flex min-h-9 items-center rounded-md border border-line bg-background px-3 text-xs font-medium text-ink hover:bg-surface-muted"
+      className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-3 text-xs font-medium text-ink hover:bg-surface-muted"
     >
       Theme: {isDark ? "Dark" : "Light"}
       <span className="sr-only"> (prototype preference stored in this browser)</span>

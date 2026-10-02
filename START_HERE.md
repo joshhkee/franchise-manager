@@ -2,9 +2,9 @@
 
 ## Current status
 
-**Planning documentation only. No application code, imports, service provisioning, tests, commits, pushes, or PRs were produced by this planning thread.** Original FEATURES.md was preserved.
+**The initial planning thread produced documentation only** — no application code, imports, service provisioning, or tests. Execution then began in separate threads: C0A evidence, the C0B contracts, and the C1A responsive shell are merged on `main` (PRs #1–#8), and the C0B/C1A independent review is accepted and closing out (D115–D117). Original FEATURES.md was preserved.
 
-The owner approved product direction, layouts/navigation, stack, phase/checkpoint granularity, and reviewed-PR workflow across 20 interview rounds. See DECISIONS.md for D001–D101. Research is preliminary; actual Madden mechanics/source completeness/reuse remain explicit Phase 0 gates, not confirmed facts.
+The owner approved product direction, layouts/navigation, stack, phase/checkpoint granularity, and reviewed-PR workflow across 20 interview rounds; later rounds record execution decisions (D102 onward). See DECISIONS.md for D001–D117. Research is preliminary; actual Madden mechanics/source completeness/reuse remain explicit Phase 0 gates, not confirmed facts.
 
 Fresh private build for one owner, solo vs CPU, likely PC game not yet owned. Default Falcons; independent franchises, lineup→checklist first, GM/Coach before phone-first Gameday. Strict $0, Next.js/Tailwind/Supabase/Vercel, GitHub OAuth allowlisted owner, neutral compact professional design, light + dark. No game-save dependency, generative AI, trade acceptance prediction, custom books, season/week tracking, printing, or offline editing.
 
@@ -46,17 +46,21 @@ Phase packet launch prompts intentionally start the first checkpoint only. A new
 
 ## Active execution status
 
-C0A: **closed — owner accepted with exceptions (D113); independent review delivered and dispositions recorded (D112–D114).** All other checkpoints: **not started**.
+- **C0A**: closed — owner accepted with exceptions (D113); independent review dispositioned (D112–D114).
+- **C0B**: closed — contract `C0B-v2` owner-accepted (D115); merged as `236886f` (PR #7).
+- **C1A**: closed — owner visual acceptance recorded (D116); merged as `ff9975d` (PR #8), with the review corrections applied in the closeout.
+- **C0B/C1A independent review**: delivered and dispositioned — [report](docs/reviews/C0B-C1A-independent-review.md), [lane record](docs/checkpoints/C0B-C1A-REVIEW.md).
+- **C1B**: **next — not started.** Requires the closeout PR merged plus owner-scoped Supabase/install authorization (D117).
 
-Next: **C0B contracts** from the merged `main` baseline (PRs #1–#5 merged). No phase is marked complete because documentation describes it. Accepted C0A exceptions (depth-chart matrix, representative Falcons mappings, stock-book inventory, alternate-source contingency) are tracked as an evidence supplement required before C3A/C3B; special teams are deferred to C3B with an owner gate (D114).
+No phase is marked complete because documentation describes it. Accepted C0A exceptions (depth-chart matrix, representative Falcons mappings, stock-book inventory, alternate-source contingency) remain an evidence supplement required before C3A/C3B; special teams are deferred to C3B with an owner gate (D114).
 
-Planning docs and C0A artifacts are committed on `main` (PRs #1–#5 merged), so the shared baseline is established and no publication step remains. Decision/disposition updates land as small owner-reviewed docs PRs; do not make status-only PRs hidden mandatory milestones. No broad staging or commits of unrelated pre-existing work.
+All planning docs and C0A/C0B/C1A artifacts are committed on `main` (PRs #1–#8 merged); the shared baseline is established and no publication step remains. Decision/disposition updates land as small owner-reviewed docs PRs; no broad staging or unrelated commits.
 
 The [documentation audit](AUDIT.md) records corrected contradictions and remaining choices. D001–D101 were not rewritten as new owner approvals; audit-derived engineering criteria are labeled separately.
 
 ## Next launch — a NEW execution thread
 
-Use [LAUNCH_PROMPTS.md: C0B](LAUNCH_PROMPTS.md#c0b--initial-contractfixture-specification), filling its assignment header and appending its shared instruction. It is the canonical launch, not a separate competing set of requirements. C0A and its independent review are closed; contracts precede application code. Start from the accepted merged baseline, not an unmerged predecessor.
+Use [LAUNCH_PROMPTS.md: C1B](LAUNCH_PROMPTS.md#c1b--private-auth-data-and-franchise-foundation), filling its assignment header and appending its shared instruction. It is the canonical launch, not a separate competing set of requirements. C0B and C1A are closed and merged; C1B implements against `C0B-v2`. Start from the accepted merged baseline, not an unmerged predecessor.
 
 ## Next-checkpoint launches
 
@@ -65,10 +69,10 @@ Select the checkpoint prompt in [LAUNCH_PROMPTS.md](LAUNCH_PROMPTS.md), fill ver
 ## Owner's practical next steps
 
 1. Review docs and correct any decision that doesn't reflect your intent before execution.
-2. Start **C0B** (contracts) in one thread. The C0A independent review is complete and dispositioned (PR #5, D112–D114); decide separately if and when an independent review runs for later checkpoints.
-3. Follow WORKFLOW.md for C0B's isolated worktree, ownership, and declared delivery mode on the merged baseline, without adding unnecessary extra PR gates. Sibling worktree creation requires permission in environments that restrict writes outside this workspace.
+2. Start **C1B** (private auth and franchise data) in one thread once the closeout PR merges. The C0B/C1A independent review is closed (D115–D117); C0B and C1A are accepted and merged.
+3. Follow WORKFLOW.md for C1B's isolated worktree, ownership, and declared delivery mode on the merged baseline, without adding unnecessary extra PR gates. Sibling worktree creation requires permission in environments that restrict writes outside this workspace.
 4. Supply non-secret setup facts requested by SETUP.md, not passwords/tokens.
-5. Review/merge each meaningful checkpoint PR. Shell visual approval at C1A happens before large feature expansion.
+5. Review and merge each meaningful checkpoint PR (C1A shell approval was recorded 2026-10-02, D116). C1B additionally needs scoped authorization for Supabase provisioning and installs.
 6. At each next thread, paste the exact checkpoint prompt and accepted base/ownership, not merely 'continue'. Documentation plus delivery records carry the context.
 7. Keep manual backups as explained in SETUP.md; Free Supabase can pause and has no included automatic backups.
 

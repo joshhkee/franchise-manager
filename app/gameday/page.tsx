@@ -1,11 +1,7 @@
 import { EmptyState } from "../../components/empty-state";
 import { PageHeader } from "../../components/page-header";
-import { Tabs, type TabItem } from "../../components/tabs";
-
-const tabs: TabItem[] = [
-  { value: "offense", label: "Offense" },
-  { value: "defense", label: "Defense" },
-];
+import { Tabs } from "../../components/tabs";
+import { gamedayTabs } from "../../lib/tabs";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -24,7 +20,7 @@ export default async function GamedayPage({
         title="Gameday"
         description="Phone-first drive call sheet. Only verified play metadata may enter suggestions."
       />
-      <Tabs basePath="/gameday" items={tabs} current={current} param="side" />
+      <Tabs basePath="/gameday" items={gamedayTabs} current={current} param="side" />
       <div className="mt-4 space-y-4">
         <EmptyState
           title="No verified play metadata yet"

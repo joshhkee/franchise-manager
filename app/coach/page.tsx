@@ -1,12 +1,7 @@
 import { EmptyState } from "../../components/empty-state";
 import { PageHeader } from "../../components/page-header";
-import { Tabs, type TabItem } from "../../components/tabs";
-
-const tabs: TabItem[] = [
-  { value: "scheme", label: "Scheme & Playbook" },
-  { value: "gaps", label: "Personnel Gaps" },
-  { value: "identity", label: "Formation Identity" },
-];
+import { Tabs } from "../../components/tabs";
+import { coachTabs } from "../../lib/tabs";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -17,7 +12,7 @@ export default async function CoachPage({
 }) {
   const params = await searchParams;
   const view = typeof params.view === "string" ? params.view : undefined;
-  const current = tabs.some((tab) => tab.value === view) ? (view as string) : "scheme";
+  const current = coachTabs.some((tab) => tab.value === view) ? (view as string) : "scheme";
 
   return (
     <div>
@@ -25,7 +20,7 @@ export default async function CoachPage({
         title="Coach View"
         description="Scheme fit and personnel context, separated from official game facts."
       />
-      <Tabs basePath="/coach" items={tabs} current={current} />
+      <Tabs basePath="/coach" items={coachTabs} current={current} />
       <div className="mt-4">
         {current === "scheme" ? (
           <EmptyState

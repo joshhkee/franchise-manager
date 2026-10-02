@@ -1,6 +1,8 @@
 export type NavItem = {
   href: string;
   label: string;
+  /** Extra routes that should render this item as active (e.g. More covers GM/Coach/Settings). */
+  subpaths?: string[];
 };
 
 export const primaryNav: NavItem[] = [
@@ -17,14 +19,15 @@ export const phoneNav: NavItem[] = [
   { href: "/lineups", label: "Lineups" },
   { href: "/gameday", label: "Gameday" },
   { href: "/checklist", label: "Checklist" },
-  { href: "/more", label: "More" },
+  { href: "/more", label: "More", subpaths: ["/gm", "/coach", "/settings"] },
 ];
 
 export const settingsNav: NavItem = { href: "/settings", label: "Settings" };
 
-export function isActivePath(pathname: string, href: string): boolean {
+export function isActivePath(pathname: string, href: string, subpaths: string[] = []): boolean {
+  const matches = (target: string) => pathname === target || pathname.startsWith(`${target}/`);
   if (href === "/") {
     return pathname === "/";
   }
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return matches(href) || subpaths.some(matches);
 }

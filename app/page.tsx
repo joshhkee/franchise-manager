@@ -42,13 +42,13 @@ export default function OverviewPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/lineups"
-            className="inline-flex min-h-10 items-center rounded-md border border-line bg-background px-4 text-sm font-medium hover:bg-surface-muted"
+            className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-4 text-sm font-medium hover:bg-surface-muted"
           >
             Open Lineups
           </Link>
           <Link
             href="/gameday"
-            className="inline-flex min-h-10 items-center rounded-md border border-line bg-background px-4 text-sm font-medium hover:bg-surface-muted"
+            className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-4 text-sm font-medium hover:bg-surface-muted"
           >
             Open Gameday
           </Link>

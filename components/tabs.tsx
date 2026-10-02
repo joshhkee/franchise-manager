@@ -1,9 +1,7 @@
 import Link from "next/link";
+import type { TabItem } from "../lib/tabs";
 
-export type TabItem = {
-  value: string;
-  label: string;
-};
+export type { TabItem };
 
 export function Tabs({
   items,

@@ -1,11 +1,7 @@
 import { EmptyState } from "../../components/empty-state";
 import { PageHeader } from "../../components/page-header";
-import { Tabs, type TabItem } from "../../components/tabs";
-
-const tabs: TabItem[] = [
-  { value: "depth", label: "Depth Chart" },
-  { value: "formations", label: "Formation Subs" },
-];
+import { Tabs } from "../../components/tabs";
+import { lineupsTabs } from "../../lib/tabs";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -24,7 +20,7 @@ export default async function LineupsPage({
         title="Lineups"
         description="Depth chart and formation substitutions. Verified mappings arrive in C2/C3."
       />
-      <Tabs basePath="/lineups" items={tabs} current={current} />
+      <Tabs basePath="/lineups" items={lineupsTabs} current={current} />
       <div className="mt-4">
         {current === "depth" ? (
           <EmptyState

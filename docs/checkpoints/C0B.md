@@ -20,11 +20,13 @@ Dev/test environment:        n/a (docs-only)
 
 ## Status
 
-- **State: contract and this record delivered on the owned branch; PR opened against `main` (URL and
-  check state in the PR metadata). Lane ready for owner review — not owner-accepted.**
-- Updated by: C0B execution thread (contract writer).
-- Contract version: `C0B-v1`, frozen for C1B–C4A; later extensions amend it per §12.
-- Owner merge confirmed? No. Production deployment/migration: not applicable.
+- **State: owner accepted & merged.** PR #7 merged as `236886f`; on 2026-10-02 the owner accepted the
+  contract and its `C0B-v2` amendment (D115), adopting the independent review's CB-1…CB-3 corrections.
+- Updated by: C0B execution thread (contract writer); `C0B-v2` amendment recorded by the closeout thread.
+- Contract version: **`C0B-v2`** (supersedes `C0B-v1`; version history in the contract). C1B–C4A implement
+  against `C0B-v2`.
+- Owner merge confirmed? **Yes — resulting base commit `236886f`**; the closeout PR carries the `C0B-v2`
+  amendment. Production deployment/migration: not applicable.
 
 ## Scope and authority
 
@@ -41,6 +43,10 @@ Dev/test environment:        n/a (docs-only)
 
 - Contract set + engineering ADR + scenario matrix:
   [docs/contracts/C0B-contract-spec.md](../contracts/C0B-contract-spec.md).
+- **`C0B-v2` amendment (2026-10-02)**: declared identity reconciliation keys (CB-1, §2), the minimum
+  transaction → depth chart → formation → confirmation fixture chain (CB-2, §15), and declared retention
+  constants for undo history and request-outcome replay (CB-3, §4/§5). No previously frozen behavior
+  changed meaning.
 - Outcomes frozen: source revision pinning/reconciliation with fetch-failure safety; franchise
   isolation and custom-ID namespace; baseline/plan/diff model with explicit intent and unknown
   policy; action units (ordered list default), partial/bulk atomic confirmation, cancel, bounded
@@ -80,7 +86,8 @@ Dev/test environment:        n/a (docs-only)
 2. Actions: check that the frozen scope (§1) matches your intent; confirm the bounded undo bound
    (§4), the backup restore-new/missing-revision behavior (§8), and that §11 gates list every
    unresolved evidence item you expect before C2A/C3A/C3B.
-3. Expected result: owner either merges or requests amendments (contract version bump per §12).
+3. Actual result: owner merged PR #7 (`236886f`) and accepted the contract; the independent review's
+   CB-1…CB-3 corrections were adopted as `C0B-v2` (D115).
 4. Recovery/undo: docs only; close/revert the PR without application effect.
 5. Known limitation: game-dependent slots/eligibility/special teams/orientation remain open gates;
    the contract keeps them configurable rather than guessing.
@@ -102,19 +109,27 @@ Dev/test environment:        n/a (docs-only)
 
 ## Next thread — pasteable launch
 
-- Exact next checkpoint: **C1A** (responsive shell, owner visual gate) using the canonical launch
-  prompt after this PR merges or is explicitly accepted.
-- Required merged baseline: `main` with this C0B PR merged; verify the merge commit before starting.
-- Files/docs to read first: `START_HERE.md`, `phases/01-foundation.md`, `phases/00-evidence.md`
-  (contracts), this record, `docs/contracts/C0B-contract-spec.md` (§10 tooling/test constraints,
-  §12 change control), `DECISIONS.md` (Rounds 20–23).
-- Owned paths/modules: shell/foundation paths determined by the thread before edits, then confirmed;
-  no domain state semantics from this contract may be reinvented in UI code.
-- Dependencies that MUST land first: C0B merged/owner-accepted (this PR). C1B additionally waits for
-  C1A visual acceptance.
-- Allowed implementation outcomes: Next.js/Tailwind shell, navigation per DESIGN.md, honest
-  empty/loading/error states, check scripts and measurable accessibility criteria; no domain guesses.
-- Things NOT to change: no domain calculations, fake statistics, schema decisions, or scope
-  expansion; prototype save controls stay explicitly "not connected".
-- Verification and PR exit gate: type/build/accessibility/browser checks at documented sizes, owner
-  visual review before feature expansion.
+- Exact next checkpoint: **C1B** (private auth, isolated data, franchise lifecycle) per
+  [phases/01-foundation.md](../../phases/01-foundation.md) and the C1B launch section of
+  [docs/checkpoints/C1A.md](C1A.md). C0B and C1A are both owner-accepted and merged.
+- Required merged baseline: `main` containing PR #7 (`236886f`), the C1A merge (`ff9975d`), and the
+  closeout review/disposition PR; verify `git merge-base --is-ancestor ff9975d origin/main`.
+- Files/docs to read first: `START_HERE.md`, `phases/01-foundation.md` (C1B), this record,
+  `docs/contracts/C0B-contract-spec.md` (**C0B-v2**: §2 reconciliation, §4/§5 retention constants,
+  §8 backup, §10 tooling, §11 gates, §12 change control, §15 minimum fixtures), `DECISIONS.md`
+  Round 24, and the C1A record.
+- Owned paths/modules: C1B assigns its own ownership from what C1A created (`app/`, `components/`,
+  `lib/`, `tests/`); no domain state semantics from this contract may be reinvented in UI code.
+- Dependencies that MUST land first: C0B and C1A accepted/merged (done); owner-scoped authorization
+  for Supabase provisioning and installs; local/embedded test isolation and preview credential
+  protection configured and verified (D103/D105; IR-10).
+- Allowed implementation outcomes: single-owner GitHub OAuth with controlled bootstrap, immutable
+  source revisions with coverage reporting, isolated franchises with Falcons default and custom
+  players, grouped editable fields (unknown ≠ zero), the minimal planned-vs-recorded primitive,
+  revision-safe autosave with unsaved-input protection, retry-safe idempotent mutations, and the
+  versioned backup envelope with restore-new/ID remapping.
+- Things NOT to change: no depth-chart/formation/transaction/gameday logic (C2–C5), no fake data, no
+  schema semantics redefined in UI code; keep save/sync honesty wording intact.
+- Verification and PR exit gate: real integration tests for unauthorized/cross-franchise access,
+  source immutability, stale writes, failed saves, and backup/restore safety, plus typecheck/lint/
+  test/build and desktop/phone inspection; owner merges ONE integrated C1B PR.

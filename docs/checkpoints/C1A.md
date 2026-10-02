@@ -25,11 +25,17 @@ Dev/test environment:        Node v26.7.0, npm 11.19.0 (the only package manager
 
 ## Status
 
-- **State: checks passed locally; branch committed and PR opened against `main` — URL, base and remote
-  check/mergeability state are in the PR metadata. Lane ready for owner visual review — not owner-accepted.**
-- Updated by: C1A execution thread.
-- Owner merge confirmed? No.
-- Production deploy status: none claimed. No production data exists; the app is a shell with no persistence.
+- **State: owner accepted & merged.** The owner recorded the C1A visual acceptance on 2026-10-02 (D116);
+  PR #8 merged as `ff9975d`. The review corrections below (CA-1…CA-6) were applied and shipped in the
+  owner-directed closeout, so the accepted C1A baseline is `ff9975d` plus the closeout commit.
+- Updated by: C1A execution thread; closeout corrections recorded by the review/closeout thread.
+- Owner merge confirmed? **Yes — resulting base commit `ff9975d`** (`gh pr view 8`: MERGED
+  2026-10-02T03:43:22Z, merge commit `ff9975d`).
+- Production deploy status: **deployed.** The owner merge triggered a Vercel **Production** deployment of
+  `ff9975d` (deployment id `6800778327`, created 2026-10-02T03:44:03Z, status `success`, "Deployment has
+  completed"). It sits behind Vercel deployment protection — an anonymous fetch returns **401** — and no
+  private franchise data exists at C1A. (Corrects the earlier "none claimed / production has never hosted
+  this app" wording — review item CA-1.)
 - Production migration status: not applicable — no database, project, or migration was created.
 
 ## Scope and authority
@@ -119,10 +125,10 @@ Dev/test environment:        Node v26.7.0, npm 11.19.0 (the only package manager
 | Lint | `npm run lint` (`eslint .`, ESLint 9.39.5 + eslint-config-next) | pass — no errors/warnings | no type-aware lint rules configured yet |
 | Relevant tests | `npm test` (`vitest run`, jsdom) | pass — 1 file, **6 tests** | unit/RTL only; no browser/E2E runner |
 | Integration/policy tests | n/a | not run | no auth, DB, or policies exist at C1A |
-| Build | `npm run build` (`next build`, Turbopack, Next 16.3.8) | pass — 10 routes generated (7 static, 3 dynamic), TypeScript finished clean | Turbopack is the Next 16 default; no webpack comparison run |
+| Build | `npm run build` (`next build`, Turbopack, Next 16.3.8) | pass — **9 route entries: 5 static (`/`, `/_not-found`, `/checklist`, `/more`, `/settings`) and 4 dynamic (`/coach`, `/gameday`, `/gm`, `/lineups`)**; TypeScript finished clean (corrected at closeout — the original "10 routes, 7 static / 3 dynamic" did not reproduce; review item CA-6) | Turbopack is the Next 16 default; no webpack comparison run |
 | Full gate | `npm run checks` | pass — all four stages above in one run | Vite prints a config-loader warning about ESM in `vitest.config.ts`; cosmetic, tests still pass |
 | Desktop browser | dev server (port 3100) at **1440×900** and **1280×720**; Overview, `/lineups?view=formations` | pass — left rail with active state, Settings pinned bottom, skip link first in tab order, theme toggle light↔dark, no clipping | "1280×720 pass" is from the earlier pass in this checkpoint; 1440×900 re-verified after the final commit-ready state |
-| Phone browser | **390×844** (`/gameday`), **430** (`/checklist`), **360×740** (`/gm?view=transactions`) | pass — bottom nav visible with active indicator, top bar wraps to two rows without truncation, tabs wrap cleanly at 360, no clipped actions | emulated viewport only — see limitations |
+| Phone browser | **390×844** (`/gameday`), **430** (`/checklist`), **360×740** (`/gm?view=assets`) | pass — bottom nav visible; top bar wraps to two rows without truncation, tabs wrap cleanly at 360, no clipped actions. (Corrected at closeout: the fourth GM tab value is `assets`, not `transactions` — CA-3; and the More-group active indicator was added at closeout — CA-4.) | emulated viewport only — see limitations |
 | Console/network | preview console + request log over the sessions above | pass — no console errors or warnings (only React DevTools notice and HMR logs in dev); all requests 200 | dev-mode only; production bundle inspected via `next build` output, not a hosted deploy |
 | Contrast measurement | computed WCAG contrast ratios from the actual token values in `app/globals.css` | pass — see the measured table below | computed from token values, not a pixel-sampled screenshot |
 | Docs link/anchor check | fresh throwaway Node parser over repo Markdown (excluding `.git`, `node_modules`, `.next`, `.freebuff`) | pass — 29 files, 196 relative links, 15 anchors, 0 missing | slug heuristics; checker is temporary and not committed |
@@ -155,9 +161,10 @@ and ≥ 3:1 for non-text/UI components.
 
 - **Focus**: a single global `:focus-visible` outline (2px accent, 2px offset) on every interactive element;
   skip link is the first tab stop; active nav carries `aria-current` rather than color alone.
-- **Touch/reflow**: interactive targets are ≥ 44px tall in the rail/nav (`min-h-11` nav items, `min-h-9`
-  buttons at the compact end); layout reflows to a single column with no horizontal scrolling down to 360px;
-  `pb-28` reserves space so the phone bottom nav never covers content.
+- **Touch/reflow**: interactive targets are ≥ 44px tall throughout (`min-h-11` rail/nav/top-bar/action
+  controls, `min-h-14` phone nav); layout reflows to a single column with no horizontal scrolling down to
+  360px; `pb-28` reserves space so the phone bottom nav never covers content. (Closeout raised the top-bar
+  and overview controls from 36–40px to 44px — review item CA-5; verified live at 390px.)
 - **Motion**: `prefers-reduced-motion: reduce` collapses animations/transitions to ~0ms globally.
 - **Honesty of status**: green/amber/red are always paired with a text label, never used alone.
 
@@ -179,7 +186,8 @@ and ≥ 3:1 for non-text/UI components.
    - Tab through the page once: skip link first, visible focus ring on links/buttons, no keyboard trap.
 3. **Expected visible result**: the restrained professional shell from `DESIGN.md` with no fake data, no
    "Saved"/sync claims, and "Not connected" save status — plus a clear statement of which later checkpoint
-   fills each empty panel. Owner either accepts for C1B or requests specific visual/density/navigation changes.
+   fills each empty panel. **Owner accepted for C1B on 2026-10-02 (D116)**; the closeout below records the
+   directed corrections that came with the acceptance.
 4. **Recovery/undo**: nothing persists server-side, so no cleanup is needed; delete the `fm-theme` localStorage
    key to reset to light. Closing the PR discards the checkpoint entirely.
 5. **Known limitation to verify**: no real iOS Safari device test was performed (emulated viewports only), and
@@ -215,14 +223,13 @@ and ≥ 3:1 for non-text/UI components.
   - `vitest.config.ts` triggers a Vite config-loader warning (ESM syntax in a CommonJS-loaded file); tests
     pass, but the file could be renamed `.mts` later (low, cosmetic).
   - Tab state is link/query-driven by design; there is no client-side router prefetch tuning yet (low).
-  - **Vercel preview deployment (was failing, now resolved — low)**: the first code deployment failed because
-    the Vercel project was created while this repository had no `package.json`, so it was still treating the
-    build as a non-framework static deploy and rejected the real output. Adding [vercel.json](../../vercel.json)
-    with `framework: nextjs` fixed it and the deployment completes; the Vercel build log was never readable
-    from the worktree (deployment URL returns 401, no token/CLI), so the *preset* explanation is inferred from
-    the failure signature rather than read from Vercel. Keep it in mind before C1B configures preview
-    credential isolation (IR-10): the project's stored preset may still be unset, and the preview is behind
-    Vercel SSO so nobody has visually confirmed the hosted shell yet.
+  - **Vercel preview/production hosting (resolved — low)**: the first code deployment failed because the
+    Vercel project was created while this repository had no `package.json`, so it treated the build as a
+    non-framework static deploy. Adding [vercel.json](../../vercel.json) with `framework: nextjs` fixed it.
+    At closeout, `gh api .../deployments` confirmed both Preview (per branch push) and **Production** (on the
+    `ff9975d` merge) deployments completing with `success`; every hosted URL returns **401** anonymously
+    (Vercel deployment protection), so the hosted shell was never visually verified from a worktree. Keep the
+    protection setting unverified-but-recorded for C1B's IR-10 work.
 - **Deferred work explicitly outside scope**: auth, Supabase projects/policies/migrations, persistence,
   autosave/revision/undo semantics, imports, domain logic, gameday play metadata, and any real franchise,
   player, formation, or transaction data. Special teams remain deferred to C3B behind the explicit
@@ -232,13 +239,35 @@ and ≥ 3:1 for non-text/UI components.
   planning docs (`START_HERE.md`, `PLAN.md`, `DECISIONS.md`, `SPEC.md`, `DESIGN.md`, contracts, prior checkpoint
   records) were read, not modified.
 
+## Closeout corrections and owner acceptance (2026-10-02)
+
+The owner recorded the C1A visual acceptance and directed the independent review's corrections to be applied
+and shipped in one closeout PR. Findings with evidence:
+[docs/reviews/C0B-C1A-independent-review.md](../reviews/C0B-C1A-independent-review.md); dispositions:
+[docs/checkpoints/C0B-C1A-REVIEW.md](C0B-C1A-REVIEW.md).
+
+| Review item | Resolution in this closeout |
+|---|---|
+| CA-1 production deployment denied | Corrected above — Vercel Production deployed `ff9975d` (protected; anonymous 401); owner accepted merge-triggered auto-deploy under D088 |
+| CA-2 missing loading/error states | Added [app/loading.tsx](../../app/loading.tsx), [app/error.tsx](../../app/error.tsx), and [app/not-found.tsx](../../app/not-found.tsx) |
+| CA-3 nonexistent `?view=transactions` | Evidence row corrected to `?view=assets`; tab values moved to [lib/tabs.ts](../../lib/tabs.ts) and locked by a shell test |
+| CA-4 no More-group active state | [lib/nav.ts](../../lib/nav.ts) `subpaths` marks More active on `/gm`, `/coach`, `/settings`; verified live at 390px |
+| CA-5 36px top-bar controls | Theme toggle, Franchise control, and overview actions raised to 44px (`min-h-11`); verified live |
+| CA-6 wrong route counts | Build evidence corrected to 9 entries (5 static / 4 dynamic) |
+
+Closeout verification: `npm run checks` pass (typecheck, lint, **8/8** tests, build); live production server at
+1440/390/360 — More active on `/gm`, controls ≥44px, `/does-not-exist` renders the honest not-found page, no
+horizontal overflow. Accepted C1A baseline = `ff9975d` plus this closeout commit.
+
 ## Next thread — pasteable launch
 
 - Exact next checkpoint: **C1B** (private auth, isolated data, franchise lifecycle) per
   [phases/01-foundation.md](../../phases/01-foundation.md), using the canonical C1B prompt.
-- Required merged baseline and how to verify it: `main` with this C1A PR merged (`git log --oneline -1 origin/main`
-  should show the C1A merge; `git merge-base --is-ancestor <C1A merge commit> origin/main`). Do not start C1B
-  before the owner's C1A visual acceptance, even if the branch is open.
+- Required merged baseline and how to verify it: `main` with the C1A PR merged (`ff9975d`) **and the
+  closeout review/disposition PR merged** (`git log --oneline -1 origin/main`;
+  `git merge-base --is-ancestor ff9975d origin/main`). The owner C1A visual acceptance was recorded
+  2026-10-02 (D116) and the independent review is closed (C0B-C1A-REVIEW), so C1B is no longer blocked on
+  either.
 - Files/docs to read first: `START_HERE.md`, `phases/01-foundation.md` (C1B + parallel lanes), `SPEC.md`,
   `DESIGN.md`, `SETUP.md`, `ACCEPTANCE.md` (A31–A41), `docs/contracts/C0B-contract-spec.md` (**C0B-v1** is the
   binding interface set: §2 source/identity, §3 state model, §5 revision/idempotency, §8 backup envelope,
@@ -248,9 +277,11 @@ and ≥ 3:1 for non-text/UI components.
   created (`app/`, `components/`, `lib/nav.ts`, `tests/`). Reuse the existing shell primitives rather than
   building a parallel layout. Dependency/lockfile changes stay with one owner; `C0B-v1` §12 governs contract
   changes (any amendment version-bumps the contract).
-- Dependencies that MUST land first: (1) C1A owner visual acceptance and merge — this PR; (2) owner-scoped
-  authorization for Supabase project provisioning and any installs, with strict $0 constraints; (3) the
-  dev/prod environment split and preview credential isolation configured and verified (D103/D105, IR-10).
+- Dependencies that MUST land first: (1) C1A owner visual acceptance (recorded D116) and merge `ff9975d` —
+  done; (2) this closeout review/disposition PR merged; (3) owner-scoped authorization for Supabase project
+  provisioning and any installs, with strict $0 constraints; (4) per D103, the single Supabase Free project
+  is production — isolation is local/embedded test data plus preview credential protection configured and
+  verified (D103/D105, IR-10), not a separate dev/prod project pair.
 - Allowed implementation outcomes: single-owner GitHub OAuth with controlled owner bootstrap and
   backend/database allowlisting (no first-user-wins), separate dev/prod projects with previews using dev only,
   immutable published source revisions with coverage reporting, logically isolated create/switch/archive
