@@ -46,17 +46,17 @@ Phase packet launch prompts intentionally start the first checkpoint only. A new
 
 ## Active execution status
 
-All checkpoints: **not started**.
+C0A: **closed — owner accepted with exceptions (D113); independent review delivered and dispositions recorded (D112–D114).** All other checkpoints: **not started**.
 
-Next: C0A evidence, then C0B contracts. No phase is marked complete because documentation describes it. Shared baseline branch, remote, local tools, free project slots, and source permissions still need verification. Supplied metadata mentions phase-5-scheme-fit but is not evidence of an existing Phase 5 app or the correct PR target branch.
+Next: **C0B contracts** from the merged `main` baseline (PRs #1–#5 merged). No phase is marked complete because documentation describes it. Accepted C0A exceptions (depth-chart matrix, representative Falcons mappings, stock-book inventory, alternate-source contingency) are tracked as an evidence supplement required before C3A/C3B; special teams are deferred to C3B with an owner gate (D114).
 
-Planning docs are local changes; audit changes are also docs-only and uncommitted. Default: include the approved docs deliberately in C0A's evidence PR. For concurrent review needing an earlier baseline, use an optional owner-authorized docs PR or an explicitly shared committed base with its unmerged dependency recorded (WORKFLOW.md). Do not make publication/reviewer/status PRs hidden mandatory milestones. No broad staging or commits of unrelated pre-existing work.
+Planning docs and C0A artifacts are committed on `main` (PRs #1–#5 merged), so the shared baseline is established and no publication step remains. Decision/disposition updates land as small owner-reviewed docs PRs; do not make status-only PRs hidden mandatory milestones. No broad staging or commits of unrelated pre-existing work.
 
 The [documentation audit](AUDIT.md) records corrected contradictions and remaining choices. D001–D101 were not rewritten as new owner approvals; audit-derived engineering criteria are labeled separately.
 
-## First launch — a NEW execution thread
+## Next launch — a NEW execution thread
 
-Use [LAUNCH_PROMPTS.md: C0A](LAUNCH_PROMPTS.md#c0a--sourcemechanics-evidence), filling its assignment header and appending its shared instruction. It is the canonical launch, not a separate competing set of requirements. Source/mechanics evidence precedes contracts and application code. Pair with the separately owned independent reviewer after both have an explicit shared committed docs baseline.
+Use [LAUNCH_PROMPTS.md: C0B](LAUNCH_PROMPTS.md#c0b--initial-contractfixture-specification), filling its assignment header and appending its shared instruction. It is the canonical launch, not a separate competing set of requirements. C0A and its independent review are closed; contracts precede application code. Start from the accepted merged baseline, not an unmerged predecessor.
 
 ## Next-checkpoint launches
 
@@ -65,8 +65,8 @@ Select the checkpoint prompt in [LAUNCH_PROMPTS.md](LAUNCH_PROMPTS.md), fill ver
 ## Owner's practical next steps
 
 1. Review docs and correct any decision that doesn't reflect your intent before execution.
-2. Start C0A in one thread. The approved second lane is [independent review](phases/00-independent-review.md) of evidence/permissions/scope/design in its own worktree and owned report, not a rival app scaffold or competing contracts.
-3. Follow WORKFLOW.md to establish an explicit docs baseline and isolated worktrees after branch/remote/ownership verification, without adding unnecessary extra PR gates. Sibling worktree creation requires permission in environments that restrict writes outside this workspace.
+2. Start **C0B** (contracts) in one thread. The C0A independent review is complete and dispositioned (PR #5, D112–D114); decide separately if and when an independent review runs for later checkpoints.
+3. Follow WORKFLOW.md for C0B's isolated worktree, ownership, and declared delivery mode on the merged baseline, without adding unnecessary extra PR gates. Sibling worktree creation requires permission in environments that restrict writes outside this workspace.
 4. Supply non-secret setup facts requested by SETUP.md, not passwords/tokens.
 5. Review/merge each meaningful checkpoint PR. Shell visual approval at C1A happens before large feature expansion.
 6. At each next thread, paste the exact checkpoint prompt and accepted base/ownership, not merely 'continue'. Documentation plus delivery records carry the context.

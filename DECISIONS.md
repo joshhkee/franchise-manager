@@ -250,8 +250,14 @@ Owner-provided position labels from memory (research candidates, not authoritati
 
 - D108 — Owner **waives the separate independent-review thread for C0A**. A same-thread review was delivered and its findings dispositioned (R1 accepted, R2 retracted, R4 reduced, R5 accepted); its independence limitation is recorded in `docs/reviews/C0A-independent-review.md` and `docs/checkpoints/C0A-REVIEW.md` rather than hidden. Interim model: the execution thread performs an explicit self-review on each checkpoint; the timing of any independently owned review is deferred and remains an owner decision.
 - D109 — Source baseline is the EA **Launch ratings iteration (`1-base`)** — 3,111 records including 1,240 unsigned players. Weekly iterations are partial deltas (week-1: 1,891, week-2: 1,911) and must never be used as the catalog baseline. This resolves the long-open ~3,116 figure.
-- D110 — Archetype is `null` for 782 of 3,111 records in every iteration and on their profile pages. Render these as **N/A/unknown**; never treat a missing archetype as zero, as a default archetype, or as a reason to exclude a player from fit features. Revisit if EA backfills them.
+- D110 — Archetype is `null` for 782 of the 3,111 Launch records (25%); no backfill was observed on the sampled week-2/week-3 player profile pages (2026-10-02), and the 782/3,111 figure is Launch-specific. Render these as **N/A/unknown**; never treat a missing archetype as zero, as a default archetype, or as a reason to exclude a player from fit features. Revisit if EA backfills them.
 - D111 — Source rights are an **owner-accepted risk** for a personal, non-commercial project, covering both Civil.GG public play data/art and the EA ratings data, with sources attributed on the site. Retained engineering constraint: art stays reference-by-URL or replaceable with a text/personnel fallback, so a takedown, license change, or bucket move cannot break the catalog.
+
+### Round 23 — C0A review reinstatement and closeout (confirmed)
+
+- D112 — Owner **reinstates the separately owned independent review for C0A**, superseding the D108 waiver. The independent report and lane record were delivered as PR #5 and merged; the owner accepts the review's proposed corrections (IR-3 "full published Launch population" labeling, IR-4 ratings-taxonomy caveat, IR-5 "sampled stable" identity wording, IR-6 archetype wording, IR-7 register heading). Retained review items are assigned to C0B (identity reconciliation and fetch-failure policy; versioned backup/recovery semantics), C1B/C6A (preview write isolation verification), and C3A (diagram orientation evidence gate), with special teams per D114.
+- D113 — Owner **accepts C0A with exceptions**. Closed: player-source feasibility and coverage, source reuse (D106/D111), Launch-iteration baseline (D109), and the independent review disposition. Accepted exceptions, tracked as a **C0A evidence supplement required before C3A/C3B**: Madden 27 depth-chart matrix; representative Falcons offense/defense slot-mapping evidence; stock team/alternate playbook coverage inventory; Civil.GG alternate-source contingency report; special-teams feasibility per D114. C0B may start from the accepted source/reuse/baseline evidence, keeping slot identifiers configurable until in-game evidence exists.
+- D114 — Special-teams feasibility is **deferred to C3B with an explicit gate**, not skipped: C3B must attempt the feasibility check and ask the owner before any skip; D081 remains in force and no skip is pre-approved.
 
 ## Confirmed architecture summary
 
@@ -260,13 +266,13 @@ Logical franchise isolation, focused panels/tabs, separate worktrees, familiar s
 ## Remaining material unknowns
 
 - Actual Madden 27 primary/specialist ranks, eligibility, formation inheritance and stock/special-teams coverage: C0 evidence gates, not resolved by owner recollection.
-- Data acquisition/reuse and source completeness: C0 evidence gates; exact counts are not verified.
+- Data acquisition/reuse and source completeness: reuse is owner-accepted (D111) and published counts are recorded (D109); game-catalog completeness remains a C1B/C3 coverage gate.
 - Resolved at C0A: primary branch/remote = `main`; local tools inventoried; one Supabase project approved as production (D103). OAuth bootstrap/provider configuration still to be designed at C1B.
 - Practical-fit/anomaly rubrics and exact template calls/buckets: research-backed checkpoint review, not arbitrary formulas.
 - Difficulty/gameplay settings, exact desktop resolution/iPhone model: not specified; use broad defaults only where they do not misrepresent behavior, ask when actually needed.
 - Undo retention, detailed conflict UI, transaction cancellation resolution: engineering ADR/fixtures must satisfy confirmed product semantics; material behavior changes require owner review.
 - Gameday roster view (planned or recorded with pending-change warnings) and theme/pin-overflow grid: resolve at C5A; the audit did not silently select these owner-facing defaults.
-- Special-teams skip needs owner approval if research finds it infeasible.
+- Special-teams feasibility is deferred to C3B (D114); any skip needs owner approval (D081).
 
 ## Documentation audit provenance
 
