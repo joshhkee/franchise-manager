@@ -98,6 +98,19 @@ export function AutosaveProvider({
     [],
   );
 
+  // Adopt a server revision that advanced past this session's copy — for example
+  // after adding a player from this same page, which bumps the franchise revision
+  // and refreshes the server components. Without this, the next field edit would
+  // be falsely reported as stale and could never recover by retrying.
+  // A pending edit is never retargeted: its conflict must stay reviewable
+  // instead of silently writing over a revision the owner did not see.
+  useEffect(() => {
+    if (initialRevision > revisionRef.current && protectedEdits().length === 0) {
+      revisionRef.current = initialRevision;
+      setRevisionState(initialRevision);
+    }
+  }, [initialRevision, protectedEdits]);
+
   const [guard, setGuard] = useState<GuardAction | null>(null);
   const guardRef = useRef<GuardAction | null>(null);
   const bypassRef = useRef(false);

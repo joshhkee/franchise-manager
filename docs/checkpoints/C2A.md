@@ -19,16 +19,17 @@ Shared contract version:      C0B-v2 (§3 baseline/plan and intent, §4 whole-li
                               §8 backup, §9 read models)
 Other active lane:            none; delivery mode = one integrated checkpoint PR
 Dev/test environment:         PGlite (real migrations + policies, D119) for DB tests; live Supabase project
-                              read by the dev server only; migration 0007 not yet applied there
+                              read by the dev server; migration 0007 applied there 2026-10-03
 Provisional-rules note:       D123 — Madden 27 labels/order/rank limits/eligibility ship as one labeled,
                               editable provisional module until the D113 depth-chart supplement lands
 ```
 
 ## Status
 
-- **State: in progress — implementation complete, checks green; owner migration application, browser pass, and
-  acceptance pending.** All work is on this thread's Freebuff branch, cut from the accepted base `b0e57ce`
-  with a clean tree at start.
+- **State: implementation complete, migration applied, browser pass done, merged; owner acceptance pending.**
+  All work is on this thread's Freebuff branch, cut from the accepted base `b0e57ce` with a clean tree at
+  start. The owner applied `0007_depth_chart.sql` to the live project and merged PR #17 as `65284ea`
+  (2026-10-03); the browser pass below ran against the live project after that merge.
 - Deviation on record: C2A runs in the Freebuff pickup worktree/thread rather than a new one, by the owner's
   instruction ("launch C2A in this worktree"); the owner remains integration owner and primary reviewer.
 - Provisional verification: the C2A phase packet's **verified-ordering exit is deferred** — the depth-chart
@@ -93,10 +94,11 @@ Provisional-rules note:       D123 — Madden 27 labels/order/rank limits/eligib
 | Rules unit tests | `npx vitest run tests/depth-chart.test.ts` | pass — 9/9 (eligibility, suggestion, diff, issues) |
 | Panel UI tests | `npx vitest run tests/depth-chart-ui.test.tsx` | pass — 7/7 (move+save, conflict retry with same request id, PS block + correction, baseline view, record reality, discard, manual slots) |
 | Backup tests | `npx vitest run tests/backup.test.ts` | pass — 9/9 (chart round trip, legacy envelopes, duplicate slot/dangling refusal) |
-| Browser pass | dev server + shared preview | **pending** — see Database/environment; migration 0007 is not applied to the live project, so only the honest "storage not ready" state can be seen until the owner applies it |
+| Browser pass | dev server + shared preview, live project after 0007 | pass — depth-chart flows verified end to end: provisional seed order, practice-squad separation/blocking with the recorded-correction path, replace/add with roster search, drag + Move up/down, removed-from-plan list and Keep in plan, recorded-baseline inspection and slice labels, Record as already happened, Discard pending changes, two-tab stale-write conflict with kept input, backup export carrying chart rows, and the unchanged states on Overview/GM War Room/Coach/Gameday/Checklist/Settings/Franchises; console clean (no errors) |
+| Autosave regression fix | `npm run checks` + live repro after the browser pass | pass — see Bugs/limitations; same-page commands now refresh the autosave revision so the next field edit saves instead of falsely conflicting |
 
-- Checks NOT run and why: live end-to-end depth-chart editing (needs migration 0007 applied), iOS/Safari
-  device runs (later verification, C5B), and any confirmed-ordering claim (D113 supplement still open).
+- Checks NOT run and why: iOS/Safari device runs (later verification, C5B) and any confirmed-ordering
+  claim (D113 supplement still open).
 - No secrets or private exports are included; `.env.local` was imported from the main checkout at bootstrap
   and never printed. All browser-visible values above are non-secret.
 
@@ -121,9 +123,9 @@ Provisional-rules note:       D123 — Madden 27 labels/order/rank limits/eligib
 
 - Dev/prod project identities: single Supabase Free project `franchise-manager`
   (`xueymrywpvegslbkdnpf`); no new secrets.
-- New migration: `supabase/migrations/0007_depth_chart.sql` — **not yet applied**; forward-only, not
-  idempotent, apply once, in order after `0006`. `0006_source_import.sql` application status is not recorded
-  in-repo; if it is unapplied, apply it first.
+- New migration: `supabase/migrations/0007_depth_chart.sql` — **applied to the live project 2026-10-03**
+  (owner, Supabase SQL editor). Forward-only, not idempotent, apply once, in order after `0006`;
+  `0006_source_import.sql` status is not recorded in-repo.
 - Compatibility: pure additions (new tables/view, appended view columns, replaced restore function); older
   C1B backups still restore.
 - Backup/rollback: project holds only owner-entered/test data; export a backup before applying if desired.
@@ -134,7 +136,12 @@ Provisional-rules note:       D123 — Madden 27 labels/order/rank limits/eligib
 
 ## Open items
 
-- **Blockers**: none for code; the browser pass and acceptance wait on the owner applying `0007`.
+- **Blockers**: none; owner acceptance remains.
+- Bugs found in the browser pass and fixed: the autosave provider kept a stale in-memory revision after a
+  same-page command (e.g. Add player), so the next field edit falsely conflicted and Retry could not recover
+  without a reload; fixed in `components/autosave/autosave-provider.tsx` with regression tests in
+  `tests/autosave.test.tsx`, verified live. The Overview "Lineup issues" empty state said "No depth-chart
+  plan yet" even when a plan existed; corrected to state-independent copy in `app/page.tsx`.
 - Bugs/limitations (declared, not hidden): provisional rank limits and eligibility (D113 supplement);
   confirmation/action-unit semantics are C2B; real promotion/trade tools are C4A (C2A records corrections);
   iOS checks later.
@@ -143,17 +150,36 @@ Provisional-rules note:       D123 — Madden 27 labels/order/rank limits/eligib
 
 ## Next steps (owner flow)
 
-1. **Apply `0007_depth_chart.sql`** (after `0006` if needed) — owner: you; Supabase SQL editor.
-   **OWNER CHECK.**
-2. **Run the browser acceptance script above** — owner: you (or this thread on request); report anything
-   that looks wrong. **OWNER CHECK.**
-3. **Commit/push this branch and open the C2A PR to `main`** — owner/next thread; PR body links this record.
-   **OWNER APPROVAL/CHECK.**
-4. **Owner acceptance after the browser pass**, then C2B starts from the merged base — owner: you.
+1. **Apply `0007_depth_chart.sql`** — done by owner 2026-10-03. ✅
+2. **Browser pass** — done in this thread against the live project after the merge; results in the table
+   above. The owner may still walk the manual acceptance script below.
+3. **Merge the C2A PR** — done; PR #17 merged as `65284ea`. ✅
+4. **Owner acceptance**, then C2B starts from the merged base — owner: you. **OWNER CHECK.**
 5. **Schedule the D113 depth-chart supplement** when game access exists; it converts provisional labels into
    verified ordering without schema changes (the rules module is the single edit point).
 
-Immediate next step: **owner applies migration 0007, then runs the browser acceptance script.**
+Immediate next step: **owner acceptance walk, then C2B from merged `main`.**
+
+Open follow-up: the autosave fix, its regression tests, the Overview copy correction, and this record's
+update ship as a small follow-up PR from this branch (PR #17 was already merged at `65284ea`; the branch
+content is otherwise identical to merged `main`).
+
+## Test-data cleanup (2026-10-03)
+
+The browser pass created a temporary "C2A verification" franchise (7 players, revision 35) in the live
+project. The owner approved cleanup. The app has no delete command by design and the `app` schema is not
+exposed through PostgREST, so the row was removed in the Supabase SQL editor (C1B precedent); cascades
+removed its players, field rows, chart entries, and chart state.
+
+```sql
+delete from app.franchises
+ where id = '80ad5b3a-bda1-4cf2-ab0b-d444656e5d7a'
+   and name = 'C2A verification'
+   and is_default = false;
+```
+
+Verified after: `franchise_summaries` returns only the default Atlanta Falcons (0 players, revision 11),
+and the player, field, and depth-chart read models return no rows.
 
 ## Next thread — pasteable launch
 

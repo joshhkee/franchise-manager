@@ -102,6 +102,64 @@ describe("autosave field", () => {
     await waitFor(() => expect(screen.getByText("No unsaved changes")).toBeInTheDocument());
   });
 
+  it("adopts a newer server revision after another command so the next edit is not falsely stale", async () => {
+    const field = (
+      <AutosaveField
+        playerId="p1"
+        fieldKey="listed_position"
+        label="Listed position"
+        numeric={false}
+        baselineValue={null}
+        planValue={null}
+      />
+    );
+    const { rerender } = render(
+      <AutosaveProvider franchiseId="f1" initialRevision={3}>
+        {field}
+      </AutosaveProvider>,
+    );
+
+    // The server refreshed after another command (for example adding a player),
+    // advancing the franchise revision while this page held the older copy.
+    rerender(<AutosaveProvider franchiseId="f1" initialRevision={4}>{field}</AutosaveProvider>);
+
+    fireEvent.change(screen.getByLabelText("Listed position value"), { target: { value: "HB" } });
+    await waitFor(() => expect(harness.autosave).toHaveBeenCalledTimes(1));
+    expect(harness.autosave.mock.calls[0][0].expectedRevision).toBe(4);
+  });
+
+  it("never retargets a pending failed edit at a newer revision", async () => {
+    harness.autosave.mockResolvedValueOnce({
+      outcome: "failed",
+      message: "Not saved. Your input is kept here so you can retry.",
+    });
+    const field = (
+      <AutosaveField
+        playerId="p1"
+        fieldKey="listed_position"
+        label="Listed position"
+        numeric={false}
+        baselineValue={null}
+        planValue={null}
+      />
+    );
+    const { rerender } = render(
+      <AutosaveProvider franchiseId="f1" initialRevision={3}>
+        {field}
+      </AutosaveProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Listed position value"), { target: { value: "WR" } });
+    await waitFor(() => expect(screen.getByText("Not saved")).toBeInTheDocument());
+
+    rerender(<AutosaveProvider franchiseId="f1" initialRevision={4}>{field}</AutosaveProvider>);
+    harness.autosave.mockResolvedValueOnce(SAVED);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => expect(harness.autosave).toHaveBeenCalledTimes(2));
+    expect(harness.autosave.mock.calls[1][0].expectedRevision).toBe(3);
+  });
+
   it("treats a session expiry as a failed save that keeps the input", async () => {
     harness.autosave.mockResolvedValueOnce({
       outcome: "unauthorized",
