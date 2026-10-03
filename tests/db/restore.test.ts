@@ -30,6 +30,7 @@ function payload(overrides: Record<string, unknown> = {}) {
         customKey: null,
         sourceReference: { sourceId: "ea-1", revisionKey: "1-base" },
         fullName: "Bijan Robinson",
+        rosterStatus: "active",
       },
       {
         mutableId: "old-custom",
@@ -37,6 +38,7 @@ function payload(overrides: Record<string, unknown> = {}) {
         customKey: "c_keepme",
         sourceReference: null,
         fullName: "Custom Rookie",
+        rosterStatus: "practice_squad",
       },
     ],
     fields: [
@@ -54,6 +56,11 @@ function payload(overrides: Record<string, unknown> = {}) {
         planValue: "HB",
         fieldClass: "game_edit_action",
       },
+    ],
+    depthChart: [
+      { position: "HB", layer: "baseline", rank: 1, playerId: "old-source" },
+      { position: "HB", layer: "plan", rank: 1, playerId: "old-source" },
+      { position: "HB", layer: "plan", rank: 2, playerId: "old-custom" },
     ],
     ...overrides,
   };
@@ -146,6 +153,30 @@ describe("restore-new", () => {
     const position = fields.rows.find((row) => row.field_key === "listed_position");
     expect(position?.plan_value).toBe("HB");
     expect(position?.baseline_value).toBeNull();
+
+    const statuses = await db.query<{ origin: string; roster_status: string }>(
+      "select origin, roster_status from app.franchise_players where franchise_id = $1 order by origin",
+      [newFranchiseId],
+    );
+    expect(statuses.rows.find((row) => row.origin === "custom")?.roster_status).toBe("practice_squad");
+    expect(statuses.rows.find((row) => row.origin === "source")?.roster_status).toBe("active");
+
+    const chart = await db.query<{
+      position: string;
+      layer: string;
+      depth_rank: number;
+      franchise_player_id: string;
+    }>(
+      "select position, layer, depth_rank, franchise_player_id from app.depth_chart_entries where franchise_id = $1 order by layer, depth_rank",
+      [newFranchiseId],
+    );
+    expect(chart.rows).toHaveLength(3);
+    const sourceNewId = players.rows.find((row) => row.origin === "source")?.id;
+    const customNewId = players.rows.find((row) => row.origin === "custom")?.id;
+    expect(chart.rows.filter((row) => row.layer === "baseline")[0]?.franchise_player_id).toBe(sourceNewId);
+    expect(chart.rows.filter((row) => row.layer === "plan" && row.depth_rank === 2)[0]?.franchise_player_id).toBe(
+      customNewId,
+    );
   });
 
   it("refuses a backup whose source revision is missing and writes nothing", async () => {

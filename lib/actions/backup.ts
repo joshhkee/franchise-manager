@@ -15,6 +15,7 @@ const REASON_MESSAGES: Record<ValidationReason, string> = {
   schema_invalid: "That backup is missing required fields or has the wrong shape.",
   duplicate_mutable_id: "That backup contains duplicate record ids.",
   dangling_player_reference: "That backup references a player record that is not in the file.",
+  duplicate_chart_slot: "That backup lists the same player or rank twice in one depth-chart position.",
   secret_like_content:
     "That file looks like it contains credentials. Exports never hold secrets, so it was refused.",
 };
@@ -67,7 +68,7 @@ export async function restoreBackup(_prev: ActionState, formData: FormData): Pro
   const restored = await restoreNewFranchise(envelope.franchise, requestId);
   if (!restored.ok) return { status: "error", message: restored.message };
 
-  for (const path of ["/", "/franchises", "/gm", "/settings"]) revalidatePath(path);
+  for (const path of ["/", "/franchises", "/gm", "/lineups", "/settings"]) revalidatePath(path);
   return {
     status: "ok",
     message: "Restored into a new franchise with remapped ids. Open Franchises to make it active.",

@@ -11,10 +11,12 @@
  */
 
 export const ENVELOPE_VERSION = 1;
-export const APP_CONTRACT_VERSION = "c1b/1";
+export const APP_CONTRACT_VERSION = "c2a/1";
 export const MAX_ENVELOPE_BYTES = 5 * 1024 * 1024;
 
 export type FieldClass = "game_edit_action" | "app_fact";
+
+export type BackupRosterStatus = "active" | "practice_squad";
 
 export interface BackupPlayer {
   mutableId: string;
@@ -24,6 +26,15 @@ export interface BackupPlayer {
   /** Source identity preserved by revision key, never by database id. */
   sourceReference: { sourceId: string; revisionKey: string } | null;
   fullName: string;
+  /** C2A: recorded roster availability; missing in older envelopes means active. */
+  rosterStatus: BackupRosterStatus;
+}
+
+export interface BackupChartEntry {
+  position: string;
+  layer: "baseline" | "plan";
+  rank: number;
+  playerId: string;
 }
 
 export interface BackupField {
@@ -40,6 +51,8 @@ export interface BackupFranchisePayload {
   pinnedRevisionKey: string | null;
   players: BackupPlayer[];
   fields: BackupField[];
+  /** C2A depth-chart entries; both layers, so plans survive the round trip too. */
+  depthChart: BackupChartEntry[];
 }
 
 export interface BackupEnvelope {
@@ -60,6 +73,7 @@ export type ValidationReason =
   | "schema_invalid"
   | "duplicate_mutable_id"
   | "dangling_player_reference"
+  | "duplicate_chart_slot"
   | "secret_like_content";
 
 export function createEnvelope(
@@ -150,7 +164,10 @@ export function parseEnvelope(text: string): ValidationResult {
       (player.origin !== "source" && player.origin !== "custom") ||
       typeof player.fullName !== "string" ||
       !(player.customKey === null || typeof player.customKey === "string") ||
-      !(player.sourceReference === null || isRecord(player.sourceReference))
+      !(player.sourceReference === null || isRecord(player.sourceReference)) ||
+      (player.rosterStatus !== undefined &&
+        player.rosterStatus !== "active" &&
+        player.rosterStatus !== "practice_squad")
     ) {
       reasons.push("schema_invalid");
       continue;
@@ -176,10 +193,57 @@ export function parseEnvelope(text: string): ValidationResult {
     reasons.push("schema_invalid");
   }
 
+  // C2A chart entries: absent in older C1B envelopes (treated as empty), and the
+  // same structural bounds the database enforces when they are present.
+  const depthChart = franchise.depthChart === undefined ? [] : franchise.depthChart;
+  if (!Array.isArray(depthChart)) {
+    reasons.push("schema_invalid");
+  } else {
+    const slots = new Set<string>();
+    for (const entry of depthChart) {
+      if (
+        !isRecord(entry) ||
+        typeof entry.position !== "string" ||
+        entry.position.trim().length === 0 ||
+        entry.position.trim().length > 12 ||
+        (entry.layer !== "baseline" && entry.layer !== "plan") ||
+        !Number.isInteger(entry.rank) ||
+        (entry.rank as number) < 1 ||
+        (entry.rank as number) > 12 ||
+        typeof entry.playerId !== "string"
+      ) {
+        reasons.push("schema_invalid");
+        continue;
+      }
+      if (!seen.has(entry.playerId)) reasons.push("dangling_player_reference");
+      const position = entry.position.trim();
+      if (
+        slots.has(`${position}:${entry.layer}:${entry.rank}`) ||
+        slots.has(`${position}:${entry.layer}:${entry.playerId}`)
+      ) {
+        reasons.push("duplicate_chart_slot");
+      }
+      slots.add(`${position}:${entry.layer}:${entry.rank}`);
+      slots.add(`${position}:${entry.layer}:${entry.playerId}`);
+    }
+  }
+
   const unique = [...new Set(reasons)];
   if (unique.length > 0) return { ok: false, reasons: unique };
 
-  return { ok: true, envelope: raw as unknown as BackupEnvelope };
+  const normalized: BackupFranchisePayload = {
+    ...(franchise as unknown as BackupFranchisePayload),
+    players: (franchise.players as Record<string, unknown>[]).map((player) => ({
+      ...(player as unknown as BackupPlayer),
+      rosterStatus: (player.rosterStatus as BackupRosterStatus | undefined) ?? "active",
+    })),
+    depthChart: depthChart as BackupChartEntry[],
+  };
+
+  return {
+    ok: true,
+    envelope: { ...(raw as Record<string, unknown>), franchise: normalized } as unknown as BackupEnvelope,
+  };
 }
 
 export interface RestoreResult {
@@ -209,6 +273,11 @@ export function restoreAsNewFranchise(
     playerId: idMap.get(field.playerId) as string,
   }));
 
+  const depthChart = (envelope.franchise.depthChart ?? []).map((entry) => ({
+    ...entry,
+    playerId: idMap.get(entry.playerId) as string,
+  }));
+
   const requiredRevisionKeys = [
     ...new Set(
       [
@@ -226,6 +295,7 @@ export function restoreAsNewFranchise(
       pinnedRevisionKey: envelope.franchise.pinnedRevisionKey,
       players,
       fields,
+      depthChart,
     },
     requiredRevisionKeys,
   };
