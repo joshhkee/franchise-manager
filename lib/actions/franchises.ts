@@ -4,7 +4,10 @@ import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "../supabase/server";
+import { AUTOSAVE_MESSAGES, classifyOutcome, type AutosaveOutcome } from "./outcome";
 import { FRANCHISE_COOKIE, type ActionState } from "./state";
+
+export type { AutosaveOutcome } from "./outcome";
 
 /**
  * A caller-supplied request id makes a retry after a lost response idempotent:
@@ -113,9 +116,6 @@ export async function setFranchiseArchived(
 
 const NUMERIC_FIELDS = new Set(["jersey_number", "overall", "contract_years", "contract_value"]);
 
-/** Truthful autosave outcomes (C0B-v2 §5): saved | failed | conflict, plus session expiry. */
-export type AutosaveOutcome = "saved" | "conflict" | "unauthorized" | "failed";
-
 export interface AutosaveResult {
   outcome: AutosaveOutcome;
   message: string;
@@ -124,31 +124,6 @@ export interface AutosaveResult {
   baselineValue?: unknown;
   planValue?: unknown;
 }
-
-function classifyOutcome(error: { message: string; code?: string }): AutosaveOutcome {
-  const text = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
-  if (text.includes("stale_revision")) return "conflict";
-  if (
-    text.includes("unauthorized") ||
-    text.includes("jwt") ||
-    text.includes("not authenticated") ||
-    text.includes("permission denied") ||
-    text.includes("pgrst301") ||
-    text.includes("42501")
-  ) {
-    return "unauthorized";
-  }
-  return "failed";
-}
-
-const AUTOSAVE_MESSAGES: Record<AutosaveOutcome, string> = {
-  conflict:
-    "This franchise changed since this page loaded, so nothing was written. Your input is kept here — reload to see the latest revision, then retry.",
-  unauthorized:
-    "Your session expired, so nothing was saved. Sign in again — your input is kept here until you retry or discard.",
-  failed: "Not saved. Your input is kept here so you can retry.",
-  saved: "Saved to app.",
-};
 
 /**
  * Autosave one grouped field. The caller supplies a stable request id per edit,

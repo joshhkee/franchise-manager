@@ -97,8 +97,8 @@ export default async function OverviewPage() {
               </p>
               <div className="mt-3">
                 <EmptyState
-                  title="No depth chart yet"
-                  detail="Depth-chart conflicts appear after verified position rules and roster data exist (C2A)."
+                  title="No depth-chart plan yet"
+                  detail="Plan lineups on the Lineups page. Pending-vs-baseline inspection and provisional labels are live in C2A; confirmation semantics, conflicts, and the checklist arrive with C2B."
                 />
               </div>
             </section>

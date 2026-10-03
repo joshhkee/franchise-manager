@@ -9,6 +9,14 @@ interface ExportRow {
   full_name: string;
   source_id: string | null;
   source_revision_key: string | null;
+  roster_status: "active" | "practice_squad" | null;
+}
+
+interface ChartRow {
+  position: string;
+  layer: "baseline" | "plan";
+  depth_rank: number;
+  franchise_player_id: string;
 }
 
 export async function buildFranchiseEnvelope(
@@ -16,7 +24,7 @@ export async function buildFranchiseEnvelope(
 ): Promise<Loaded<{ envelope: BackupEnvelope; name: string }>> {
   const supabase = await createServerSupabase();
 
-  const [franchise, players, fields, revisions] = await Promise.all([
+  const [franchise, players, fields, revisions, chart] = await Promise.all([
     supabase
       .from("franchise_summaries")
       .select("id,name,pinned_revision_id")
@@ -24,7 +32,7 @@ export async function buildFranchiseEnvelope(
       .maybeSingle(),
     supabase
       .from("franchise_players_view")
-      .select("id,origin,custom_key,full_name,source_id,source_revision_key")
+      .select("id,origin,custom_key,full_name,source_id,source_revision_key,roster_status")
       .eq("franchise_id", franchiseId)
       .order("full_name", { ascending: true }),
     supabase
@@ -32,9 +40,15 @@ export async function buildFranchiseEnvelope(
       .select("franchise_player_id,field_key,baseline_value,plan_value,field_class")
       .eq("franchise_id", franchiseId),
     supabase.from("source_revision_summaries").select("id,revision_key"),
+    supabase
+      .from("depth_chart_view")
+      .select("position,layer,depth_rank,franchise_player_id")
+      .eq("franchise_id", franchiseId)
+      .order("position", { ascending: true })
+      .order("depth_rank", { ascending: true }),
   ]);
 
-  const error = franchise.error ?? players.error ?? fields.error ?? revisions.error;
+  const error = franchise.error ?? players.error ?? fields.error ?? revisions.error ?? chart.error;
   if (error) return { ok: false, message: error.message };
   if (!franchise.data) return { ok: false, message: "That franchise is not available for this owner." };
 
@@ -57,6 +71,7 @@ export async function buildFranchiseEnvelope(
           ? { sourceId: row.source_id, revisionKey: row.source_revision_key }
           : null,
       fullName: row.full_name,
+      rosterStatus: row.roster_status ?? "active",
     })),
     fields: (fields.data ?? []).map((row) => ({
       playerId: row.franchise_player_id as string,
@@ -64,6 +79,12 @@ export async function buildFranchiseEnvelope(
       baselineValue: row.baseline_value ?? null,
       planValue: row.plan_value ?? null,
       fieldClass: (row.field_class as "game_edit_action" | "app_fact") ?? "app_fact",
+    })),
+    depthChart: ((chart.data ?? []) as ChartRow[]).map((row) => ({
+      position: row.position,
+      layer: row.layer,
+      rank: row.depth_rank,
+      playerId: row.franchise_player_id,
     })),
   };
 
