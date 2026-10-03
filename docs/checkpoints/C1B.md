@@ -24,18 +24,23 @@ Authorization on record:      owner authorized dependency installs and Supabase 
 
 ## Status
 
-- **State: in progress — C1B execution started (2026-10-02).** The owner repurposed this thread/worktree
+- **State: closed — owner accepted & merged (D123).** (Execution started 2026-10-02.) The owner repurposed this thread/worktree
   for C1B instead of opening a new one (D120); this record is now the live C1B record and this thread is its
   single writer. Branch `checkpoint/c1b-foundation` is cut from `1de3cfd`; `.env.local` was imported from the
   main checkout at bootstrap (never printed).
 - Deviation on record: **D120** — C1B runs in this repurposed thread/worktree rather than a new one.
-- **Exit-gate state (2026-10-02): implementation complete, browser-verified, and merged; owner acceptance
-  pending.** Every slice listed below is on `checkpoint/c1b-foundation`; application checks and 70 automated
+- **Exit-gate state (2026-10-02): implementation complete, browser-verified, merged, and owner-accepted
+  (D123).** Every slice listed below is on `checkpoint/c1b-foundation`; application checks and 70 automated
   tests pass. Background mode is unavailable in this build, so the dev server was detached on port 3200
   (port 3100 belongs to another worktree and was left untouched).
 - **Merged (2026-10-02):** [PR #13](https://github.com/joshhkee/franchise-manager/pull/13) merged into `main`
   as `4c137f1`. The owner applied migrations `0001`–`0005` and the allowlist row to the live project, and the
   browser pass below ran against the merged `main`.
+- **Closeout merged (2026-10-02):** [PR #14](https://github.com/joshhkee/franchise-manager/pull/14) (picker
+  sync fix), [PR #15](https://github.com/joshhkee/franchise-manager/pull/15) (this verification record), and
+  [PR #16](https://github.com/joshhkee/franchise-manager/pull/16) (the source-catalog import path with
+  migration `0006_source_import.sql`) are merged on top; `main` is `b0e57ce`. Owner acceptance recorded as
+  **D123**.
 - **Browser verification pass (2026-10-02): passed, with one display defect found and fixed** — see
   [Browser verification pass](#browser-verification-pass-2026-10-02) and fix
   [PR #14](https://github.com/joshhkee/franchise-manager/pull/14).
@@ -259,10 +264,11 @@ branch rather than from an unpushed worktree (D120).
 
 ### Not done in this checkpoint (open, not silently implied)
 
-- **Source import path and coverage surface:** the immutable catalog tables, their policies, the
-  immutability guard, and the CB-1 reconciliation library exist, but nothing yet parses/imports a real
-  source revision (that needs the C0A source data), so the catalog is legitimately empty and no coverage
-  label is populated.
+- **Source import path:** resolved after this record — [PR #16](https://github.com/joshhkee/franchise-manager/pull/16)
+  adds the owner-run Launch-ratings import ([0006_source_import.sql](../../supabase/migrations/0006_source_import.sql),
+  [lib/source-import.ts](../../lib/source-import.ts), [lib/actions/import.ts](../../lib/actions/import.ts), and
+  the Settings panel). Remaining: the owner applies `0006` to the live project and runs the import; until
+  then the catalog is legitimately empty and the coverage label stays honest.
 - **Action units, partial/bulk confirmation, cancel, bounded undo:** contract §4 semantics belong to C2B
   and are not started.
 - **iOS/Safari checks:** not run — later verification (C5B is phone-first). Live sign-in, cloud migration
@@ -326,8 +332,8 @@ right `Active` badge and a reload showed the right selection — because the pic
 `<select defaultValue>` and React never rewrites its value after a server-driven change. Fixed by keying the
 select on the server-provided id; the regression test `tests/franchise-picker.test.tsx` rerenders with a
 different id and fails without the fix. Fix
-[PR #14](https://github.com/joshhkee/franchise-manager/pull/14) is open with green checks (the test file
-lands with that PR).
+[PR #14](https://github.com/joshhkee/franchise-manager/pull/14) merged with green checks (the test file
+landed with that PR).
 
 **Test data:** the pass created a second franchise ("Restored Test", from the round-trip) and modified one
 player in the live project. The owner approved a cleanup that removes the test-created franchise and test
@@ -384,24 +390,20 @@ Checks not covered by this pass: iOS/Safari device runs (later verification) and
 
 1. ~~Apply migrations `0001`–`0005` and add the allowlist row~~ — **done** (owner, 2026-10-02).
 2. ~~Sign in and run the manual scenarios~~ — **done**; the browser pass above replaced and exceeded them.
-3. ~~Merge the checkpoint PR~~ — **done**; PR #13 merged into `main` as `4c137f1`.
-4. **Merge the picker fix** — owner: you; [PR #14](https://github.com/joshhkee/franchise-manager/pull/14) is
-   open with green checks. **OWNER APPROVAL/CHECK.**
-5. **Run the approved test-data cleanup** — owner: you; the cleanup SQL in the browser-pass notes removes the
-   test-created franchise and test player. **OWNER CHECK.**
-6. **Confirm the Supabase URL Configuration** — owner: you; Site URL + Redirect URLs, which cannot be
-   verified remotely.
-7. **Decide the remaining open item** — owner: you; the source-import path needs the C0A source data before
-   it can populate the catalog.
-8. **Owner acceptance of C1B, then start C2A** from the merged, verified base.
+3. ~~Merge the checkpoint PR and its fixes~~ — **done**; PRs #13–#15 merged.
+4. ~~Build the source-import path~~ — **done**; PR #16 merged (migration `0006_source_import.sql`).
+5. **Apply `0006` and run the import** — owner: you; apply the migration in the Supabase SQL editor, then
+   Settings → Import launch ratings. **OWNER CHECK.**
+6. **Confirm the Supabase URL Configuration and run the approved test-data cleanup** — owner: you; Site URL +
+   Redirect URLs cannot be verified remotely, and the cleanup SQL is in the browser-pass notes. **OWNER CHECK.**
 
-Immediate next step: **merge PR #14 and run the cleanup SQL.**
+Immediate next step: **none — C1B is closed and owner-accepted (D123); C2A is the active checkpoint.**
 
 ## Next thread — pasteable launch
 
-C1B is complete and merged (`main` `4c137f1`); the next checkpoint is **C2A**. Use the canonical **C2A**
-prompt from [LAUNCH_PROMPTS.md](../../LAUNCH_PROMPTS.md) in a fresh thread/worktree and fill that record's
-own assignment header. The block below is retained as the C1B launch record:
+C1B is complete, owner-accepted (D123), and merged (`main` `b0e57ce`); **C2A** is the active checkpoint,
+launched per D123 with provisional game rules until the D113 depth-chart matrix lands. The block below is
+retained as the C1B launch record:
 
 Fill the assignment header above, then paste the canonical **C1B** prompt from
 [LAUNCH_PROMPTS.md](../../LAUNCH_PROMPTS.md) plus its shared instruction, and add:

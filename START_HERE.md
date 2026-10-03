@@ -2,9 +2,9 @@
 
 ## Current status
 
-**The initial planning thread produced documentation only** — no application code, imports, service provisioning, or tests. Execution then began in separate threads: C0A evidence, the C0B contracts, and the C1A responsive shell are merged on `main` (PRs #1–#8), and the C0B/C1A independent review is accepted and closing out (D115–D117). Original FEATURES.md was preserved.
+**The initial planning thread produced documentation only** — no application code, imports, service provisioning, or tests. Execution then began in separate threads: C0A evidence, the C0B contracts, and the C1A responsive shell are merged on `main` (PRs #1–#8), the C0B/C1A independent review is accepted and closed (D115–D117), and C1B (private auth, isolated franchise data, and the source-catalog import) is merged at `b0e57ce` (PRs #13–#16) and owner-accepted (D123). **C2A (depth charts and planning state) is the active checkpoint**, launched from `b0e57ce` with provisional game rules until the D113 supplement lands. Original FEATURES.md was preserved.
 
-The owner approved product direction, layouts/navigation, stack, phase/checkpoint granularity, and reviewed-PR workflow across 20 interview rounds; later rounds record execution decisions (D102 onward). See DECISIONS.md for D001–D117. Research is preliminary; actual Madden mechanics/source completeness/reuse remain explicit Phase 0 gates, not confirmed facts.
+The owner approved product direction, layouts/navigation, stack, phase/checkpoint granularity, and reviewed-PR workflow across 20 interview rounds; later rounds record execution decisions (D102 onward). See DECISIONS.md for D001–D123. Research is preliminary; actual Madden mechanics/source completeness/reuse remain explicit Phase 0 gates, not confirmed facts.
 
 Fresh private build for one owner, solo vs CPU, likely PC game not yet owned. Default Falcons; independent franchises, lineup→checklist first, GM/Coach before phone-first Gameday. Strict $0, Next.js/Tailwind/Supabase/Vercel, GitHub OAuth allowlisted owner, neutral compact professional design, light + dark. No game-save dependency, generative AI, trade acceptance prediction, custom books, season/week tracking, printing, or offline editing.
 
@@ -50,17 +50,18 @@ Phase packet launch prompts intentionally start the first checkpoint only. A new
 - **C0B**: closed — contract `C0B-v2` owner-accepted (D115); merged as `236886f` (PR #7).
 - **C1A**: closed — owner visual acceptance recorded (D116); merged as `ff9975d` (PR #8), with the review corrections applied in the closeout.
 - **C0B/C1A independent review**: delivered and dispositioned — [report](docs/reviews/C0B-C1A-independent-review.md), [lane record](docs/checkpoints/C0B-C1A-REVIEW.md).
-- **C1B**: **next — not started.** Requires the closeout PR merged plus owner-scoped Supabase/install authorization (D117).
+- **C1B**: closed — owner accepted (D123) on the merged, browser-verified base `b0e57ce` (PRs #13–#16; verification per D122). Migrations `0001`–`0005` and the allowlist row are applied to the live project; `0006` (source import) is the owner's remaining apply step.
+- **C2A**: **active — in progress** from `b0e57ce`, with provisional/configurable game rules until the D113 depth-chart matrix lands (D123).
 
-No phase is marked complete because documentation describes it. Accepted C0A exceptions (depth-chart matrix, representative Falcons mappings, stock-book inventory, alternate-source contingency) remain an evidence supplement required before C3A/C3B; special teams are deferred to C3B with an owner gate (D114).
+No phase is marked complete because documentation describes it. Accepted C0A exceptions (depth-chart matrix, representative Falcons mappings, stock-book inventory, alternate-source contingency) remain an evidence supplement; the depth-chart matrix is required for C2A's **verified-ordering exit** and the rest before C3A/C3B; special teams are deferred to C3B with an owner gate (D114).
 
-All planning docs and C0A/C0B/C1A artifacts are committed on `main` (PRs #1–#8 merged); the shared baseline is established and no publication step remains. Decision/disposition updates land as small owner-reviewed docs PRs; no broad staging or unrelated commits.
+All planning docs and C0A/C0B/C1A/C1B artifacts are committed on `main` (PRs #1–#16 merged); the shared baseline is established and no publication step remains. Decision/disposition updates land as small owner-reviewed docs PRs; no broad staging or unrelated commits.
 
 The [documentation audit](AUDIT.md) records corrected contradictions and remaining choices. D001–D101 were not rewritten as new owner approvals; audit-derived engineering criteria are labeled separately.
 
 ## Next launch — a NEW execution thread
 
-Use [LAUNCH_PROMPTS.md: C1B](LAUNCH_PROMPTS.md#c1b--private-auth-data-and-franchise-foundation), filling its assignment header and appending its shared instruction. It is the canonical launch, not a separate competing set of requirements. C0B and C1A are closed and merged; C1B implements against `C0B-v2`. Start from the accepted merged baseline, not an unmerged predecessor — and read the [C1B startup handoff](docs/checkpoints/C1B.md) first, which carries the verified base, the owner inputs, and the open test-isolation/migration decisions.
+Use [LAUNCH_PROMPTS.md: C2A](LAUNCH_PROMPTS.md#c2a--depth-chart-and-planning-state), filling its assignment header and appending its shared instruction. It is the canonical launch, not a separate competing set of requirements. C1B is closed, owner-accepted (D123), and merged at `b0e57ce`; C2A implements against `C0B-v2` with provisional game rules until the D113 depth-chart matrix lands. Start from the accepted merged baseline, not an unmerged predecessor — and read the accepted [C1B record](docs/checkpoints/C1B.md) for the verified base, owner inputs, and applied-migration state.
 
 ## Next-checkpoint launches
 
@@ -69,10 +70,10 @@ Select the checkpoint prompt in [LAUNCH_PROMPTS.md](LAUNCH_PROMPTS.md), fill ver
 ## Owner's practical next steps
 
 1. Review docs and correct any decision that doesn't reflect your intent before execution.
-2. Start **C1B** (private auth and franchise data) in one thread once the closeout PR merges. The C0B/C1A independent review is closed (D115–D117); C0B and C1A are accepted and merged.
-3. Follow WORKFLOW.md for C1B's isolated worktree, ownership, and declared delivery mode on the merged baseline, without adding unnecessary extra PR gates. Sibling worktree creation requires permission in environments that restrict writes outside this workspace.
+2. Watch **C2A** (depth charts and planning state) as the active checkpoint in the Freebuff worktree from `b0e57ce` (D123). The C0B/C1A independent review and C1B are closed (D115–D117, D123).
+3. Follow WORKFLOW.md for C2A's ownership and declared delivery mode on the merged baseline, without adding unnecessary extra PR gates. The D113 evidence supplement (depth-chart matrix) remains the gate for C2A's verified-ordering exit; owner may prioritize it once game access exists.
 4. Supply non-secret setup facts requested by SETUP.md, not passwords/tokens.
-5. Review and merge each meaningful checkpoint PR (C1A shell approval was recorded 2026-10-02, D116). C1B additionally needs scoped authorization for Supabase provisioning and installs.
+5. Review and merge each meaningful checkpoint PR (C1A shell approval D116; C1B acceptance D123). Apply migration `0006` and run the Launch-ratings import in Settings before catalog-backed roster data is expected to appear.
 6. At each next thread, paste the exact checkpoint prompt and accepted base/ownership, not merely 'continue'. Documentation plus delivery records carry the context.
 7. Keep manual backups as explained in SETUP.md; Free Supabase can pause and has no included automatic backups.
 
