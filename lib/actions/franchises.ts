@@ -37,6 +37,15 @@ function describe(error: { message: string; code?: string } | null): string {
   if (text.includes("source_revision_unavailable")) {
     return "That source record is not available in the imported catalog.";
   }
+  if (text.includes("unsupported_operation")) {
+    return "The default franchise cannot be deleted; archive it instead.";
+  }
+  if (text.includes("validation_failed") && text.includes("typed name")) {
+    return "The typed name did not match this franchise, so nothing was deleted.";
+  }
+  if (/could not find the function|does not exist|schema cache/i.test(text)) {
+    return "This command is not available in the project yet: apply migration 0008_franchise_delete.sql in the Supabase SQL editor, then retry.";
+  }
   return `Not saved: ${text || "unknown error"}`;
 }
 
@@ -112,6 +121,37 @@ export async function setFranchiseArchived(
   if (error) return { status: "error", message: describe(error) };
   revalidateFranchiseViews();
   return { status: "ok", message: archived ? "Franchise archived." : "Franchise resumed." };
+}
+
+/**
+ * Permanently delete one accidental franchise (D124). Refuses the default
+ * franchise and requires the exact recorded name, so it is never a stray click;
+ * archive remains the reversible lifecycle action. If the deleted franchise was
+ * the active one, the selection cookie is cleared so the next page falls back to
+ * the default.
+ */
+export async function deleteFranchise(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const id = formData.get("franchiseId");
+  const confirmName = formData.get("confirmName");
+  if (typeof id !== "string" || !id) return { status: "error", message: "No franchise selected." };
+  if (typeof confirmName !== "string" || !confirmName.trim()) {
+    return { status: "error", message: "Type the franchise name to confirm the deletion." };
+  }
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc("delete_franchise", {
+    p_franchise_id: id,
+    p_confirm_name: confirmName.trim(),
+    p_request_id: requestIdFrom(formData),
+  });
+
+  if (error) return { status: "error", message: describe(error) };
+
+  const store = await cookies();
+  if (store.get(FRANCHISE_COOKIE)?.value === id) store.delete(FRANCHISE_COOKIE);
+
+  revalidateFranchiseViews();
+  return { status: "ok", message: "Franchise deleted permanently. Its exported backups are unaffected." };
 }
 
 const NUMERIC_FIELDS = new Set(["jersey_number", "overall", "contract_years", "contract_value"]);
