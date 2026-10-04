@@ -81,30 +81,46 @@ export async function importLaunchRatings(
     };
   }
 
-  const normalized = fetched.players.map(normalizeSourcePlayer);
-  const coverage = coverageStatusFor(normalized, fetched.reportedTotal);
-
-  let existing: ExistingSourceRecord[];
+  // Normalizing and planning are pure functions of the fetched payload; an
+  // unexpected published shape must surface as a truthful failed import (and
+  // record nothing), not as an unhandled 500 from the server action.
+  let normalized: ReturnType<typeof normalizeSourcePlayer>[];
+  let coverage: ReturnType<typeof coverageStatusFor>;
+  let planned: PlannedRecord[];
+  let conflicts: number;
   try {
-    existing = await loadExistingRecords();
+    normalized = fetched.players.map(normalizeSourcePlayer);
+    coverage = coverageStatusFor(normalized, fetched.reportedTotal);
+
+    let existing: ExistingSourceRecord[];
+    try {
+      existing = await loadExistingRecords();
+    } catch (error) {
+      return {
+        status: "error",
+        message: `The existing catalog could not be read, so nothing was imported: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`,
+      };
+    }
+
+    planned = normalized.map((record) => {
+      const classification = classifyIncoming(record, existing);
+      return {
+        ...record,
+        reconciliationOutcome: classification.outcome,
+        reconciliationReason: classification.reason,
+      };
+    });
+    conflicts = planned.filter((record) => record.reconciliationOutcome === "conflict").length;
   } catch (error) {
     return {
       status: "error",
-      message: `The existing catalog could not be read, so nothing was imported: ${
+      message: `The published payload could not be read as expected, so nothing was imported: ${
         error instanceof Error ? error.message : "unknown error"
       }`,
     };
   }
-
-  const planned: PlannedRecord[] = normalized.map((record) => {
-    const classification = classifyIncoming(record, existing);
-    return {
-      ...record,
-      reconciliationOutcome: classification.outcome,
-      reconciliationReason: classification.reason,
-    };
-  });
-  const conflicts = planned.filter((record) => record.reconciliationOutcome === "conflict").length;
 
   const privileged = createPrivilegedSupabase();
 

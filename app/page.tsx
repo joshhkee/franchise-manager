@@ -129,8 +129,9 @@ export default async function OverviewPage() {
       </section>
 
       <p className="max-w-prose text-xs text-ink-muted">
-        Player counts and pending edits above are computed from stored app records only. No Madden
-        ratings, coverage, or statistics are shown until a source revision is imported and verified.
+        Player counts and pending edits above are computed from stored app records only. Imported
+        source-catalog coverage and its labels live on Settings; nothing here is presented as a
+        game-verified fact.
       </p>
     </div>
   );

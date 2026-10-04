@@ -11,7 +11,7 @@ export default async function FranchisesPage() {
     <div className="space-y-5">
       <PageHeader
         title="Franchises"
-        description="Create, switch, rename, archive, and resume franchise records. One owner, isolated per franchise."
+        description="Create, switch, rename, archive, resume, and permanently delete accidental franchises. One owner, isolated per franchise."
       />
 
       {!result.ok ? (

@@ -70,6 +70,49 @@ describe("normalizeSourcePlayer", () => {
     // No invented overall inside the attribute set beyond what was published.
     expect(record.ratings.overallRating).toBe(89);
   });
+
+  it("reads the live payload's numeric handedness, object iteration, and M/D/YY birthdate", () => {
+    // Regression for the C2A import crash: the publisher now sends handedness as
+    // a number and iteration as an object, and the old text helper threw on both.
+    const record = normalizeSourcePlayer({
+      ...BIJAN,
+      birthdate: "3/1/00",
+      handedness: 1,
+      iteration: { id: "1-base", label: "Launch Ratings" },
+    });
+    expect(record.birthdate).toBe("2000-03-01");
+    expect(record.measurements.handedness).toBe("Right");
+    expect(record.provenance.iteration).toBe("Launch Ratings");
+    expect(record.provenance.birthdateRaw).toBe("3/1/00");
+  });
+
+  it("maps zero handedness to Left and leaves an unknown code absent", () => {
+    expect(normalizeSourcePlayer({ ...BIJAN, handedness: 0 }).measurements.handedness).toBe("Left");
+    expect(normalizeSourcePlayer({ ...BIJAN, handedness: 2 }).measurements.handedness).toBeNull();
+  });
+
+  it("never coerces a non-string published field into text", () => {
+    // The type describes the expected payload shape; the runtime payload is
+    // external data, so the test simulates a publisher type change directly.
+    const record = normalizeSourcePlayer({
+      ...BIJAN,
+      team: { label: 7 } as unknown as RawSourcePlayer["team"],
+      position: { shortLabel: 12 } as unknown as RawSourcePlayer["position"],
+      archetype: undefined,
+    });
+    expect(record.team).toBeNull();
+    expect(record.listedPosition).toBeNull();
+    expect(record.archetype).toBeNull();
+  });
+
+  it("resolves the published two-digit birth year and preserves the raw string", () => {
+    expect(normalizeSourcePlayer({ ...BIJAN, birthdate: "12/31/29" }).birthdate).toBe("2029-12-31");
+    expect(normalizeSourcePlayer({ ...BIJAN, birthdate: "1/2/30" }).birthdate).toBe("1930-01-02");
+    const anomalous = normalizeSourcePlayer({ ...BIJAN, birthdate: "8/12/73" });
+    expect(anomalous.birthdate).toBe("1973-08-12");
+    expect(anomalous.provenance.birthdateRaw).toBe("8/12/73");
+    expect(normalizeSourcePlayer({ ...BIJAN, birthdate: "not a date" }).birthdate).toBeNull();
+  });
 });
 
 describe("coverage and missing-field reporting", () => {

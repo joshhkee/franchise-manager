@@ -44,9 +44,11 @@ export interface RawSourcePlayer {
   jerseyNum?: number | string | null;
   yearsPro?: number | null;
   college?: string | null;
-  handedness?: string | null;
+  /** EA publishes a numeric enum on the live payload (0 left, 1 right). */
+  handedness?: number | string | null;
   overallRating?: number | null;
-  iteration?: string | null;
+  /** A string in older payloads; the live payload sends `{id, label}`. */
+  iteration?: string | { id?: string | null; label?: string | null } | null;
   avatarUrl?: string | null;
   archetype?: { label?: string | null } | null;
   team?: { label?: string | null } | null;
@@ -81,14 +83,60 @@ export interface FetchResult {
   buildId: string;
 }
 
-function textOrNull(value: string | null | undefined): string | null {
-  const trimmed = (value ?? "").trim();
+/**
+ * Published text keeps its shape: anything that is not a string is absent,
+ * never coerced (`String(1)` would invent the text "1" out of an enum code).
+ */
+function textOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
 }
 
-function isoDateOrNull(value: string | null | undefined): string | null {
-  const trimmed = (value ?? "").trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+/**
+ * Handedness is a numeric enum on the live payload. Verified against the
+ * publisher's own player pages on 2026-10-04: `1` renders "Handedness Right"
+ * (Jessie Bates III, id 13202) and `0` is the left-handed value (Tua
+ * Tagovailoa id 20916 and Michael Penix Jr id 14608, both left-handed). Any
+ * other value stays unknown rather than guessed.
+ */
+function handednessOrNull(value: unknown): string | null {
+  if (value === 0) return "Left";
+  if (value === 1) return "Right";
+  return textOrNull(value);
+}
+
+/**
+ * Birthdates arrive as `M/D/YY` (e.g. `3/1/00`). The century follows the
+ * conventional two-digit pivot — 00–29 → 2000s, 30–99 → 1900s — which holds
+ * for every record in the observed Launch population except one internally
+ * inconsistent source row (id 1817 publishes `8/12/73` with age 22); the raw
+ * published string is kept in provenance, so nothing is silently replaced.
+ * ISO input passes through unchanged; anything else is absent.
+ */
+function birthdateOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (!match) return null;
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const shortYear = Number(match[3]);
+  const year = shortYear >= 30 ? 1900 + shortYear : 2000 + shortYear;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** Keep the iteration's human label (falling back to its id) for provenance. */
+function iterationOrNull(value: unknown): string | null {
+  if (typeof value === "string") return textOrNull(value);
+  if (value !== null && typeof value === "object") {
+    const record = value as { label?: unknown; id?: unknown };
+    return textOrNull(record.label) ?? textOrNull(record.id);
+  }
+  return null;
 }
 
 /**
@@ -106,7 +154,7 @@ export function normalizeSourcePlayer(raw: RawSourcePlayer): NormalizedSourcePla
     sourceId: String(raw.id),
     fullName,
     normalizedName: normalizeName(fullName),
-    birthdate: isoDateOrNull(raw.birthdate),
+    birthdate: birthdateOrNull(raw.birthdate),
     team: textOrNull(raw.team?.label),
     listedPosition: textOrNull(raw.position?.shortLabel),
     archetype: textOrNull(raw.archetype?.label),
@@ -117,13 +165,14 @@ export function normalizeSourcePlayer(raw: RawSourcePlayer): NormalizedSourcePla
       jerseyNumber: raw.jerseyNum ?? null,
       yearsPro: raw.yearsPro ?? null,
       college: textOrNull(raw.college),
-      handedness: textOrNull(raw.handedness),
+      handedness: handednessOrNull(raw.handedness),
     },
     ratings,
     abilities: raw.playerAbilities ?? [],
     provenance: {
       source: SOURCE_NAME,
-      iteration: textOrNull(raw.iteration),
+      iteration: iterationOrNull(raw.iteration),
+      birthdateRaw: textOrNull(raw.birthdate),
       avatarUrl: textOrNull(raw.avatarUrl),
     },
   };

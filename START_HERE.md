@@ -52,6 +52,7 @@ Phase packet launch prompts intentionally start the first checkpoint only. A new
 - **C0B/C1A independent review**: delivered and dispositioned — [report](docs/reviews/C0B-C1A-independent-review.md), [lane record](docs/checkpoints/C0B-C1A-REVIEW.md).
 - **C1B**: closed — owner accepted (D123) on the merged, browser-verified base `b0e57ce` (PRs #13–#16; verification per D122). Migrations `0001`–`0005` and the allowlist row are applied to the live project; `0006` (source import) is the owner's remaining apply step.
 - **C2A**: **active — in progress** from `b0e57ce`, with provisional/configurable game rules until the D113 depth-chart matrix lands (D123).
+- **C2A import fix + franchise delete (lane)**: code checks passed — the Launch-ratings import crash is repaired and verified against the live project (revision `ea-madden-27 · 1-base`, 3,111 records, idempotent re-run), a post-C2A feature sweep was run, and D124 adds the owner-requested delete control for accidental franchises. Owner's remaining step: apply `0008_franchise_delete.sql`, then delete the two test franchises. See [record](docs/checkpoints/C2A-IMPORT-DELETE-FIX.md).
 
 No phase is marked complete because documentation describes it. Accepted C0A exceptions (depth-chart matrix, representative Falcons mappings, stock-book inventory, alternate-source contingency) remain an evidence supplement; the depth-chart matrix is required for C2A's **verified-ordering exit** and the rest before C3A/C3B; special teams are deferred to C3B with an owner gate (D114).
 
