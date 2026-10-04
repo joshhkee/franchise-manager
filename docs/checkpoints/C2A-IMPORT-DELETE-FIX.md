@@ -2,13 +2,15 @@
 
 ## Status
 
-- State: checks passed; owner acceptance and two owner steps remain (apply `0008`, then delete the test franchises).
+- State: complete — checks passed, pushed, PR open; `0008` applied to the live project and the live delete round trip verified.
 - Updated by: Freebuff fix thread (this lane), 2026-10-04.
 - Workspace root/branch: this thread's Freebuff worktree; branch
   `freebuff/fix-the-c2a-import-bug-unable-to-import-launch-rat-b5866ff2-…`.
 - Verified PR target: `main`; started from merged base `0cad8f5` (C2A + autosave fix merged).
-- Remote mergeability/deploy/migration: not applicable to this lane yet; no push or PR was made.
-- Production migration status: `0006` applied (import works), `0007` already applied; **`0008_franchise_delete.sql` is not yet applied.**
+- Remote mergeability/deploy/migration: commit `88e4112` pushed to the branch; PR #19 open, MERGEABLE/CLEAN;
+  Vercel and the GitHub Actions `checks` job all pass.
+- Production migration status: `0006` applied (import works), `0007` already applied,
+  **`0008_franchise_delete.sql` applied 2026-10-04** via the Supabase SQL editor.
 
 ## Scope and authority
 
@@ -96,56 +98,59 @@ Findings recorded, not silently changed:
 | Stored data quality | live project read-back | pass — 0 null birthdates; handedness 3,045 Right / 66 Left / 0 absent; raw birthdate kept in provenance |
 | Feature sweep | preview, desktop 1440×900 and phone 390×844 | pass — see §2; console/network clean |
 | Delete UI (pre-migration) | preview | pass — control absent on default; exact-name gate enforced; submit reports "apply migration 0008…" and nothing is deleted |
+| Delete round trip (live) | preview, live project after applying `0008` | pass — both test franchises deleted through the UI; app fell back to default; final live state only the default Atlanta Falcons (rev 11) + the intact source revision |
+| Post-delete data probe | live project read-back | pass — 0 franchise players, 0 depth-chart entries, source revision `ea-madden-27 / 1-base` (3,111 records) untouched |
 
-- Checks NOT run: iOS/Safari device runs (C5B), verified depth-chart ordering (D113 supplement), and the
-  live delete round trip (blocked on the owner applying `0008`).
+- Checks NOT run: iOS/Safari device runs (C5B) and the verified depth-chart ordering supplement (D113).
 
 ## Owner manual acceptance
 
-1. Apply `0008_franchise_delete.sql` in the Supabase SQL editor (once, after `0006`/`0007`).
+Steps 1–2 were exercised directly by the owner during the live verification below; steps 3–4 remain
+available as the scripted checks.
+
+1. ~~Apply `0008_franchise_delete.sql` in the Supabase SQL editor~~ — done 2026-10-04.
 2. Open **Franchises**; the default Atlanta Falcons has no delete control. On a non-default franchise,
    *Delete…* → type the name → **Delete permanently** deletes it and its players/plans.
 3. Wrong typed name leaves the button disabled; the default franchise is refused by the database even if
    the request is replayed manually.
 4. After deleting the active franchise, the app falls back to the default.
 
+Live round trip (owner applied the migration, this lane verified): deleting the active
+"Feature sweep verification" franchise removed its players and plans and the app fell back to the default
+Falcons; the second test franchise was then deleted as well.
+
 ## Database/environment
 
 - Live project `xueymrywpvegslbkdnpf`; no secrets are recorded here.
-- `0008_franchise_delete.sql` — forward-only, apply once in order after `0007`, then verify the
-  delete round trip in the UI.
-- Test data awaiting owner cleanup (the new delete control is the intended path): the accidental
-  non-default franchise the owner created earlier was **renamed to "Feature sweep verification"** during
-  the rename test (revision 20, 3 custom players, HB plan pending), and the restore test created a second
-  "Feature sweep verification" (revision 0, 3 players). Both are safe to delete once `0008` is applied.
+- `0008_franchise_delete.sql` — forward-only, applied once in order after `0007`; delete round trip
+  verified live.
+- Test data cleanup complete: both "Feature sweep verification" franchises (revision 20 with 3 custom
+  players and a pending HB plan; revision 0 with 3 players) were deleted through the new UI. Final live
+  state: only the default Atlanta Falcons (rev 11, 0 players) remains; franchise players and depth-chart
+  entries are both 0.
 - The imported `ea-madden-27 / 1-base` revision (3,111 records) is intended data and is left in place;
   it is immutable by design.
 
 ## Open items
 
-- Blockers: none for code; owner applies `0008` for the live delete round trip.
+- Blockers: none. `0008` is applied; the live delete round trip and cleanup are done.
 - Gaps: source-player attachment UI (above); D113 verified-ordering supplement still pending (C2A exit).
 - Deferred: C2B confirmation/checklist semantics; formation screens (C3).
 
 ## Next steps (owner flow)
 
-1. Apply `0008_franchise_delete.sql` — owner: you; Supabase SQL editor; **OWNER CHECK:** confirm the
-   command applies cleanly before trying the UI.
-2. Delete both "Feature sweep verification" franchises — owner: you; Franchises page; **OWNER CHECK:**
-   confirm the first delete removes players and depth-chart plans, and that the default franchise has no
-   delete control.
-3. Decide whether the catalog-attachment lane runs next — owner: you; the next thread implements a
+1. Merge PR #19 when ready — owner: you; the branch is pushed and mergeable; the GitHub Actions `checks`
+   job should be confirmed green first.
+2. Decide whether the catalog-attachment lane runs next — owner: you; the next thread implements a
    roster → imported-catalog attach flow with eligibility/unknown handling.
-4. Walk the manual acceptance script in §Owner manual acceptance when convenient.
-
-Immediate next step: **apply migration `0008`, then delete the two test franchises.**
+3. Walk steps 3–4 of the manual acceptance script in §Owner manual acceptance when convenient.
 
 ## Next thread — pasteable launch
 
 - Exact next checkpoint: source-catalog **attachment UI** (C1B/C2A follow-up) — attach a record from the
   imported `ea-madden-27` revision to the active franchise, with duplicate/identity refusal and unknown
   handling; then C2B from the merged base.
-- Required merged baseline: this lane's commit on `main` plus applied `0008`.
+- Required merged baseline: this lane's commit on `main` (PR #19) plus applied `0008` (done).
 - Files/docs to read first: this record, `C0B-v2` §2, [C1B](C1B.md), [C2A](C2A.md), ACCEPTANCE A38.
 - Things NOT to change: source immutability, reconciliation keys, provisional depth-chart labels,
   archive/resume semantics.
