@@ -3,6 +3,7 @@ import { AutosaveScope } from "./autosave/autosave-provider";
 import { CatalogAttachPanel } from "./catalog-attach-panel";
 import { EmptyState } from "./empty-state";
 import { PlayerFieldEditor } from "./player-field-editor";
+import { matchTeamOption } from "../lib/catalog";
 import type { CatalogAttachContext } from "../lib/data/catalog";
 import type { FranchisePlayer, FranchiseSummary, Loaded, PlayerField } from "../lib/data/franchises";
 
@@ -48,6 +49,19 @@ export function RosterPanel({
   fields: Loaded<PlayerField[]>;
   catalog: Loaded<CatalogAttachContext | null>;
 }) {
+  const catalogData = catalog.ok ? catalog.data : null;
+  const matchedTeam = catalogData
+    ? matchTeamOption(
+        franchise.name,
+        catalogData.teams.map((team) => team.team),
+      )
+    : null;
+  const emptyDetail = matchedTeam
+    ? `This franchise matches ${matchedTeam}, so its published roster attaches automatically above — or attach a different team, or add a custom player. Importing the catalog alone does not put players on a roster; the automatic attach is the per-franchise step.`
+    : catalogData
+      ? "No published team matches this franchise's name, so nothing attaches automatically. Pick the team to attach above, or add a custom player. Importing the catalog alone does not put players on a roster; attaching a team is the per-franchise step."
+      : "Once a catalog revision is imported, attach a published team roster above, or add a custom player. Importing the catalog alone does not put players on a roster; attaching a team is the per-franchise step.";
+
   if (!players.ok || !fields.ok) {
     return (
       <EmptyState
@@ -92,7 +106,7 @@ export function RosterPanel({
         {players.data.length === 0 ? (
           <EmptyState
             title="No players in this franchise yet"
-            detail="The published roster for this franchise's team attaches automatically above — or attach a different team, or add a custom player. Importing the catalog alone does not put players on a roster; the automatic attach is the per-franchise step."
+            detail={emptyDetail}
             hint="Unknown contract and attribute values stay visibly unknown; nothing is invented."
           />
         ) : (

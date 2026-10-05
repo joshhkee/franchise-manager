@@ -79,6 +79,12 @@ Live browser pass detail for D126 (temporary franchise "Seattle Seahawks", since
 4. Second click → "Nothing to generate: every primary position with eligible players already has a planned list." Revision stayed 2 — no rewrite, no bump.
 5. Cleanup: deleted "Seattle Seahawks" through the D124 exact-name control (typed name, Delete permanently); read-back shows only the default Atlanta Falcons (rev 14 / 60 players) and no chart rows for the deleted franchise.
 
+Post-merge full-feature audit (2026-10-05, temporary franchise "C2A Audit", since deleted):
+
+1. Every C2A surface was exercised against the live project: provisional labels; planned/recorded layers; suggest; seed; move up/down and drag-and-drop; add/replace/search; removed-panel and keep-in-plan; record-as-already-happened; discard; practice-squad separation and both-way correction; max-rank enforcement; manual slots; cross-position eligibility; generate-all (both runs); auto-attach skip for a non-matching name; manual attach; duplicate refusal; free-agent attach; stale-device conflict plus retry/discard; revision adoption after reload; Overview counts; backup export carrying both chart layers. Messages and counts matched this record throughout.
+2. **Bug found and fixed:** the roster and depth-chart empty states promised the automatic attach unconditionally, so a franchise whose name matches no published team (correctly skipped by the auto-attach guard) saw copy claiming an attach that never ran. `components/roster-panel.tsx` now computes the match with `matchTeamOption` and states the honest case per situation (matched / no published match / no revision imported); `components/depth-chart-panel.tsx` now qualifies the automatic attach. Regression tests added to `tests/catalog-attach-ui.test.tsx` (3 new; 178 total).
+3. Cleanup: deleted "C2A Audit" through the D124 exact-name control; read-back shows only the default Atlanta Falcons (rev 28 / 60 players), 60 player rows, and no temporary franchises.
+
 ## Owner manual acceptance
 
 1. Preconditions: signed in as the allowlisted owner; catalog revision imported (already true: `ea-madden-27 · 1-base`).

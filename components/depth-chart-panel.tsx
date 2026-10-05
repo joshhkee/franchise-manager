@@ -630,7 +630,7 @@ export function DepthChartPanel({
       <div className="space-y-3">
         <EmptyState
           title="No players to chart yet"
-          detail="The depth chart works from this franchise's players. Open GM War Room → Roster and the published roster for your team attaches automatically; a different team or custom players can be attached there too. Importing the catalog alone does not put players on a roster."
+          detail="The depth chart works from this franchise's players. Open GM War Room → Roster to attach a published team roster or add custom players — a franchise whose name matches a published team attaches its roster automatically. Importing the catalog alone does not put players on a roster."
           hint="Nothing is invented: an empty roster stays visibly empty."
         />
         <Link
