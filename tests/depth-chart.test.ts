@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   POSITIONS,
+  buildProvisionalGeneration,
   diffPosition,
   eligibilityFor,
   listIssues,
@@ -111,6 +112,39 @@ describe("pending differences", () => {
     expect(replaced.removed).toEqual(["p2"]);
 
     expect(diffPosition(a, a).changed).toBe(false);
+  });
+
+  it("plans one-shot generation for empty non-manual positions and never manual slots", () => {
+    const players = [
+      player({ id: "qb1", fullName: "QB One", primaryPosition: "QB", overall: 82 }),
+      player({ id: "qb2", fullName: "QB Two", primaryPosition: "QB", overall: 70 }),
+      player({ id: "wr1", fullName: "WR One", primaryPosition: "WR", overall: 88 }),
+    ];
+    const generation = buildProvisionalGeneration(players, {});
+
+    expect(generation.plans).toEqual(
+      expect.arrayContaining([
+        { position: "QB", playerIds: ["qb1", "qb2"] },
+        { position: "WR", playerIds: ["wr1"] },
+      ]),
+    );
+    // Manual slots (3DRB, PR, …) are never generated.
+    expect(generation.plans.map((plan) => plan.position)).not.toContain("3DRB");
+    expect(generation.plans.map((plan) => plan.position)).not.toContain("PR");
+    // Positions with no eligible players are reported, not silently dropped.
+    expect(generation.noEligiblePlayers).toEqual(expect.arrayContaining(["FB", "TE", "HB"]));
+  });
+
+  it("leaves positions that already have a plan untouched on a second run", () => {
+    const players = [
+      player({ id: "qb1", fullName: "QB One", primaryPosition: "QB", overall: 82 }),
+      player({ id: "wr1", fullName: "WR One", primaryPosition: "WR", overall: 88 }),
+    ];
+    const generation = buildProvisionalGeneration(players, { QB: ["qb1"], RB: ["someone"] });
+
+    expect(generation.plans.map((plan) => plan.position)).not.toContain("QB");
+    expect(generation.alreadyPlanned).toContain("QB");
+    expect(generation.plans).toContainEqual({ position: "WR", playerIds: ["wr1"] });
   });
 
   it("reports eligibility issues for a whole list in order", () => {

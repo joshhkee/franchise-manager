@@ -58,7 +58,7 @@ async function DepthView() {
     return (
       <EmptyState
         title="No franchise yet"
-        detail="The depth chart plans against one franchise's players. Create a franchise first; the first one defaults to the Atlanta club."
+        detail="The depth chart plans against one franchise's players. Create a franchise first; the first one defaults to the Atlanta team."
         hint="Nothing is invented: an empty franchise stays visibly empty."
       />
     );

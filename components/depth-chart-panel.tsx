@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   discardDepthChartPlan,
+  generateDepthChart,
   recordDepthChartBaseline,
   recordRosterStatus,
   saveDepthChartPlan,
@@ -12,6 +14,7 @@ import {
   DEPTH_CHART_RULES_LABEL,
   POSITION_GROUPS,
   SUGGESTION_LABEL,
+  buildProvisionalGeneration,
   diffPosition,
   eligibilityFor,
   maxRankFor,
@@ -89,6 +92,11 @@ function playerLine(player: ChartPlayer): string {
   return `${overall} ${position}`;
 }
 
+function summarizePositions(positions: string[]): string {
+  if (positions.length <= 6) return positions.join(", ");
+  return `${positions.slice(0, 6).join(", ")} and ${positions.length - 6} more`;
+}
+
 export function DepthChartPanel({
   franchise,
   data,
@@ -127,6 +135,9 @@ export function DepthChartPanel({
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, RosterStatus>>({});
   const [busy, setBusy] = useState(false);
+  const [generateStatus, setGenerateStatus] = useState<{ status: AutosaveStatus; message: string } | null>(
+    null,
+  );
   const dragIndexRef = useRef<number | null>(null);
 
   const players = useMemo(
@@ -475,6 +486,114 @@ export function DepthChartPanel({
     [franchise.id, getRevision, runExplicit, selectedPosition],
   );
 
+  const generateAll = useCallback(() => {
+    const plansByPosition: Record<string, readonly string[]> = {};
+    for (const [key, value] of Object.entries(listsRef.current)) plansByPosition[key] = value.plan;
+    const generation = buildProvisionalGeneration(players, plansByPosition);
+
+    if (generation.plans.length === 0) {
+      const parts: string[] = [];
+      if (generation.alreadyPlanned.length > 0) {
+        parts.push(`every primary position with eligible players already has a planned list`);
+      }
+      if (generation.noEligiblePlayers.length > 0) {
+        parts.push(
+          `no eligible players under the provisional rules for ${summarizePositions(generation.noEligiblePlayers)}`,
+        );
+      }
+      setGenerateStatus({
+        status: "idle",
+        message:
+          parts.length > 0
+            ? `Nothing to generate: ${parts.join("; ")}.`
+            : "Nothing to generate: there are no primary positions to fill.",
+      });
+      return;
+    }
+
+    const run = async () => {
+      setBusy(true);
+      setGenerateStatus({
+        status: "saving",
+        message: `Generating provisional lists for ${generation.plans.length} positions\u2026`,
+      });
+      try {
+        const result = await runSerialized(() =>
+          generateDepthChart({
+            franchiseId: franchise.id,
+            plans: generation.plans,
+            expectedRevision: getRevision(),
+            requestId: newId(),
+          }),
+        );
+
+        if (result.outcome === "saved") {
+          const returned = result.plans ?? [];
+          setLists((prev) => {
+            const next = { ...prev };
+            for (const plan of returned) {
+              const current = next[plan.position] ?? emptyList();
+              next[plan.position] = plan.baselineSeeded
+                ? {
+                    baseline: [...plan.playerIds],
+                    plan: [...plan.playerIds],
+                    verification: "provisional_published",
+                  }
+                : { ...current, plan: [...plan.playerIds] };
+            }
+            return next;
+          });
+          for (const plan of returned) {
+            savedPlanRef.current[plan.position] = [...plan.playerIds];
+            clear(`depth:${plan.position}`);
+          }
+          if (typeof result.revision === "number") setRevision(result.revision);
+
+          const written = returned.filter((plan) => !plan.noop);
+          const seeded = written.filter((plan) => plan.baselineSeeded);
+          const untouched = generation.alreadyPlanned.length + generation.noEligiblePlayers.length;
+          const summaryParts: string[] = [
+            written.length > 0
+              ? `Generated provisional lists for ${written.length} position${written.length === 1 ? "" : "s"}`
+              : "Nothing changed; every requested position already matched its recorded list",
+          ];
+          if (seeded.length > 0) summaryParts.push(`${seeded.length} seeded as an unverified baseline`);
+          if (untouched > 0) {
+            summaryParts.push(`${untouched} position${untouched === 1 ? "" : "s"} left untouched`);
+          }
+          setGenerateStatus({ status: "saved", message: `${summaryParts.join(" \u2014 ")}.` });
+          return;
+        }
+
+        const failedStatus: AutosaveStatus = result.outcome === "conflict" ? "conflict" : "failed";
+        setGenerateStatus({ status: failedStatus, message: result.message });
+        report({
+          id: "depth-action:generate",
+          label: "Depth chart \u2014 all positions",
+          status: failedStatus,
+          message: result.message,
+          retry: run,
+          discard: () => {
+            clear("depth-action:generate");
+            setGenerateStatus(null);
+          },
+          focus: () => {},
+        });
+      } finally {
+        setBusy(false);
+      }
+    };
+    void run();
+  }, [
+    clear,
+    franchise.id,
+    getRevision,
+    players,
+    report,
+    runSerialized,
+    setRevision,
+  ]);
+
   const position = selectedPosition;
   const spec = positionSpec(position);
   const list = lists[position] ?? emptyList();
@@ -508,11 +627,19 @@ export function DepthChartPanel({
 
   if (players.length === 0) {
     return (
-      <EmptyState
-        title="No players to chart yet"
-        detail="The depth chart works from this franchise's players. Add custom players or attach source-backed players from the imported catalog first."
-        hint="Nothing is invented: an empty roster stays visibly empty."
-      />
+      <div className="space-y-3">
+        <EmptyState
+          title="No players to chart yet"
+          detail="The depth chart works from this franchise's players. Open GM War Room → Roster and the published roster for your team attaches automatically; a different team or custom players can be attached there too. Importing the catalog alone does not put players on a roster."
+          hint="Nothing is invented: an empty roster stays visibly empty."
+        />
+        <Link
+          href="/gm?view=roster"
+          className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-4 text-sm font-medium"
+        >
+          Open GM Roster
+        </Link>
+      </div>
     );
   }
 
@@ -528,6 +655,37 @@ export function DepthChartPanel({
         <p className="mt-1 max-w-prose text-xs text-ink-muted">
           <span className="font-medium text-ink">{DEPTH_CHART_RULES_LABEL}.</span> {DEPTH_CHART_RULES_DETAIL}
         </p>
+
+        <div className="mt-3 rounded-md border border-line bg-background p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={generateAll}
+              disabled={busy}
+              className="min-h-11 rounded-md border border-line bg-surface px-4 text-sm font-medium disabled:opacity-60"
+            >
+              Generate all positions (provisional)
+            </button>
+            <p className="max-w-prose text-xs text-ink-muted">
+              One action fills every primary position that has no planned list yet, using the provisional
+              suggestion order. Positions you already planned are left alone; secondary/specialist slots stay
+              manual.
+            </p>
+          </div>
+          {generateStatus ? (
+            <p
+              role="status"
+              aria-live="polite"
+              className={`mt-2 text-xs ${
+                generateStatus.status === "failed" || generateStatus.status === "conflict"
+                  ? "text-ink"
+                  : "text-ink-muted"
+              }`}
+            >
+              {generateStatus.message}
+            </p>
+          ) : null}
+        </div>
 
         <div className="mt-3 flex flex-wrap gap-2" role="tablist" aria-label="Position groups">
           {POSITION_GROUPS.map((group) => (

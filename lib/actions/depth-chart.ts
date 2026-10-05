@@ -30,6 +30,23 @@ export interface RosterStatusResult {
   status?: "active" | "practice_squad";
 }
 
+export interface GeneratedPositionPlan {
+  position: string;
+  playerIds: string[];
+  /** True when this call seeded a provisional baseline because none existed. */
+  baselineSeeded: boolean;
+  /** True when the recorded list already matched the request. */
+  noop: boolean;
+}
+
+export interface DepthChartGenerateResult {
+  outcome: AutosaveOutcome;
+  message: string;
+  revision?: number;
+  plans?: GeneratedPositionPlan[];
+  wrote?: boolean;
+}
+
 function revalidateDepthChart(): void {
   for (const path of ["/lineups", "/", "/franchises"]) revalidatePath(path);
 }
@@ -169,6 +186,70 @@ export async function discardDepthChartPlan(input: {
     message: "Pending changes for this position were discarded; the list matches its baseline again.",
     revision: await currentRevision(input.franchiseId),
     playerIds: [],
+  };
+}
+
+/**
+ * Generate provisional lists for many positions in one atomic request (D126).
+ * Positions without a recorded baseline get a seeded provisional baseline;
+ * positions with one get a plan only when it differs; positions that already
+ * match are left untouched. Either every position applies or none does.
+ */
+export async function generateDepthChart(input: {
+  franchiseId: string;
+  plans: { position: string; playerIds: string[] }[];
+  expectedRevision: number;
+  requestId: string;
+}): Promise<DepthChartGenerateResult> {
+  if (input.plans.length === 0) {
+    return { outcome: "failed", message: "There are no positions to generate." };
+  }
+  if (input.plans.length > 40) {
+    return { outcome: "failed", message: "At most 40 positions can be generated in one action." };
+  }
+  const positions = new Set<string>();
+  for (const plan of input.plans) {
+    if (positions.has(plan.position)) {
+      return { outcome: "failed", message: `The same position (${plan.position}) appears twice.` };
+    }
+    positions.add(plan.position);
+    const problem = validateList(plan.position, plan.playerIds);
+    if (problem) return { outcome: "failed", message: problem };
+  }
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc("generate_depth_chart", {
+    p_franchise_id: input.franchiseId,
+    p_plans: input.plans,
+    p_expected_revision: input.expectedRevision,
+    p_request_id: input.requestId,
+  });
+
+  if (error) {
+    const outcome = classifyOutcome(error);
+    const detail =
+      outcome === "failed" ? `${AUTOSAVE_MESSAGES.failed} (${error.message})` : AUTOSAVE_MESSAGES[outcome];
+    return { outcome, message: detail };
+  }
+
+  revalidateDepthChart();
+  const row = (data ?? null) as { plans?: GeneratedPositionPlan[]; wrote?: boolean } | null;
+  const plans: GeneratedPositionPlan[] =
+    row?.plans ?? input.plans.map((plan) => ({ ...plan, baselineSeeded: false, noop: false }));
+  const wrote = row?.wrote ?? plans.some((plan) => !plan.noop);
+  const generated = plans.filter((plan) => !plan.noop).length;
+  const seeded = plans.filter((plan) => plan.baselineSeeded).length;
+
+  return {
+    outcome: "saved",
+    message: wrote
+      ? `Generated provisional lists for ${generated} position${generated === 1 ? "" : "s"}${
+          seeded > 0 ? `; ${seeded} seeded as an unverified baseline` : ""
+        }.`
+      : "Nothing was written: every requested position already matched its recorded list.",
+    revision: await currentRevision(input.franchiseId),
+    plans,
+    wrote,
   };
 }
 
