@@ -25,7 +25,7 @@ export default async function FranchisesPage() {
           {result.data.summaries.length === 0 ? (
             <EmptyState
               title="No franchise yet"
-              detail="The first franchise defaults to the Atlanta club. Archived franchises stay readable but are not planned against until resumed."
+              detail="The first franchise defaults to the Atlanta team. Archived franchises stay readable but are not planned against until resumed."
             />
           ) : (
             <FranchiseManager

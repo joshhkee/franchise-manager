@@ -1,7 +1,9 @@
 import { AddCustomPlayerForm } from "./add-custom-player-form";
 import { AutosaveScope } from "./autosave/autosave-provider";
+import { CatalogAttachPanel } from "./catalog-attach-panel";
 import { EmptyState } from "./empty-state";
 import { PlayerFieldEditor } from "./player-field-editor";
+import type { CatalogAttachContext } from "../lib/data/catalog";
 import type { FranchisePlayer, FranchiseSummary, Loaded, PlayerField } from "../lib/data/franchises";
 
 function unknown(value: string | null): string {
@@ -39,10 +41,12 @@ export function RosterPanel({
   franchise,
   players,
   fields,
+  catalog,
 }: {
   franchise: FranchiseSummary;
   players: Loaded<FranchisePlayer[]>;
   fields: Loaded<PlayerField[]>;
+  catalog: Loaded<CatalogAttachContext | null>;
 }) {
   if (!players.ok || !fields.ok) {
     return (
@@ -59,6 +63,13 @@ export function RosterPanel({
   return (
     <AutosaveScope franchiseId={franchise.id} revision={franchise.revision}>
       <div className="space-y-4">
+        <CatalogAttachPanel
+          franchiseId={franchise.id}
+          franchiseName={franchise.name}
+          revision={franchise.revision}
+          catalog={catalog}
+        />
+
         <section className="rounded-lg border border-line bg-surface p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold">{franchise.name} roster</h2>
@@ -81,7 +92,7 @@ export function RosterPanel({
         {players.data.length === 0 ? (
           <EmptyState
             title="No players in this franchise yet"
-            detail="Add a custom player above. Source-backed players are attached once a source revision is imported into the catalog."
+            detail="The published roster for this franchise's team attaches automatically above — or attach a different team, or add a custom player. Importing the catalog alone does not put players on a roster; the automatic attach is the per-franchise step."
             hint="Unknown contract and attribute values stay visibly unknown; nothing is invented."
           />
         ) : (

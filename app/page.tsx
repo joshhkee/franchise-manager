@@ -32,7 +32,7 @@ export default async function OverviewPage() {
           <h2 className="text-sm font-semibold">No franchise yet</h2>
           <p className="mt-1 max-w-prose text-sm text-ink-muted">
             Create your franchise to start storing roster and planning state. The first franchise
-            defaults to the Atlanta club.
+            defaults to the Atlanta team.
           </p>
           <CreateFranchiseForm />
         </section>

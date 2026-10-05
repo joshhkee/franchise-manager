@@ -221,6 +221,53 @@ export function suggestProvisionalOrder(
     .map((player) => player.id);
 }
 
+export interface ProvisionalPlan {
+  position: string;
+  playerIds: string[];
+}
+
+export interface ProvisionalGeneration {
+  /** Positions to write together in one atomic request. */
+  plans: ProvisionalPlan[];
+  /** Non-manual positions that already have a plan; a second run leaves them untouched. */
+  alreadyPlanned: string[];
+  /** Non-manual positions with no eligible players under the provisional rules. */
+  noEligiblePlayers: string[];
+}
+
+/**
+ * Plan the one-shot provisional generation (D126): every non-manual position
+ * with an empty planned list gets its suggested order. Positions that already
+ * have a plan are left untouched, so a second run never overwrites owner edits;
+ * manual secondary/specialist slots are never generated (D107).
+ */
+export function buildProvisionalGeneration(
+  players: ChartPlayer[],
+  plansByPosition: Record<string, readonly string[]>,
+): ProvisionalGeneration {
+  const generation: ProvisionalGeneration = {
+    plans: [],
+    alreadyPlanned: [],
+    noEligiblePlayers: [],
+  };
+
+  for (const spec of POSITIONS) {
+    if (spec.manual) continue;
+    if ((plansByPosition[spec.key] ?? []).length > 0) {
+      generation.alreadyPlanned.push(spec.key);
+      continue;
+    }
+    const playerIds = suggestProvisionalOrder(players, spec.key);
+    if (playerIds.length === 0) {
+      generation.noEligiblePlayers.push(spec.key);
+      continue;
+    }
+    generation.plans.push({ position: spec.key, playerIds });
+  }
+
+  return generation;
+}
+
 export interface PositionDiff {
   changed: boolean;
   added: string[];

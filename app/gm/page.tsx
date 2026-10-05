@@ -5,6 +5,7 @@ import { PageHeader } from "../../components/page-header";
 import { RosterPanel } from "../../components/roster-panel";
 import { Tabs } from "../../components/tabs";
 import { loadFranchiseContext } from "../../lib/data/current";
+import { loadCatalogAttach } from "../../lib/data/catalog";
 import { listFranchisePlayers, listPlayerFields } from "../../lib/data/franchises";
 import { gmTabs } from "../../lib/tabs";
 
@@ -31,16 +32,19 @@ export default async function GmPage({ searchParams }: { searchParams: Promise<S
         <EmptyState
           title="No franchise yet"
           detail="Create your franchise on the Overview page, then this roster stores real player and field state."
-          hint="The first franchise defaults to the Atlanta club."
+          hint="The first franchise defaults to the Atlanta team."
         />
       );
     } else {
       const franchise = context.data.current;
-      const [players, fields] = await Promise.all([
+      const [players, fields, catalog] = await Promise.all([
         listFranchisePlayers(franchise.id),
         listPlayerFields(franchise.id),
+        loadCatalogAttach(franchise.id),
       ]);
-      roster = <RosterPanel franchise={franchise} players={players} fields={fields} />;
+      roster = (
+        <RosterPanel franchise={franchise} players={players} fields={fields} catalog={catalog} />
+      );
     }
   }
 

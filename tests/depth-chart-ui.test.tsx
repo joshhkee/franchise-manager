@@ -6,6 +6,7 @@ const harness = vi.hoisted(() => ({
   recordBaseline: vi.fn(),
   discardPlan: vi.fn(),
   rosterStatus: vi.fn(),
+  generate: vi.fn(),
   push: vi.fn(),
 }));
 
@@ -14,6 +15,7 @@ vi.mock("../lib/actions/depth-chart", () => ({
   recordDepthChartBaseline: harness.recordBaseline,
   discardDepthChartPlan: harness.discardPlan,
   recordRosterStatus: harness.rosterStatus,
+  generateDepthChart: harness.generate,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -30,16 +32,18 @@ const data: DepthChartData = {
     { id: "p2", fullName: "Bravo Back", rosterStatus: "active", primaryPosition: "QB", overall: 70 },
     { id: "p3", fullName: "Wrong Position", rosterStatus: "active", primaryPosition: "WR", overall: 90 },
     { id: "p4", fullName: "Squad Guy", rosterStatus: "practice_squad", primaryPosition: "QB", overall: 75 },
+    { id: "p5", fullName: "Hotel Back", rosterStatus: "active", primaryPosition: "HB", overall: 85 },
+    { id: "p6", fullName: "Kicker Guy", rosterStatus: "active", primaryPosition: "K", overall: 79 },
   ],
   entries: [
     { position: "QB", layer: "baseline", rank: 1, playerId: "p1", verification: "provisional_published" },
   ],
 };
 
-function renderPanel() {
+function renderPanel(panelData: DepthChartData = data) {
   render(
     <AutosaveProvider franchiseId="f1" initialRevision={3}>
-      <DepthChartPanel franchise={{ id: "f1", name: "Test club", revision: 3 }} data={data} />
+      <DepthChartPanel franchise={{ id: "f1", name: "Test franchise", revision: 3 }} data={panelData} />
     </AutosaveProvider>,
   );
 }
@@ -55,6 +59,7 @@ beforeEach(() => {
   harness.recordBaseline.mockReset();
   harness.discardPlan.mockReset();
   harness.rosterStatus.mockReset();
+  harness.generate.mockReset();
   harness.push.mockReset();
   harness.savePlan.mockImplementation(
     async (input: { playerIds: string[] }) => ({
@@ -196,5 +201,104 @@ describe("depth chart planning", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Specialists" }));
     fireEvent.click(screen.getByRole("button", { name: /^PR/ }));
     expect(screen.queryByRole("button", { name: "Suggest order (provisional)" })).not.toBeInTheDocument();
+  });
+});
+
+describe("generate all positions", () => {
+  function mockSeededGeneration() {
+    harness.generate.mockImplementation(
+      async (input: { plans: { position: string; playerIds: string[] }[] }) => ({
+        outcome: "saved" as const,
+        message: "Generated provisional lists for 3 positions; 3 seeded as an unverified baseline.",
+        revision: 4,
+        plans: input.plans.map((plan) => ({ ...plan, baselineSeeded: true, noop: false })),
+        wrote: true,
+      }),
+    );
+  }
+
+  const generateButton = () => screen.getByRole("button", { name: "Generate all positions (provisional)" });
+
+  it("fills every open position in one request and shows the seeded lists", async () => {
+    mockSeededGeneration();
+    renderPanel();
+
+    fireEvent.click(generateButton());
+
+    await waitFor(() => expect(harness.generate).toHaveBeenCalledTimes(1));
+    expect(harness.generate.mock.calls[0][0]).toMatchObject({
+      franchiseId: "f1",
+      expectedRevision: 3,
+      plans: [
+        { position: "HB", playerIds: ["p5"] },
+        { position: "WR", playerIds: ["p3"] },
+        { position: "K", playerIds: ["p6"] },
+      ],
+    });
+    expect(typeof harness.generate.mock.calls[0][0].requestId).toBe("string");
+    await waitFor(() =>
+      expect(screen.getByText(/Generated provisional lists for 3 positions/)).toBeInTheDocument(),
+    );
+
+    // The generated list lands in the panel immediately, with no extra save call.
+    fireEvent.click(screen.getByRole("button", { name: /^WR/ }));
+    expect(screen.getByText("Wrong Position")).toBeInTheDocument();
+    expect(harness.savePlan).not.toHaveBeenCalled();
+  });
+
+  it("leaves already planned positions alone on a second run", async () => {
+    mockSeededGeneration();
+    renderPanel();
+
+    fireEvent.click(generateButton());
+    await waitFor(() =>
+      expect(screen.getByText(/Generated provisional lists for 3 positions/)).toBeInTheDocument(),
+    );
+
+    fireEvent.click(generateButton());
+    expect(harness.generate).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Nothing to generate: every primary position with eligible players already has a planned list/),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("reports a failed multi-position generation without pretending anything was saved", async () => {
+    harness.generate.mockResolvedValue({
+      outcome: "conflict",
+      message:
+        "This franchise changed since this page loaded, so nothing was written. Your input is kept here — reload to see the latest revision, then retry.",
+    });
+    renderPanel();
+
+    fireEvent.click(generateButton());
+    await waitFor(() =>
+      expect(screen.getByText(/This franchise changed since this page loaded/)).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^WR/ }));
+    expect(screen.getByText(/This plan list is empty/)).toBeInTheDocument();
+  });
+
+  it("says so honestly when no primary position has an eligible player", async () => {
+    renderPanel({
+      players: [
+        {
+          id: "p4",
+          fullName: "Squad Guy",
+          rosterStatus: "practice_squad",
+          primaryPosition: "QB",
+          overall: 75,
+        },
+      ],
+      entries: [],
+    });
+
+    fireEvent.click(generateButton());
+    expect(harness.generate).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByText(/Nothing to generate: no eligible players/)).toBeInTheDocument(),
+    );
   });
 });
