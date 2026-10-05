@@ -18,7 +18,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: harness.refresh }),
 }));
 
+vi.mock("../lib/actions/franchises", () => ({
+  addCustomPlayer: vi.fn(),
+}));
+
 import { CatalogAttachPanel } from "../components/catalog-attach-panel";
+import { RosterPanel } from "../components/roster-panel";
 import type { CatalogAttachContext } from "../lib/data/catalog";
 
 const context: CatalogAttachContext = {
@@ -215,5 +220,51 @@ describe("catalog attach panel", () => {
   it("reports unapplied migration storage instead of pretending", () => {
     renderPanel({ ok: false, message: "Migration 0009_catalog_attach.sql must be applied by the owner." });
     expect(screen.getByText(/Migration 0009_catalog_attach.sql must be applied/)).toBeInTheDocument();
+  });
+});
+
+describe("roster empty state copy", () => {
+  const franchise = {
+    id: "f1",
+    name: "C2A Audit",
+    isDefault: false,
+    archivedAt: null,
+    revision: 3,
+    playerCount: 0,
+    pendingFieldCount: 0,
+    pinnedRevisionId: null,
+  };
+
+  function renderRoster(
+    name: string,
+    catalog: Parameters<typeof RosterPanel>[0]["catalog"] = { ok: true, data: contextWith() },
+  ) {
+    render(
+      <RosterPanel
+        franchise={{ ...franchise, name }}
+        players={{ ok: true, data: [] }}
+        fields={{ ok: true, data: [] }}
+        catalog={catalog}
+      />,
+    );
+  }
+
+  it("does not promise an automatic attach when no published team matches the name", () => {
+    renderRoster("C2A Audit");
+    expect(
+      screen.getByText(/No published team matches this franchise's name, so nothing attaches automatically/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/its published roster attaches automatically above/)).toBeNull();
+    expect(harness.attachTeam).not.toHaveBeenCalled();
+  });
+
+  it("names the matching team when the franchise name maps to one", () => {
+    renderRoster("Atlanta Falcons");
+    expect(screen.getByText(/its published roster attaches automatically above/)).toBeInTheDocument();
+  });
+
+  it("asks for a catalog revision when none has been imported", () => {
+    renderRoster("Atlanta Falcons", { ok: true, data: null });
+    expect(screen.getByText(/Once a catalog revision is imported/)).toBeInTheDocument();
   });
 });
