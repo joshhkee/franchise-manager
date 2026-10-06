@@ -145,8 +145,9 @@ export default async function OverviewPage() {
       <section className="rounded-lg border border-line bg-surface p-5">
         <h2 className="text-sm font-semibold">Books and schemes</h2>
         <p className="mt-3 max-w-prose text-sm text-ink-muted">
-          Playbook and scheme selections are not configured. Formation evidence and the Falcons
-          mappings supplement arrive before C3A.
+          Formation Subs is available on Lineups with four provisional books loaded (Falcons
+          offense/defense, Bears offense, Vikings defense — D128); the full 86-book inventory is on
+          Settings. Scheme selections are not configured yet.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link

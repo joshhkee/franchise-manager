@@ -341,8 +341,9 @@ describe("cancel_checklist_units", () => {
     revision = await revisionOf(franchiseId);
     const result = await cancel(franchiseId, ["DT"], revision, 28);
     expect(result.rows[0].cancel_checklist_units.cancelled).toEqual(["DT"]);
-    expect(result.rows[0].cancel_checklist_units.dependent).toEqual(expect.arrayContaining(["NT"]));
-    expect(result.rows[0].cancel_checklist_units.dependent).not.toContain("DT");
+    // C3A: dependent refs are namespaced by scope kind (chart:<position> / formation:<book>:<formation>:<slot>).
+    expect(result.rows[0].cancel_checklist_units.dependent).toEqual(expect.arrayContaining(["chart:NT"]));
+    expect(result.rows[0].cancel_checklist_units.dependent).not.toContain("chart:DT");
 
     expect(await layerIds(franchiseId, "DT", "plan")).toEqual([]);
     expect(await layerIds(franchiseId, "DT", "baseline")).toEqual([playerA]);

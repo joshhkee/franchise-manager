@@ -24,12 +24,16 @@ export interface ChecklistMutationResult {
 }
 
 export interface ChecklistUnitInput {
-  type: "depth_chart_list" | "roster_status";
+  type: "depth_chart_list" | "roster_status" | "formation_slot";
   unitId: string;
   position?: string;
   playerIds?: string[];
   playerId?: string;
   status?: "active" | "practice_squad";
+  bookId?: string;
+  formationId?: string;
+  slotId?: string;
+  planPlayerIds?: string[];
 }
 
 const FAILURE_MESSAGES: [RegExp, string][] = [
@@ -102,11 +106,15 @@ export async function confirmChecklistUnits(input: {
     revision?: number;
   } | null;
   const applied = row?.applied ?? input.units.map((unit) => unit.unitId);
+  const formationCount = input.units.filter((unit) => unit.type === "formation_slot").length;
 
   return {
     outcome: "saved",
     message:
       `Confirmed ${applied.length} unit${applied.length === 1 ? "" : "s"} as already done and recorded them as the confirmed baseline. ` +
+      (formationCount > 0
+        ? `Includes ${formationCount} formation override${formationCount === 1 ? "" : "s"}. `
+        : "") +
       "This corrects app records only — it never changes Madden.",
     revision: row?.revision ?? (await currentRevision(input.franchiseId)),
     applied,
@@ -114,20 +122,45 @@ export async function confirmChecklistUnits(input: {
   };
 }
 
+export interface CancelUnitInput {
+  type: "depth_chart_list";
+  position: string;
+}
+
+export interface CancelFormationInput {
+  type: "formation_slot";
+  bookId: string;
+  formationId: string;
+  slotId: string;
+  label: string;
+}
+
 export async function cancelChecklistUnits(input: {
   franchiseId: string;
-  positions: string[];
+  /** Pending chart positions and/or formation slots to revert to their baseline. */
+  positions?: string[];
+  formations?: CancelFormationInput[];
   expectedRevision: number;
   requestId: string;
 }): Promise<ChecklistMutationResult> {
-  if (input.positions.length === 0) {
-    return { outcome: "failed", message: "Select at least one pending position to cancel." };
+  const positions = input.positions ?? [];
+  const formations = input.formations ?? [];
+  if (positions.length === 0 && formations.length === 0) {
+    return { outcome: "failed", message: "Select at least one pending change to cancel." };
   }
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.rpc("cancel_checklist_units", {
     p_franchise_id: input.franchiseId,
-    p_units: input.positions.map((position) => ({ type: "depth_chart_list", position })),
+    p_units: [
+      ...positions.map((position) => ({ type: "depth_chart_list", position })),
+      ...formations.map((formation) => ({
+        type: "formation_slot",
+        bookId: formation.bookId,
+        formationId: formation.formationId,
+        slotId: formation.slotId,
+      })),
+    ],
     p_expected_revision: input.expectedRevision,
     p_request_id: input.requestId,
   });
@@ -141,7 +174,7 @@ export async function cancelChecklistUnits(input: {
     batchId?: string;
     revision?: number;
   } | null;
-  const cancelled = row?.cancelled ?? input.positions;
+  const cancelled = row?.cancelled ?? [...positions, ...formations.map((f) => `${f.bookId}:${f.formationId}:${f.slotId}`)];
   const dependent = row?.dependent ?? [];
 
   return {

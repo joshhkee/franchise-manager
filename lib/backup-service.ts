@@ -3,6 +3,8 @@ import {
   type BackupActionBatch,
   type BackupChange,
   type BackupEnvelope,
+  type BackupFormationFavorite,
+  type BackupFormationOverride,
   type BackupFranchisePayload,
 } from "./backup";
 import { createServerSupabase } from "./supabase/server";
@@ -90,6 +92,44 @@ export async function buildFranchiseEnvelope(
     createdAt: row.created_at,
   }));
 
+  // C3A formation overrides and favorites; a missing view (migration 0012 not yet
+  // applied) is an honest empty list, never a failed export of the state that exists.
+  const formationOverridesResult = await supabase
+    .from("formation_overrides_view")
+    .select("book_id,formation_id,slot_id,layer,player_id")
+    .eq("franchise_id", franchiseId);
+  const formationMissing = /does not exist|not found|schema cache/i.test(
+    formationOverridesResult.error?.message ?? "",
+  );
+  if (!formationMissing && formationOverridesResult.error) {
+    return { ok: false, message: formationOverridesResult.error.message };
+  }
+  const formationFavoritesResult = await supabase
+    .from("formation_favorites_view")
+    .select("book_id,formation_id")
+    .eq("franchise_id", franchiseId);
+  if (!formationMissing && formationFavoritesResult.error) {
+    return { ok: false, message: formationFavoritesResult.error.message };
+  }
+  const formationOverrides: BackupFormationOverride[] = (
+    (formationOverridesResult.data ?? []) as {
+      book_id: string;
+      formation_id: string;
+      slot_id: string;
+      layer: "baseline" | "plan";
+      player_id: string;
+    }[]
+  ).map((row) => ({
+    bookId: row.book_id,
+    formationId: row.formation_id,
+    slotId: row.slot_id,
+    layer: row.layer,
+    playerId: row.player_id,
+  }));
+  const formationFavorites: BackupFormationFavorite[] = (
+    (formationFavoritesResult.data ?? []) as { book_id: string; formation_id: string }[]
+  ).map((row) => ({ bookId: row.book_id, formationId: row.formation_id }));
+
   const revisionKeyById = new Map(
     (revisions.data ?? []).map((row) => [row.id as string, row.revision_key as string]),
   );
@@ -124,6 +164,8 @@ export async function buildFranchiseEnvelope(
       rank: row.depth_rank,
       playerId: row.franchise_player_id,
     })),
+    formationOverrides,
+    formationFavorites,
     history,
   };
 

@@ -15,6 +15,7 @@ import {
   summarizeChecklist,
   type ChecklistUnit,
 } from "../lib/checklist";
+import type { FormationChecklistUnit } from "../lib/checklist-formation";
 import type { ChartPlayer } from "../lib/depth-chart";
 import type { ChecklistData } from "../lib/data/checklist";
 
@@ -47,6 +48,9 @@ export function ChecklistPanel({
   const [status, setStatus] = useState<Status>(null);
 
   const { checklist, players, history, historyAvailable, historyMessage } = data;
+  const formationUnits = data.formationUnits ?? [];
+  const formationBlocked = data.formationBlocked ?? [];
+  const formationsAvailable = data.formationsAvailable ?? true;
   const playersById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
   const summary = summarizeChecklist(checklist);
 
@@ -120,6 +124,25 @@ export function ChecklistPanel({
       cancelChecklistUnits({
         franchiseId: franchise.id,
         positions: [unit.position],
+        expectedRevision: franchise.revision,
+        requestId: newId(),
+      }),
+    );
+  };
+
+  const cancelFormationUnit = (unit: FormationChecklistUnit) => {
+    run(`cancel:${unit.unitId}`, () =>
+      cancelChecklistUnits({
+        franchiseId: franchise.id,
+        formations: [
+          {
+            type: "formation_slot",
+            bookId: unit.bookId,
+            formationId: unit.formationId,
+            slotId: unit.slotId,
+            label: unit.label,
+          },
+        ],
         expectedRevision: franchise.revision,
         requestId: newId(),
       }),
@@ -294,6 +317,51 @@ export function ChecklistPanel({
           </div>
         </section>
       )}
+
+      {formationsAvailable ? (
+        <section className="rounded-lg border border-line bg-surface p-5">
+          <h3 className="text-sm font-semibold">Formation overrides (reviewed separately)</h3>
+          <p className="mt-1 max-w-prose text-xs text-ink-muted">
+            Explicit per-formation substitutions from Lineups → Formation Subs. They confirm through the same
+            reviewed, atomic command as the lists below/above — mixing chart and formation units in one batch is
+            allowed. Resetting a slot on the diagram cancels its pending unit; inherited-slot recomputes from chart
+            edits never appear here.
+          </p>
+          {formationUnits.length === 0 && formationBlocked.length === 0 ? (
+            <p className="mt-2 text-xs text-ink-muted">
+              No pending formation overrides. Set one on the Lineups formation diagram.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {formationUnits.map((unit) => (
+                <li key={unit.unitId} className="flex flex-wrap items-start gap-2 rounded-md border border-line bg-background p-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{unit.label}</p>
+                    <p className="mt-1 text-xs text-ink-muted">
+                      {unit.bookId} · {unit.formationLabel} · slot {unit.slotLabel}: {unit.baselinePlayerName} →{" "}
+                      {unit.plannedPlayerName}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => cancelFormationUnit(unit)}
+                    disabled={busy}
+                    className="min-h-11 rounded-md border border-line bg-surface px-3 text-xs font-medium disabled:opacity-60"
+                  >
+                    Cancel pending change
+                  </button>
+                </li>
+              ))}
+              {formationBlocked.map((unit) => (
+                <li key={unit.unitId} className="rounded-md border border-amber-500/60 bg-amber-500/10 p-3">
+                  <p className="text-sm font-medium">{unit.label}</p>
+                  <p className="mt-1 text-xs text-ink-muted">{unit.note}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       <section className="rounded-lg border border-line bg-surface p-5">
         <h3 className="text-sm font-semibold">Bounded undo history</h3>
