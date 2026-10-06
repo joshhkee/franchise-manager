@@ -11,7 +11,7 @@
  */
 
 export const ENVELOPE_VERSION = 1;
-export const APP_CONTRACT_VERSION = "c2a/1";
+export const APP_CONTRACT_VERSION = "c2b/1";
 export const MAX_ENVELOPE_BYTES = 5 * 1024 * 1024;
 
 export type FieldClass = "game_edit_action" | "app_fact";
@@ -45,6 +45,25 @@ export interface BackupField {
   fieldClass: FieldClass;
 }
 
+/** Minimal before/after delta stored in a retained undo batch (C0B-v2 §4). */
+export type BackupChange =
+  | { kind: "roster_status"; playerId: string; rosterStatus: BackupRosterStatus }
+  | {
+      kind: "depth_chart_list";
+      position: string;
+      baseline: string[];
+      plan: string[];
+      verification?: "provisional_published" | "owner_confirmed";
+    };
+
+export interface BackupActionBatch {
+  command: string;
+  summary: Record<string, unknown>;
+  beforeState: { changes: BackupChange[] };
+  afterState: { changes: BackupChange[] };
+  createdAt: string;
+}
+
 export interface BackupFranchisePayload {
   name: string;
   isDefault: boolean;
@@ -53,6 +72,8 @@ export interface BackupFranchisePayload {
   fields: BackupField[];
   /** C2A depth-chart entries; both layers, so plans survive the round trip too. */
   depthChart: BackupChartEntry[];
+  /** C2B retained undo history; mutable player ids are remapped on restore (C0B-v2 §8). */
+  history: BackupActionBatch[];
 }
 
 export interface BackupEnvelope {
@@ -228,6 +249,54 @@ export function parseEnvelope(text: string): ValidationResult {
     }
   }
 
+  // C2B retained undo history: absent in older envelopes (treated as empty), and every
+  // referenced player must still resolve to a player in the same file.
+  const history = franchise.history === undefined ? [] : franchise.history;
+  if (!Array.isArray(history)) {
+    reasons.push("schema_invalid");
+  } else {
+    for (const batch of history) {
+      if (
+        !isRecord(batch) ||
+        typeof batch.command !== "string" ||
+        !isRecord(batch.beforeState) ||
+        !isRecord(batch.afterState) ||
+        typeof batch.createdAt !== "string"
+      ) {
+        reasons.push("schema_invalid");
+        continue;
+      }
+      const changes = [
+        ...(Array.isArray(batch.beforeState.changes) ? batch.beforeState.changes : []),
+        ...(Array.isArray(batch.afterState.changes) ? batch.afterState.changes : []),
+      ];
+      for (const change of changes) {
+        if (!isRecord(change)) {
+          reasons.push("schema_invalid");
+          continue;
+        }
+        if (change.kind === "roster_status") {
+          if (typeof change.playerId !== "string") reasons.push("schema_invalid");
+          else if (!seen.has(change.playerId)) reasons.push("dangling_player_reference");
+        } else if (change.kind === "depth_chart_list") {
+          if (typeof change.position !== "string") {
+            reasons.push("schema_invalid");
+            continue;
+          }
+          const ids = [
+            ...(Array.isArray(change.baseline) ? change.baseline : []),
+            ...(Array.isArray(change.plan) ? change.plan : []),
+          ];
+          for (const id of ids) {
+            if (typeof id !== "string" || !seen.has(id)) reasons.push("dangling_player_reference");
+          }
+        } else {
+          reasons.push("schema_invalid");
+        }
+      }
+    }
+  }
+
   const unique = [...new Set(reasons)];
   if (unique.length > 0) return { ok: false, reasons: unique };
 
@@ -238,6 +307,7 @@ export function parseEnvelope(text: string): ValidationResult {
       rosterStatus: (player.rosterStatus as BackupRosterStatus | undefined) ?? "active",
     })),
     depthChart: depthChart as BackupChartEntry[],
+    history: history as BackupActionBatch[],
   };
 
   return {
@@ -278,6 +348,23 @@ export function restoreAsNewFranchise(
     playerId: idMap.get(entry.playerId) as string,
   }));
 
+  const remapChange = (change: BackupChange): BackupChange => {
+    if (change.kind === "roster_status") {
+      return { ...change, playerId: idMap.get(change.playerId) ?? change.playerId };
+    }
+    return {
+      ...change,
+      baseline: change.baseline.map((id) => idMap.get(id) ?? id),
+      plan: change.plan.map((id) => idMap.get(id) ?? id),
+    };
+  };
+
+  const history = (envelope.franchise.history ?? []).map((batch) => ({
+    ...batch,
+    beforeState: { changes: batch.beforeState.changes.map(remapChange) },
+    afterState: { changes: batch.afterState.changes.map(remapChange) },
+  }));
+
   const requiredRevisionKeys = [
     ...new Set(
       [
@@ -296,6 +383,7 @@ export function restoreAsNewFranchise(
       players,
       fields,
       depthChart,
+      history,
     },
     requiredRevisionKeys,
   };
