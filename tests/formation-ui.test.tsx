@@ -30,7 +30,7 @@ const state: FormationState = {
     { id: "p-rg", fullName: "Roy Guard", rosterStatus: "active", primaryPosition: "RG", overall: 80 },
     { id: "p-rt", fullName: "Rex Tackle", rosterStatus: "active", primaryPosition: "RT", overall: 81 },
     { id: "p-wr1", fullName: "Xavier Deep", rosterStatus: "active", primaryPosition: "WR", overall: 90 },
-    { id: "p-wr2", fullName: "Zane Wide", rosterStatus: "active", primaryPosition: "WR", overall: 85 },
+    { id: "p-wr2", fullName: "Zane Vanderbilt-Goodwin", rosterStatus: "active", primaryPosition: "WR", overall: 85 },
     { id: "p-wr3", fullName: "Sly Morse", rosterStatus: "active", primaryPosition: "WR", overall: 77 },
     { id: "p-te", fullName: "Trey End", rosterStatus: "active", primaryPosition: "TE", overall: 83 },
     { id: "p-hb", fullName: "Hank Back", rosterStatus: "active", primaryPosition: "HB", overall: 86 },
@@ -112,6 +112,47 @@ describe("formation diagram and panel", () => {
 
     // The accessible detail is unchanged by the display mode (A16).
     expect(screen.getByRole("button", { name: /^X: Xavier Deep, OVR 90$/ })).toBeInTheDocument();
+  });
+
+  it("truncates long sub-labels and carries the full name in the circle tooltip", () => {
+    renderPanel();
+
+    // Nine-char budget: the hyphenated surname truncates with an ellipsis…
+    expect(screen.getByText("Vanderbi…", { selector: "svg text" })).toBeInTheDocument();
+    // …while the accessible detail (aria-label + circle <title>) keeps the full name (A16).
+    expect(screen.getByTestId("formation-slot-Z").querySelector("title")?.textContent).toBe(
+      "Zane Vanderbilt-Goodwin, OVR 85",
+    );
+    expect(screen.getByRole("button", { name: /^Z: Zane Vanderbilt-Goodwin, OVR 85$/ })).toBeInTheDocument();
+    // Short surnames render whole, with their own tooltip.
+    expect(screen.getByText("Deep", { selector: "svg text" })).toBeInTheDocument();
+    expect(screen.getByTestId("formation-slot-X").querySelector("title")?.textContent).toBe("Xavier Deep, OVR 90");
+  });
+
+  it("draws the offensive line as one cohesive cluster, tighter than the receiver row", () => {
+    renderPanel();
+
+    const centers = ["LT", "LG", "C", "RG", "RT", "X", "Z"].map((id) => {
+      const el = screen.getByTestId(`formation-slot-${id}`);
+      return { id, x: Number(el.getAttribute("cx")), y: Number(el.getAttribute("cy")) };
+    });
+    const gap = (a: string, b: string) => {
+      const pa = centers.find((c) => c.id === a)!;
+      const pb = centers.find((c) => c.id === b)!;
+      return Math.hypot(pb.x - pa.x, pb.y - pa.y);
+    };
+    const olineGaps = [gap("LT", "LG"), gap("LG", "C"), gap("C", "RG"), gap("RG", "RT")];
+    // X and Z start far from the line and must keep their full separation.
+    expect(gap("X", "LT")).toBeGreaterThan(10);
+    expect(gap("Z", "RT")).toBeGreaterThan(10);
+    // Every O-line pair sits in the near-touching cohesion band (slight overlap = one chain).
+    for (const pair of olineGaps) {
+      expect(pair).toBeLessThan(11.2);
+      expect(pair).toBeGreaterThanOrEqual(9.0);
+    }
+    // And the line is visibly tighter than the non-cohesive minimum spacing.
+    const avgOline = olineGaps.reduce((sum, d) => sum + d, 0) / olineGaps.length;
+    expect(avgOline).toBeLessThan(11.0);
   });
 
   it("sends the full book:set:slug identity plus slot when an override is picked", async () => {

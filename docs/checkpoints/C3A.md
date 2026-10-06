@@ -52,9 +52,12 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
   selectable, never an invented diagram (evidence: [C3A-provisional-evidence.md](../evidence/C3A-provisional-evidence.md) §4).
 - **Diagram** — [components/formation-diagram.tsx](../../components/formation-diagram.tsx): native SVG
   `<circle role="button">` markers with keyboard Enter/Space activation and focus-visible rings; two-pass
-  rendering (all circles, then all labels) so overlapping circles never cover text; a deterministic relaxation
-  pass nudges overlapping markers apart; side-specific viewBoxes; compact mode shows only recorded jersey
-  numbers and falls back to the slot label, never inventing one (A16); aria-labels carry name/OVR on every slot.
+  rendering (all circles, then all labels) so overlapping circles never cover text; cohesive-group layout —
+  the O-line (and D-line) re-lays as one near-touching chain at its authored center so the line reads as a
+  single unit instead of blending into the receiver row; sub-labels truncate to a nine-char budget with the
+  full name in each circle's `<title>` tooltip; side-specific viewBoxes; compact mode shows only recorded
+  jersey numbers and falls back to the slot label, never inventing one (A16); aria-labels carry name/OVR on
+  every slot.
 - **Panel and actions** — [components/formation-panel.tsx](../../components/formation-panel.tsx) +
   [lib/actions/formations.ts](../../lib/actions/formations.ts): slot editor with player picker, per-slot reset,
   explicit whole-formation reset (scope-stated), favorites, and compact toggle. Set-override/favorite write
@@ -100,10 +103,10 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
 |---|---|---|---|
 | Typecheck | `npx tsc --noEmit` | pass | — |
 | Lint | `npm run lint` | pass — 0 errors | 2 pre-existing unused-param warnings in `lib/actions/import.ts` |
-| Full tests | `npx vitest run` | pass — 26 files, 256 tests | — |
-| Formation pure tests | `npx vitest run tests/formations.test.ts` | pass — 16/16 (identity, inheritance recompute, override precedence, same-player persistence, reset scope, orientation math) | — |
+| Full tests | `npx vitest run` | pass — 26 files, 259 tests | — |
+| Formation pure tests | `npx vitest run tests/formations.test.ts` | pass — 17/17 (identity, inheritance recompute, override precedence, same-player persistence, reset scope, orientation math, second-batch set-scoped identity) | — |
 | Formation DB tests | `npx vitest run tests/db/formations.test.ts` | pass — 12/12 (PGlite migrations 0001–0012: overrides/favorites round trip, mixed checklist batches, replay, isolation) | — |
-| Formation UI tests | `npx vitest run tests/formation-ui.test.tsx` | pass — 8/8 (override identity, inherit-clear, pending summary/reset, unmapped honesty, favorites, compact fallback, orientation text) | — |
+| Formation UI tests | `npx vitest run tests/formation-ui.test.tsx` | pass — 10/10 (override identity, inherit-clear, pending summary/reset, unmapped honesty, favorites, compact fallback, orientation text, sub-label truncation + tooltip, O-line cohesion band) | — |
 | Checklist UI tests | `npx vitest run tests/checklist-ui.test.tsx` | pass — 10/10 (incl. new: honest empty state, hidden-when-0012-missing, formation cancel identity, blocked card without cancel button) | — |
 | Backup tests | `npx vitest run tests/backup.test.ts tests/db/restore.test.ts` | pass | — |
 | Build | `npm run build` | pass — 14 route entries | — |
@@ -130,8 +133,11 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
    at an action that could not record).
 8. Defects found & fixed during verification: diagram rewritten from `foreignObject` to native SVG
    (two-pass rendering + relaxation) after overlap was observed; stale compact-mode test updated to the real
-   DOM; one cosmetic issue remains — adjacent surnames on the O-line can slightly overlap at the default width
-   (see Open items).
+   DOM. A follow-up pass (same session, owner-reported) fixed two remaining cosmetic issues: sub-labels now
+   truncate with the full name in a `<title>` tooltip, and the O-line re-lays as one near-touching chain
+   (verified live: line gaps 10.0 units vs 26+ receiver spacing, 13 mapped Falcons-off formations incl. the
+   gun Tight family) — screenshot capture was unavailable (preview compositing), so layout was verified by
+   DOM geometry probes.
 
 ## Owner manual acceptance
 
@@ -164,7 +170,7 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
 
 - **D113 supplement remains OPEN** (evidence gate): all mappings/orientation stay provisional until the owner
   has game access; re-verification list is in [C3A-provisional-evidence.md](../evidence/C3A-provisional-evidence.md) §5.
-- 102 of 123 formations render as unmapped by design; mapping them is incremental data work, not code work.
+- 97 of 123 formations render as unmapped by design; mapping them is incremental data work, not code work.
 - Cosmetic (low severity): adjacent O-line surnames can slightly overlap at the default diagram width; the
   relaxation pass separates markers but sub-label text can still touch. Fix is a small font/offset tweak.
 - Live confirm/cancel of formation units cannot be browser-verified until 0012 is applied (pre-apply failure

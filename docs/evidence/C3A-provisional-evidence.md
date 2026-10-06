@@ -50,7 +50,7 @@ Full machine-readable inventory: [lib/formations/playbooks.ts](../../lib/formati
 (`PLAYBOOK_INVENTORY` + crawl metadata), rendered on [app/settings/page.tsx](../../app/settings/page.tsx).
 
 [Crawled] Formation counts for the loaded books: Falcons offense **42**, Bears offense **42**, Falcons
-defense **15**, Vikings defense **24** (123 total; all present in the catalog, 21 mapped so far).
+defense **15**, Vikings defense **24** (123 total; all present in the catalog, 26 mapped so far).
 
 [Crawled] Formation pages serve **alignment images only** (alt text ends "formation alignment — depth-chart
 positions"). No structured slot coordinates, ranks, or inheritance are published, so per-slot mapping cannot be
@@ -58,8 +58,10 @@ sourced from Civil.GG and remains [Unverified default] until the D113 in-game su
 
 ## 4. Mapping coverage and honesty rules
 
-- 21 formations are mapped across the four loaded books (8 Falcons offense, 5 Bears offense, 4 Falcons defense,
-  4 Vikings defense). Every mapped slot's evidence label is `unverified_default`; the diagram caption repeats it.
+- 26 formations are mapped across the four loaded books (13 Falcons offense, 5 Bears offense, 4 Falcons defense,
+  4 Vikings defense). The second Falcons-offense batch prioritizes the book's most-referenced sets per Civil.GG
+  coverage (Gun Tight Y Off / Tight Flex / Tight Open, Gun Trips TE Flex, Pistol Bunch TE). Every mapped slot's
+  evidence label is `unverified_default`; the diagram caption repeats it.
 - The remaining 102 formations render as **unmapped**: visible, selectable, and explicitly described as having
   no slot mapping yet — never rendered as an invented diagram.
 - Jersey numbers/OVR come only from recorded franchise data; unknown renders as the slot label / "OVR unknown".

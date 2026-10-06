@@ -87,6 +87,28 @@ describe("formation catalog", () => {
     expect(falconsWingSlot?.id).toContain("nfl-off-falcons");
     expect(bearsDeuce?.id).toContain("nfl-off-bears");
   });
+
+  it("maps the prioritized second batch with set-scoped identity", () => {
+    // The gun Tight Y Off is a distinct formation from the singleback one.
+    const singleback = FALCONS_OFFENSE.find((f) => f.id === "nfl-off-falcons:singleback:tight-y-off");
+    const gun = FALCONS_OFFENSE.find((f) => f.id === "nfl-off-falcons:gun:tight-y-off");
+    expect(singleback?.status).toBe("mapped");
+    expect(gun?.status).toBe("mapped");
+    expect(gun?.slots.find((s) => s.id === "QB")?.y).toBeGreaterThan(singleback!.slots.find((s) => s.id === "QB")!.y);
+    for (const id of [
+      "nfl-off-falcons:gun:tight-flex",
+      "nfl-off-falcons:gun:tight-open",
+      "nfl-off-falcons:gun:trips-te-flex",
+      "nfl-off-falcons:pistol:bunch-te",
+    ]) {
+      const formation = FALCONS_OFFENSE.find((f) => f.id === id);
+      expect(formation?.status).toBe("mapped");
+      expect(formation?.slots.filter((s) => s.inherits).length).toBeGreaterThan(0);
+    }
+    // Unmapped list shrank by exactly the five promotions; total is unchanged.
+    expect(FALCONS_OFFENSE.filter((f) => f.status === "mapped")).toHaveLength(13);
+    expect(FALCONS_OFFENSE).toHaveLength(42);
+  });
 });
 
 describe("formation resolver", () => {

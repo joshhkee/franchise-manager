@@ -40,6 +40,14 @@ interface DiagramProps {
 const SLOT_RADIUS = 5.4;
 /** Desired center-to-center distance between markers (diameter + breathing room). */
 const SEPARATION = SLOT_RADIUS * 2 + 1;
+/**
+ * Extra pull inside one cohesive group (C-group): adjacent same-group markers
+ * settle at a tighter center distance than SEPARATION, so the O-line reads as
+ * one unit instead of blending into an evenly spaced receiver line.
+ */
+const COHESION_SEPARATION = SLOT_RADIUS * 2 - 0.8;
+/** Slot groups rendered as one cohesive cluster when adjacent. */
+const COHESIVE_GROUPS: ReadonlySet<string> = new Set(["oline", "dline"]);
 
 const VIEWBOX: Record<"offense" | "defense", string> = {
   offense: "-10 0 120 52",
@@ -47,21 +55,46 @@ const VIEWBOX: Record<"offense" | "defense", string> = {
 };
 
 /**
- * Deterministic render-only nudge: pushes markers apart until no two circles
- * overlap, so bunched alignments (X–TE–LT, QB under C) stay legible. Slot ids,
- * labels, and stored coordinates are untouched — this is presentation layout,
- * not a mapping change, and it is a pure function of the authored coordinates.
+ * Deterministic render-only layout: each cohesive group (O-line, D-line) is
+ * re-laid as ONE near-touching chain at its authored center — so the line reads
+ * as a single unit instead of blending into an evenly spaced row of receivers —
+ * and every other alignment keeps its authored coordinates, with a relaxation
+ * pass that pushes only cross-group pairs apart so bunched slots (X–TE–LT,
+ * QB under C) stay legible. Slot ids, labels, and stored coordinates are
+ * untouched; this is presentation layout, not a mapping change.
  */
 function relaxedPositions(slots: ResolvedSlot[], maxY: number): Map<string, { x: number; y: number }> {
-  const pos = slots.map((resolved) => ({ id: resolved.slot.id, x: resolved.slot.x, y: resolved.slot.y }));
   const minX = -8 + SLOT_RADIUS;
   const maxX = 108 - SLOT_RADIUS;
   const minY = SLOT_RADIUS + 0.5;
   const ceiling = maxY - SLOT_RADIUS - 0.5;
+
+  // Chain reflow for cohesive groups: ordered by authored x, centered on the
+  // group's authored span, all at the group's authored line height.
+  const chainGroupOf = new Map<string, string>();
+  const pos = slots.map((resolved) => ({ id: resolved.slot.id, x: resolved.slot.x, y: resolved.slot.y }));
+  const byId = new Map(pos.map((p) => [p.id, p]));
+  for (const group of COHESIVE_GROUPS) {
+    const members = slots.filter((resolved) => resolved.slot.group === group);
+    if (members.length < 2) continue;
+    const ordered = [...members].sort((a, b) => a.slot.x - b.slot.x);
+    const center = (ordered[0].slot.x + ordered[ordered.length - 1].slot.x) / 2;
+    const avgY = members.reduce((sum, m) => sum + m.slot.y, 0) / members.length;
+    ordered.forEach((resolved, index) => {
+      const target = byId.get(resolved.slot.id);
+      if (!target) return;
+      target.x = Math.min(maxX, Math.max(minX, center + (index - (ordered.length - 1) / 2) * COHESION_SEPARATION));
+      target.y = Math.min(ceiling, Math.max(minY, avgY));
+      chainGroupOf.set(resolved.slot.id, group);
+    });
+  }
+
   for (let iteration = 0; iteration < 80; iteration += 1) {
     let moved = false;
-    for (let i = 0; i < pos.length; i += 1) {
-      for (let j = i + 1; j < pos.length; j += 1) {
+    for (let i = 0; i < slots.length; i += 1) {
+      for (let j = i + 1; j < slots.length; j += 1) {
+        const groupI = chainGroupOf.get(slots[i].slot.id);
+        if (groupI && groupI === chainGroupOf.get(slots[j].slot.id)) continue; // chain already placed
         const dx = pos[j].x - pos[i].x;
         const dy = pos[j].y - pos[i].y;
         const distance = Math.hypot(dx, dy) || 0.05;
@@ -147,7 +180,9 @@ export function FormationDiagram({
                   onSelectSlot(resolved.slot.id);
                 }
               }}
-            />
+            >
+              <title>{markerDetail(resolved, jerseyNumbers)}</title>
+            </circle>
           );
         })}
         {/* Pass 2: all labels, drawn above every circle. */}
@@ -182,7 +217,7 @@ export function FormationDiagram({
                   strokeWidth={1}
                   paintOrder="stroke"
                 >
-                  {subText.length > 9 ? `${subText.slice(0, 8)}…` : subText}
+                  {truncated(subText)}
                 </text>
               )}
             </g>
@@ -213,4 +248,9 @@ function markerDetail(resolved: ResolvedSlot, jerseyNumbers: ReadonlyMap<string,
 function shortName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter((part) => !/^(jr|sr|ii|iii|iv|v)\.?$/i.test(part));
   return parts[parts.length - 1] ?? fullName;
+}
+
+/** Sub-labels truncate to a fixed budget; the circle's <title> carries the full name. */
+function truncated(name: string): string {
+  return name.length > 9 ? `${name.slice(0, 8)}…` : name;
 }
