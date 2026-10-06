@@ -1,4 +1,10 @@
-import { createEnvelope, type BackupEnvelope, type BackupFranchisePayload } from "./backup";
+import {
+  createEnvelope,
+  type BackupActionBatch,
+  type BackupChange,
+  type BackupEnvelope,
+  type BackupFranchisePayload,
+} from "./backup";
 import { createServerSupabase } from "./supabase/server";
 import type { Loaded } from "./data/franchises";
 
@@ -17,6 +23,18 @@ interface ChartRow {
   layer: "baseline" | "plan";
   depth_rank: number;
   franchise_player_id: string;
+}
+
+interface BatchRow {
+  command: string;
+  summary: unknown;
+  before_state: { changes?: BackupChange[] } | null;
+  after_state: { changes?: BackupChange[] } | null;
+  created_at: string;
+}
+
+function changesOf(state: { changes?: BackupChange[] } | null): BackupChange[] {
+  return Array.isArray(state?.changes) ? (state?.changes as BackupChange[]) : [];
 }
 
 export async function buildFranchiseEnvelope(
@@ -52,6 +70,26 @@ export async function buildFranchiseEnvelope(
   if (error) return { ok: false, message: error.message };
   if (!franchise.data) return { ok: false, message: "That franchise is not available for this owner." };
 
+  // Retained undo history (C0B-v2 §8). Migration 0011 may not be applied yet: a missing
+  // view is an honest empty history, never a failed export of the state that does exist.
+  const historyResult = await supabase
+    .from("action_batches_view")
+    .select("command,summary,before_state,after_state,created_at")
+    .eq("franchise_id", franchiseId)
+    .eq("command", "confirm_checklist_units")
+    .is("undone_at", null)
+    .order("created_at", { ascending: true });
+  if (historyResult.error && !/does not exist|not found|schema cache/i.test(historyResult.error.message ?? "")) {
+    return { ok: false, message: historyResult.error.message };
+  }
+  const history: BackupActionBatch[] = ((historyResult.data ?? []) as unknown as BatchRow[]).map((row) => ({
+    command: row.command,
+    summary: (row.summary ?? {}) as Record<string, unknown>,
+    beforeState: { changes: changesOf(row.before_state) },
+    afterState: { changes: changesOf(row.after_state) },
+    createdAt: row.created_at,
+  }));
+
   const revisionKeyById = new Map(
     (revisions.data ?? []).map((row) => [row.id as string, row.revision_key as string]),
   );
@@ -86,6 +124,7 @@ export async function buildFranchiseEnvelope(
       rank: row.depth_rank,
       playerId: row.franchise_player_id,
     })),
+    history,
   };
 
   return { ok: true, data: { envelope: createEnvelope(payload), name: payload.name } };

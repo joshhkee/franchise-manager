@@ -52,6 +52,7 @@ function payload(overrides: Partial<BackupFranchisePayload> = {}): BackupFranchi
       { position: "HB", layer: "baseline", rank: 1, playerId: "player-1" },
       { position: "HB", layer: "plan", rank: 2, playerId: "player-1" },
     ],
+    history: [],
     ...overrides,
   };
 }
@@ -100,13 +101,71 @@ describe("backup envelope round trip", () => {
         return withoutStatus;
       }) as unknown as BackupFranchisePayload["players"],
       depthChart: undefined as unknown as BackupFranchisePayload["depthChart"],
+      history: undefined as unknown as BackupFranchisePayload["history"],
     });
 
     const parsed = parseEnvelope(JSON.stringify(legacy));
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.envelope.franchise.depthChart).toEqual([]);
+    expect(parsed.envelope.franchise.history).toEqual([]);
     expect(parsed.envelope.franchise.players.every((player) => player.rosterStatus === "active")).toBe(true);
+  });
+
+  it("round-trips retained undo history with remapped mutable ids", () => {
+    const envelope = createEnvelope(
+      payload({
+        history: [
+          {
+            command: "confirm_checklist_units",
+            summary: { label: "Confirmed checklist units", units: ["depth_chart_list:HB"] },
+            beforeState: {
+              changes: [
+                {
+                  kind: "depth_chart_list",
+                  position: "HB",
+                  baseline: ["player-2"],
+                  plan: ["player-1", "player-2"],
+                  verification: "provisional_published",
+                },
+              ],
+            },
+            afterState: {
+              changes: [
+                {
+                  kind: "depth_chart_list",
+                  position: "HB",
+                  baseline: ["player-1", "player-2"],
+                  plan: [],
+                  verification: "owner_confirmed",
+                },
+                { kind: "roster_status", playerId: "player-2", rosterStatus: "active" },
+              ],
+            },
+            createdAt: "2026-10-06T12:00:00.000Z",
+          },
+        ],
+      }),
+    );
+
+    const parsed = parseEnvelope(serializeEnvelope(envelope));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const restored = restoreAsNewFranchise(parsed.envelope, {
+      newFranchiseId: "new-franchise",
+      nextPlayerId: (index) => `restored-${index + 1}`,
+    });
+
+    const batch = restored.payload.history[0];
+    expect(batch.command).toBe("confirm_checklist_units");
+    expect(batch.beforeState.changes).toEqual([
+      { kind: "depth_chart_list", position: "HB", baseline: ["restored-2"], plan: ["restored-1", "restored-2"], verification: "provisional_published" },
+    ]);
+    expect(batch.afterState.changes).toEqual([
+      { kind: "depth_chart_list", position: "HB", baseline: ["restored-1", "restored-2"], plan: [], verification: "owner_confirmed" },
+      { kind: "roster_status", playerId: "restored-2", rosterStatus: "active" },
+    ]);
   });
 
   it("reports a source revision that the target catalog is missing", () => {
@@ -176,6 +235,25 @@ describe("backup validation refuses unsafe input without partial state", () => {
     const dangling = createEnvelope({
       ...payload(),
       depthChart: [{ position: "HB", layer: "plan", rank: 1, playerId: "missing" }],
+    });
+    expect(parseEnvelope(JSON.stringify(dangling))).toEqual({
+      ok: false,
+      reasons: ["dangling_player_reference"],
+    });
+  });
+
+  it("refuses history that references a player outside the file", () => {
+    const dangling = createEnvelope({
+      ...payload(),
+      history: [
+        {
+          command: "confirm_checklist_units",
+          summary: {},
+          beforeState: { changes: [{ kind: "roster_status", playerId: "missing", rosterStatus: "active" }] },
+          afterState: { changes: [] },
+          createdAt: "2026-10-06T12:00:00.000Z",
+        },
+      ],
     });
     expect(parseEnvelope(JSON.stringify(dangling))).toEqual({
       ok: false,

@@ -2,12 +2,22 @@ import Link from "next/link";
 import { CreateFranchiseForm } from "../components/create-franchise-form";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
+import { summarizeChecklist, type ChecklistSummary } from "../lib/checklist";
+import { loadChecklist } from "../lib/data/checklist";
 import { loadFranchiseContext } from "../lib/data/current";
 
 export default async function OverviewPage() {
   const result = await loadFranchiseContext();
   const context = result.ok ? result.data : null;
   const current = context?.current ?? null;
+
+  let checklist: ChecklistSummary | null = null;
+  let checklistNote: string | null = null;
+  if (current && !current.archivedAt) {
+    const loaded = await loadChecklist(current.id, current.revision);
+    if (loaded.ok) checklist = summarizeChecklist(loaded.data.checklist);
+    else checklistNote = loaded.message;
+  }
 
   return (
     <div className="space-y-5">
@@ -68,38 +78,64 @@ export default async function OverviewPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="rounded-lg border border-line bg-surface p-5">
-              <h2 className="text-sm font-semibold">Pending field changes</h2>
+              <h2 className="text-sm font-semibold">Pending game changes</h2>
               <p className="mt-1 text-xs text-ink-muted">
-                Planned edits that are not yet recorded as already-happened.
+                Final differences between your recorded baseline and your plan, derived fresh from the depth chart.
               </p>
               <div className="mt-3">
-                {current.pendingFieldCount === 0 ? (
+                {checklistNote ? (
+                  <p className="max-w-prose text-xs text-ink-muted">{checklistNote}</p>
+                ) : checklist === null ? (
+                  <EmptyState title="Not available" detail="The checklist could not be derived for this franchise." />
+                ) : checklist.pendingUnits === 0 ? (
                   <EmptyState
                     title="Nothing pending"
-                    detail="Planned player-field edits open here once you plan a change on the roster."
+                    detail="Your plans match the recorded baseline everywhere. Plan a change on the Lineups depth chart and it appears here."
                   />
                 ) : (
-                  <p className="text-sm">
-                    {current.pendingFieldCount} planned field edit
-                    {current.pendingFieldCount === 1 ? "" : "s"} waiting in{" "}
-                    <Link href="/gm?view=roster" className="underline">
-                      the roster
+                  <div className="space-y-2">
+                    <p className="text-sm">
+                      {checklist.pendingUnits} pending unit{checklist.pendingUnits === 1 ? "" : "s"} —{" "}
+                      {checklist.readyUnits} ready, {checklist.blockedUnits} blocked
+                      {checklist.positions.length > 0 ? ` (${checklist.positions.join(", ")})` : ""}.
+                    </p>
+                    <Link
+                      href="/checklist"
+                      className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-4 text-sm font-medium"
+                    >
+                      Open checklist
                     </Link>
-                    .
-                  </p>
+                  </div>
                 )}
               </div>
             </section>
             <section className="rounded-lg border border-line bg-surface p-5">
               <h2 className="text-sm font-semibold">Lineup issues</h2>
               <p className="mt-1 text-xs text-ink-muted">
-                Missing or conflicting personnel that needs attention.
+                Pending units blocked by a prerequisite (practice squad, pending transaction, or an invalid placement).
               </p>
               <div className="mt-3">
-                <EmptyState
-                  title="No lineup issues tracked yet"
-                  detail="Plan lineups on the Lineups page. Pending-vs-baseline inspection and provisional labels are live in C2A; confirmation semantics, conflicts, and the checklist arrive with C2B."
-                />
+                {checklistNote ? (
+                  <p className="max-w-prose text-xs text-ink-muted">{checklistNote}</p>
+                ) : checklist === null || checklist.blockedUnits === 0 ? (
+                  <EmptyState
+                    title="No blocked lineup units"
+                    detail="Nothing in your plan is waiting on a promotion, transaction, or placement repair right now."
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm">
+                      {checklist.blockedUnits} blocked unit{checklist.blockedUnits === 1 ? "" : "s"}:{" "}
+                      {checklist.positions.join(", ")}.
+                    </p>
+                    <Link
+                      href="/checklist"
+                      className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-4 text-sm font-medium"
+                    >
+                      Review blocked units
+                    </Link>
+                  </div>
+                )}
               </div>
             </section>
           </div>
@@ -118,6 +154,12 @@ export default async function OverviewPage() {
             className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-4 text-sm font-medium"
           >
             Open Lineups
+          </Link>
+          <Link
+            href="/checklist"
+            className="inline-flex min-h-11 items-center rounded-md border border-line bg-background px-4 text-sm font-medium"
+          >
+            Open Checklist
           </Link>
           <Link
             href="/gameday"

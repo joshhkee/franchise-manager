@@ -179,6 +179,71 @@ describe("restore-new", () => {
     );
   });
 
+  it("restores retained undo history with remapped player ids", async () => {
+    await asRole(db, "authenticated", OWNER_UID);
+    const withHistory = payload({
+      name: "History club",
+      history: [
+        {
+          command: "confirm_checklist_units",
+          summary: { label: "Confirmed checklist units", units: ["depth_chart_list:HB"] },
+          beforeState: {
+            changes: [
+              {
+                kind: "depth_chart_list",
+                position: "HB",
+                baseline: ["old-custom"],
+                plan: ["old-source", "old-custom"],
+                verification: "provisional_published",
+              },
+            ],
+          },
+          afterState: {
+            changes: [
+              {
+                kind: "depth_chart_list",
+                position: "HB",
+                baseline: ["old-source", "old-custom"],
+                plan: [],
+                verification: "owner_confirmed",
+              },
+              { kind: "roster_status", playerId: "old-custom", rosterStatus: "active" },
+            ],
+          },
+          createdAt: "2026-10-06T12:00:00.000Z",
+        },
+      ],
+    });
+
+    const restored = await db.query<{ restore_new_franchise: string }>(
+      "select public.restore_new_franchise($1::jsonb, $2)",
+      [JSON.stringify(withHistory), REQUEST(20)],
+    );
+    const newFranchiseId = restored.rows[0].restore_new_franchise;
+
+    await asOwnerSession(db);
+    const players = await db.query<{ id: string; origin: string }>(
+      "select id, origin from app.franchise_players where franchise_id = $1",
+      [newFranchiseId],
+    );
+    const customId = players.rows.find((row) => row.origin === "custom")?.id;
+    const sourceId = players.rows.find((row) => row.origin === "source")?.id;
+
+    const batches = await db.query<{
+      command: string;
+      before_state: { changes: { baseline?: string[] }[] };
+      after_state: { changes: { baseline?: string[]; playerId?: string }[] };
+    }>(
+      "select command, before_state, after_state from app.action_batches where franchise_id = $1 order by created_at",
+      [newFranchiseId],
+    );
+    expect(batches.rows).toHaveLength(1);
+    expect(batches.rows[0].command).toBe("confirm_checklist_units");
+    expect(batches.rows[0].before_state.changes[0].baseline).toEqual([customId]);
+    expect(batches.rows[0].after_state.changes[0].baseline).toEqual([sourceId, customId]);
+    expect(batches.rows[0].after_state.changes[1].playerId).toBe(customId);
+  });
+
   it("refuses a backup whose source revision is missing and writes nothing", async () => {
     await asOwnerSession(db);
     const before = await db.query<{ count: string }>("select count(*)::text as count from app.franchises");
