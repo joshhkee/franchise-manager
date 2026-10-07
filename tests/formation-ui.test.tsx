@@ -230,7 +230,10 @@ describe("formation diagram and panel", () => {
   it("keeps unmapped formations visible and honest without inventing a diagram", () => {
     renderPanel();
 
-    fireEvent.click(screen.getByRole("button", { name: /Tight Y Off Flex/ }));
+    // The Falcons offense is fully mapped now; the defense book still carries
+    // honest-pending entries (nickel Mug/Wide variants, dime Rush).
+    fireEvent.click(screen.getByRole("tab", { name: "Defense" }));
+    fireEvent.click(screen.getByRole("button", { name: /2-4 Dbl Mug/ }));
 
     expect(screen.getByText(/has no slot mapping yet/)).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /Formation diagram/ })).not.toBeInTheDocument();

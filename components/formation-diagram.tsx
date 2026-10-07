@@ -129,6 +129,10 @@ export function FormationDiagram({
 }: DiagramProps) {
   const maxY = side === "offense" ? 52 : 100;
   const positions = relaxedPositions(slots, maxY);
+  // Line of scrimmage passes through the on-line row (offense y≈10 band,
+  // defense y≈90 band) — derived from the slots, never a hard-coded mid-field line.
+  const losY =
+    slots.reduce((max, resolved) => (resolved.slot.onLine ? Math.max(max, resolved.slot.y) : max), 0) || 50;
   return (
     <div>
       <svg
@@ -137,12 +141,11 @@ export function FormationDiagram({
         role="img"
         aria-label={`Formation diagram. ${ORIENTATION_NOTE}`}
       >
-        {/* Line of scrimmage across the middle (defense view shows it; offense crop ends at y=50). */}
         <line
           x1="0"
-          y1="50"
+          y1={losY}
           x2="100"
-          y2="50"
+          y2={losY}
           stroke="currentColor"
           strokeOpacity="0.25"
           strokeWidth="0.4"

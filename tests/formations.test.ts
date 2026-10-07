@@ -28,6 +28,8 @@ const chartLists = {
   RT: { baseline: ["rt1"], plan: [] },
   TE: { baseline: ["te1"], plan: [] },
   WR: { baseline: ["wr1", "wr2", "wr3", "wr4"], plan: [] },
+  // Slot receiver list (crosses WR/TE on the real chart): owner note — WR3 is also Slot WR 1.
+  SLWR: { baseline: ["wr3"], plan: [] },
   HB: { baseline: ["hb1", "hb2"], plan: [] },
   FB: { baseline: ["fb1"], plan: [] },
 };
@@ -105,9 +107,95 @@ describe("formation catalog", () => {
       expect(formation?.status).toBe("mapped");
       expect(formation?.slots.filter((s) => s.inherits).length).toBeGreaterThan(0);
     }
-    // Unmapped list shrank by exactly the five promotions; total is unchanged.
-    expect(FALCONS_OFFENSE.filter((f) => f.status === "mapped")).toHaveLength(13);
+    // Owner feedback batch: the whole Falcons offense book is now mapped —
+    // no honest-pending entries remain on offense.
+    expect(FALCONS_OFFENSE.filter((f) => f.status === "mapped")).toHaveLength(42);
+    expect(FALCONS_OFFENSE.filter((f) => f.status === "unmapped")).toHaveLength(0);
     expect(FALCONS_OFFENSE).toHaveLength(42);
+  });
+
+  it("fields exactly 11 players on every mapped formation in every loaded book", () => {
+    for (const book of [FALCONS_OFFENSE, FALCONS_DEFENSE, BEARS_OFFENSE, VIKINGS_DEFENSE]) {
+      for (const entry of book.filter((f) => f.status === "mapped")) {
+        expect(entry.slots, entry.id).toHaveLength(11);
+      }
+    }
+  });
+
+  it("keeps the unmapped catalog entries honest in the defense books", () => {
+    expect(FALCONS_DEFENSE.filter((f) => f.status === "mapped")).toHaveLength(9);
+    expect(FALCONS_DEFENSE.filter((f) => f.status === "unmapped")).toHaveLength(6);
+    expect(FALCONS_DEFENSE).toHaveLength(15);
+    expect(VIKINGS_DEFENSE.filter((f) => f.status === "mapped")).toHaveLength(4);
+    expect(VIKINGS_DEFENSE.filter((f) => f.status === "unmapped")).toHaveLength(20);
+    expect(VIKINGS_DEFENSE).toHaveLength(24);
+  });
+
+  it("matches the owner's Y Trips Close reference sheet (11 players, one slot, TE attached right)", () => {
+    const f = formation("nfl-off-falcons:singleback:y-trips-close");
+    expect(f.slots).toHaveLength(11);
+    // Exactly ONE slot receiver — the SLWR chart list player (owner note:
+    // "WR3 is also listed as Slot WR 1"), not a second WR ranking.
+    const slSlots = f.slots.filter((s) => s.id.startsWith("SL"));
+    expect(slSlots).toHaveLength(1);
+    expect(slSlots[0].inherits).toMatchObject({ position: "SLWR", rank: 1 });
+    // TE attached right of center, ON the line of scrimmage.
+    const te = f.slots.find((s) => s.id === "TE");
+    expect(te?.onLine).toBe(true);
+    expect(te?.x).toBeGreaterThan(50);
+    // QB under center: off the line, one yard behind it (not floating deep).
+    const qbSlot = f.slots.find((s) => s.id === "QB");
+    expect(qbSlot?.onLine).toBe(false);
+    expect(qbSlot!.y).toBeGreaterThan(10);
+    expect(qbSlot!.y).toBeLessThan(26);
+    // X isolated far left, Z wide right, one HB, three receivers total (X/SL/Z).
+    expect(f.slots.find((s) => s.id === "X")!.x).toBeLessThan(20);
+    expect(f.slots.find((s) => s.id === "Z")!.x).toBeGreaterThan(80);
+    expect(f.slots.filter((s) => s.group === "receiver")).toHaveLength(3);
+    expect(f.slots.filter((s) => s.group === "back")).toHaveLength(1);
+  });
+
+  it("matches the owner's 4-3 Even 6-1 reference sheet (six on the line, safeties high)", () => {
+    const f = formation("nfl-def-falcons:4-3:even-6-1");
+    expect(f.slots).toHaveLength(11); // personnel: 4 DL / 3 LB / 4 DB
+    const onLine = f.slots.filter((s) => s.onLine);
+    expect(onLine.map((s) => s.id).sort()).toEqual(["DT1", "DT2", "NT", "RE", "SAM", "WILL"]);
+    for (const s of onLine) expect(s.y).toBe(90);
+    // MIKE stacks alone at A-gap depth behind the six-man wall.
+    const mike = f.slots.find((s) => s.id === "MIKE");
+    expect(mike?.onLine).toBe(false);
+    expect(mike!.y).toBeLessThan(90);
+    expect(f.slots.filter((s) => s.group === "dline")).toHaveLength(4);
+    expect(f.slots.filter((s) => s.group === "linebacker")).toHaveLength(3);
+    expect(f.slots.filter((s) => s.group === "secondary")).toHaveLength(4);
+    // Safeties HIGHER than the corners: FS deepest, SS between CB level and FS.
+    const fs = f.slots.find((s) => s.id === "FS");
+    const ss = f.slots.find((s) => s.id === "SS");
+    const cb = f.slots.find((s) => s.id === "CB1");
+    expect(fs!.y).toBeLessThan(ss!.y);
+    expect(ss!.y).toBeLessThan(cb!.y);
+  });
+
+  it("sub-packages match the confirmed personnel packages", () => {
+    const groupCount = (id: string, group: string) =>
+      formation(id).slots.filter((s) => s.group === group).length;
+    // Nickel 2-4 = Nickel 2-4-5 (madden.tools): 2 interior DL · 4 LB · 5 DB.
+    expect(groupCount("nfl-def-falcons:nickel:2-4", "dline")).toBe(2);
+    expect(groupCount("nfl-def-falcons:nickel:2-4", "linebacker")).toBe(4);
+    expect(groupCount("nfl-def-falcons:nickel:2-4", "secondary")).toBe(5);
+    // Dime 2-3-6 = Big Dime 4-1-6 (madden.tools): 2 down DTs + 2 stand-up edges · 1 LB · 6 DB.
+    expect(groupCount("nfl-def-falcons:dime:2-3-6", "dline")).toBe(4);
+    expect(groupCount("nfl-def-falcons:dime:2-3-6", "linebacker")).toBe(1);
+    expect(groupCount("nfl-def-falcons:dime:2-3-6", "secondary")).toBe(6);
+    // Goal-line 6-2 (madden-school): 6 DL · 2 LB · 3 DB.
+    expect(groupCount("nfl-def-falcons:goal-line:6-2", "dline")).toBe(6);
+    expect(groupCount("nfl-def-falcons:goal-line:6-2", "linebacker")).toBe(2);
+    expect(groupCount("nfl-def-falcons:goal-line:6-2", "secondary")).toBe(3);
+    // The same packages hold in the Vikings book.
+    expect(groupCount("nfl-def-vikings:nickel:2-4", "dline")).toBe(2);
+    expect(groupCount("nfl-def-vikings:nickel:2-4", "linebacker")).toBe(4);
+    expect(formation("nfl-def-vikings:4-3:even-6-1").slots).toHaveLength(11);
+    expect(formation("nfl-def-vikings:4-3:even-6-1").slots.filter((s) => s.onLine)).toHaveLength(6);
   });
 });
 
@@ -266,8 +354,10 @@ describe("formation resolver", () => {
   });
 
   it("defense diagrams store the offense's view (defense-left = viewer-right)", () => {
+    // The 3-4 fronts carry true LE/RE ids; the owner-corrected 4-3 Even 6-1
+    // covers its edges with stand-up WILL/SAM (no LE slot exists there).
     const result = resolveFormation({
-      formation: formation("nfl-def-falcons:4-3:even-6-1"),
+      formation: formation("nfl-def-falcons:3-4:over"),
       playersById: allPlayers,
       chartLists: { ...chartLists, LEDG: { baseline: ["ledg1"], plan: [] }, REDG: { baseline: ["redg1"], plan: [] }, DT: { baseline: ["dt1", "dt2"], plan: [] }, WILL: { baseline: ["will1"], plan: [] }, MIKE: { baseline: ["mike1"], plan: [] }, SAM: { baseline: ["sam1"], plan: [] }, CB: { baseline: ["cb1", "cb2"], plan: [] }, FS: { baseline: ["fs1"], plan: [] }, SS: { baseline: ["ss1"], plan: [] } },
       overrides: new Map(),

@@ -31,16 +31,18 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
 
 ## Status
 
-- **State: checks passed (typecheck, lint 0 errors, 256 tests, build) · live browser verification passed ·
+- **State: checks passed (typecheck, lint 0 errors, 264 tests, build) · live browser verification passed ·
   migration `0012` prepared but NOT applied · PR open for owner review.**
 - All formation data is provisional per D128; the pre-apply honest-failure paths are verified, not accidental.
+- 2026-10-06 owner-feedback batch: full Falcons offense mapping, owner-corrected 4-3 Even 6-1, Vikings mirror,
+  confirmed sub-package personnel, 11-player audit — see evidence §4a.
 
 ## Implemented
 
 - **Catalog and inventory** — [lib/formations/playbooks.ts](../../lib/formations/playbooks.ts): 86-book
   inventory from the Civil.GG crawl (2026-10-06; 32+32 team, 17+5 alternate) with crawl metadata;
   [lib/formations/catalog.ts](../../lib/formations/catalog.ts) declares the four loaded books (Falcons off/def,
-  Bears off, Vikings def) and 123 formations (21 mapped); [app/settings/page.tsx](../../app/settings/page.tsx)
+  Bears off, Vikings def) and 123 formations (60 mapped after the owner-feedback batch); [app/settings/page.tsx](../../app/settings/page.tsx)
   renders the inventory as a subtle `<details>` list ("86 playbooks · 4 loaded") with the source line.
 - **Types, resolver, and orientation** — [lib/formations/types.ts](../../lib/formations/types.ts) encodes the
   owner-attested D128 orientation (offense line at top, offense-left = viewer's left; defense line at bottom
@@ -48,8 +50,18 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
   [lib/formations/resolver.ts](../../lib/formations/resolver.ts) resolves a formation from book+formation id
   (never the name) over inherited chart lists plus explicit per-slot overrides, with conflict detection.
 - **Data** — [lib/formations/data/](../../lib/formations/data): slots plus the four loaded books' mapped
-  formations. Mapped formations render diagrams; the other 102 render honestly as "unmapped" — visible and
+  formations. Mapped formations render diagrams; the other 63 render honestly as "unmapped" — visible and
   selectable, never an invented diagram (evidence: [C3A-provisional-evidence.md](../evidence/C3A-provisional-evidence.md) §4).
+- **Owner-feedback correction batch (2026-10-06)** — the Falcons offense book is fully mapped (42/42) with
+  confirmed personnel from the owner's reference sheets + madden.tools (Y Trips Close = 11 personnel with ONE
+  SLWR-list slot; Empty sets flex the RB out as a WB; Slot Stack = 21; Wing Pair = 13; Goal Line = 23);
+  the 4-3 Even 6-1 now matches the owner's defensive sheet exactly (six on the LOS: WILL/SAM standing at the
+  edges over four down linemen, MIKE stacked behind, FS>SS>CB depth order) and the Vikings book mirrors it;
+  QB depth follows the set-type ladder (under center 21 / pistol 26 / gun 30); attached TEs sit just outside
+  the reflowed tackles; sub-package personnel follow the confirmed packages (Nickel 2-4-5, Big Dime 4-1-6,
+  Goal-line 6-2 = 6DL·2LB·3DB); the diagram's line of scrimmage derives from the on-line row instead of a
+  hard-coded mid-field line; and a catalog audit test enforces exactly 11 players on every mapped formation
+  (it caught and drove out nine over/under-filled mappings this batch).
 - **Diagram** — [components/formation-diagram.tsx](../../components/formation-diagram.tsx): native SVG
   `<circle role="button">` markers with keyboard Enter/Space activation and focus-visible rings; two-pass
   rendering (all circles, then all labels) so overlapping circles never cover text; cohesive-group layout —
@@ -103,8 +115,8 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
 |---|---|---|---|
 | Typecheck | `npx tsc --noEmit` | pass | — |
 | Lint | `npm run lint` | pass — 0 errors | 2 pre-existing unused-param warnings in `lib/actions/import.ts` |
-| Full tests | `npx vitest run` | pass — 26 files, 259 tests | — |
-| Formation pure tests | `npx vitest run tests/formations.test.ts` | pass — 17/17 (identity, inheritance recompute, override precedence, same-player persistence, reset scope, orientation math, second-batch set-scoped identity) | — |
+| Full tests | `npx vitest run` | pass — 26 files, 264 tests | — |
+| Formation pure tests | `npx vitest run tests/formations.test.ts` | pass — 22/22 (identity, inheritance recompute, override precedence, same-player persistence, reset scope, orientation math, second-batch set-scoped identity, 11-player catalog audit, owner Y Trips Close + 4-3 Even 6-1 sheets, sub-package personnel, unmapped-honesty counts) | — |
 | Formation DB tests | `npx vitest run tests/db/formations.test.ts` | pass — 12/12 (PGlite migrations 0001–0012: overrides/favorites round trip, mixed checklist batches, replay, isolation) | — |
 | Formation UI tests | `npx vitest run tests/formation-ui.test.tsx` | pass — 10/10 (override identity, inherit-clear, pending summary/reset, unmapped honesty, favorites, compact fallback, orientation text, sub-label truncation + tooltip, O-line cohesion band) | — |
 | Checklist UI tests | `npx vitest run tests/checklist-ui.test.tsx` | pass — 10/10 (incl. new: honest empty state, hidden-when-0012-missing, formation cancel identity, blocked card without cancel button) | — |
@@ -170,7 +182,7 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
 
 - **D113 supplement remains OPEN** (evidence gate): all mappings/orientation stay provisional until the owner
   has game access; re-verification list is in [C3A-provisional-evidence.md](../evidence/C3A-provisional-evidence.md) §5.
-- 97 of 123 formations render as unmapped by design; mapping them is incremental data work, not code work.
+- 63 of 123 formations render as unmapped by design; mapping them is incremental data work, not code work.
 - Cosmetic (low severity): adjacent O-line surnames can slightly overlap at the default diagram width; the
   relaxation pass separates markers but sub-label text can still touch. Fix is a small font/offset tweak.
 - Live confirm/cancel of formation units cannot be browser-verified until 0012 is applied (pre-apply failure

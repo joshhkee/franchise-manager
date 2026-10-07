@@ -39,11 +39,11 @@ const mapped: FormationDef[] = [
     slot("HB", "HB", 44, 30, "back", false, inh("HB", 1)),
     slot("RB", "RB", 58, 30, "back", false, inh("HB", 2)),
   ]),
+  // U (TE) off the ball + trips trio right; no isolated X (21→11-slot fix).
   mappedFormation(BOOK, "singleback", "U Off Trips", "u-off-trips", [
     qb(16),
     ...oline(),
-    teLeft(),
-    wideLeft(),
+    slot("TE", "TE", 26, 16, "tight", false, inh("TE", 1)),
     slot("Z", "Z", 84, 10, "receiver", true, inh("WR", 2)),
     slot("SL1", "SL", 92, 14, "receiver", false, inh("WR", 3)),
     slot("SL2", "SL", 78, 18, "receiver", false, inh("WR", 4)),
@@ -58,14 +58,14 @@ const mapped: FormationDef[] = [
     slot("FB", "FB", 50, 26, "back", false, inh("FB", 1)),
     slot("HB", "HB", 50, 36, "back", false, inh("HB", 1)),
   ]),
+  // Bunch cluster left (Z+SL+TE), X isolated right — 11 personnel (madden.tools).
   mappedFormation(BOOK, "gun", "Bunch X Nasty", "bunch-x-nasty", [
     qb(24),
     ...oline(),
+    slot("Z", "Z", 2, 10, "receiver", true, inh("WR", 2)),
+    slot("SL", "SL", 9, 15, "receiver", false, inh("WR", 3)),
     teLeft(),
-    wideLeft(),
-    slot("Z", "Z", 84, 10, "receiver", true, inh("WR", 2)),
-    slot("SL1", "SL", 90, 15, "receiver", false, inh("WR", 3)),
-    slot("SL2", "SL", 78, 19, "receiver", false, inh("WR", 4)),
+    slot("X", "X", 92, 10, "receiver", true, inh("WR", 1)),
     slot("HB", "HB", 50, 32, "back", false, inh("HB", 1)),
   ]),
 ];
