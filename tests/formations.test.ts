@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChartPlayer } from "../lib/depth-chart";
 import { overrideKey, resolveFormation } from "../lib/formations/resolver";
+import { splitFormationDbId } from "../lib/formations/types";
 import { FALCONS_OFFENSE } from "../lib/formations/data/falcons-offense";
 import { FALCONS_DEFENSE } from "../lib/formations/data/falcons-defense";
 import { BEARS_OFFENSE } from "../lib/formations/data/bears-offense";
@@ -397,6 +398,27 @@ describe("formation checklist integration", () => {
       overrides: new Map(),
     });
     expect(checklist.units).toHaveLength(0);
+  });
+
+  it("reduces checklist formation identities to the stored write identity (split rule)", () => {
+    // The write path (set_formation_override) stores book_id + formation_id split
+    // at the FIRST colon. Confirm/cancel payloads carry the full app id, so the
+    // server actions must reduce them with the same rule — a full app id sent as
+    // formation_id silently misses the stored rows (live-found defect, 2026-10-06).
+    const target = formation("nfl-off-falcons:singleback:tight-y-off");
+    const overrides = new Map([[overrideKey(target.id, "Z", "plan"), "wr3"]]);
+    const checklist = buildFormationChecklist({
+      bookId: "nfl-off-falcons",
+      formation: target,
+      playersById: allPlayers,
+      chartLists,
+      overrides,
+    });
+    const [unit] = toConfirmUnits(checklist.units);
+    const split = splitFormationDbId(unit.formationId);
+    expect(split).toEqual({ bookId: "nfl-off-falcons", formationId: "singleback:tight-y-off" });
+    expect(unit.bookId).toBe(split!.bookId);
+    expect(splitFormationDbId("nfl-off-falcons")).toBeNull();
   });
 
   it("emits confirm units with the full slot identity", () => {

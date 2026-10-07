@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "../supabase/server";
+import { splitFormationDbId } from "../formations/types";
 import { AUTOSAVE_MESSAGES, classifyOutcome, type AutosaveOutcome } from "./outcome";
 
 /**
@@ -25,12 +26,10 @@ function revalidateFormationViews(): void {
  * FormationDef.id is `${bookId}:${set}:${slug}` (stable app identity, shared with
  * Coach/Gameday later). The database stores book_id and formation_id columns
  * separately, so the app identity is split at the first colon before writing.
+ * The split rule itself lives with the identity types (splitFormationDbId) so
+ * the write path and the checklist confirm/cancel paths share one rule.
  */
-function splitFormationId(fullId: string): { bookId: string; formationId: string } | null {
-  const index = fullId.indexOf(":");
-  if (index <= 0 || index === fullId.length - 1) return null;
-  return { bookId: fullId.slice(0, index), formationId: fullId.slice(index + 1) };
-}
+const splitFormationId = splitFormationDbId;
 
 async function currentRevision(franchiseId: string): Promise<number | undefined> {
   const supabase = await createServerSupabase();

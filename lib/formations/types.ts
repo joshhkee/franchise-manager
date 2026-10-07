@@ -105,3 +105,17 @@ export const ORIENTATION = {
 
 export const ORIENTATION_NOTE =
   "Orientation is owner-attested from Madden 27, not in-game verified: offense line top (offense-left = viewer's left); defense line bottom, drawn as the offense sees it (defense-left = viewer's right).";
+
+/**
+ * Split the full FormationDef id (`bookId:set:slug`) into the two columns the
+ * database stores (book_id, formation_id). Identity rule: split at the FIRST
+ * colon only — the set may itself contain colons-free text, but slug never does,
+ * and a name alone is never identity (C0B-v2 §6). Every DB write and every
+ * checklist confirm/cancel payload MUST use this split; sending the full app id
+ * as formation_id would silently miss the stored rows.
+ */
+export function splitFormationDbId(fullId: string): { bookId: string; formationId: string } | null {
+  const index = fullId.indexOf(":");
+  if (index <= 0 || index === fullId.length - 1) return null;
+  return { bookId: fullId.slice(0, index), formationId: fullId.slice(index + 1) };
+}

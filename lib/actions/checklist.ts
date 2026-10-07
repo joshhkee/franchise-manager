@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "../supabase/server";
+import { splitFormationDbId } from "../formations/types";
 import { AUTOSAVE_MESSAGES, classifyOutcome, type AutosaveOutcome } from "./outcome";
 
 /**
@@ -90,9 +91,16 @@ export async function confirmChecklistUnits(input: {
   }
 
   const supabase = await createServerSupabase();
+  // Formation unit ids arrive as full app ids (`bookId:set:slug`); the database
+  // stores book_id + formation_id columns, so split at the first colon with the
+  // shared identity rule before validating against the stored plan rows.
   const { data, error } = await supabase.rpc("confirm_checklist_units", {
     p_franchise_id: input.franchiseId,
-    p_units: input.units,
+    p_units: input.units.map((unit) => {
+      if (unit.type !== "formation_slot" || !unit.formationId) return unit;
+      const split = splitFormationDbId(unit.formationId);
+      return split ? { ...unit, formationId: split.formationId } : unit;
+    }),
     p_expected_revision: input.expectedRevision,
     p_request_id: input.requestId,
   });
@@ -157,7 +165,7 @@ export async function cancelChecklistUnits(input: {
       ...formations.map((formation) => ({
         type: "formation_slot",
         bookId: formation.bookId,
-        formationId: formation.formationId,
+        formationId: splitFormationDbId(formation.formationId)?.formationId ?? formation.formationId,
         slotId: formation.slotId,
       })),
     ],
