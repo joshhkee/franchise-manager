@@ -24,15 +24,18 @@ Shared contract version:      C0B-v2 (§4 action units, §5 revision+requestId r
                               inheritance, explicit overrides, reset scope, backup extension)
 Other active lane:            none; delivery mode = one integrated checkpoint
 Dev/test environment:         PGlite (real migrations 0001–0012) for DB tests; live Supabase project read by
-                              the dev server. `0012_formations.sql` is PREPARED, NOT applied (owner step).
+                              the dev server. `0012_formations.sql` APPLIED by the owner 2026-10-08
+                              (verified: "Success. No rows returned" in the SQL editor; the checklist
+                              formation section appeared immediately after).
 Provisional-rules note:       D128 — every mapping is labeled "Provisional mapping — unverified, editable";
                               the D113 supplement remains OPEN and no claim of in-game verification is made.
 ```
 
 ## Status
 
-- **State: checks passed (typecheck, lint 0 errors, 264 tests, build) · live browser verification passed ·
-  migration `0012` prepared but NOT applied · PR open for owner review.**
+- **State: checks passed (typecheck, lint 0 errors, 265 tests, build) · migration `0012` APPLIED on the live
+  project (owner, 2026-10-08) · live browser verification passed INCLUDING the post-apply write/cancel round
+  trip · PR open for owner review.**
 - All formation data is provisional per D128; the pre-apply honest-failure paths are verified, not accidental.
 - 2026-10-06 owner-feedback batch: full Falcons offense mapping, owner-corrected 4-3 Even 6-1, Vikings mirror,
   confirmed sub-package personnel, 11-player audit — see evidence §4a.
@@ -122,8 +125,9 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
 | Checklist UI tests | `npx vitest run tests/checklist-ui.test.tsx` | pass — 10/10 (incl. new: honest empty state, hidden-when-0012-missing, formation cancel identity, blocked card without cancel button) | — |
 | Backup tests | `npx vitest run tests/backup.test.ts tests/db/restore.test.ts` | pass | — |
 | Build | `npm run build` | pass — 14 route entries | — |
-| Migration apply | `0012_formations.sql` | **NOT applied** — owner step per D088/D119 | pre-apply honest failure paths verified instead |
+| Migration apply | `0012_formations.sql` | **APPLIED 2026-10-08** (owner, Supabase SQL editor; byte-exact paste of the file verified against the disk file before running; result "Success. No rows returned") | — |
 | Live browser pass | dev server `http://localhost:3220` + shared preview, signed-in owner, live Atlanta Falcons | pass — see below | — |
+| Live post-apply round trip | dev server 3220, signed-in owner: set formation override → checklist unit → cancel (2026-10-08) | pass — write (rev bump + "Pending overrides: 1"), unit "Tight Y Off — Z override" on the checklist, cancel clears it (rev bump + history row with stored identity `nfl-off-falcons:singleback:tight-y-off:Z`), no console/network errors | — |
 | Console/network | preview console + network log | clean — no errors | — |
 | iOS Safari device check | not run | deferred to C5B per project convention | — |
 
@@ -150,6 +154,16 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
    (verified live: line gaps 10.0 units vs 26+ receiver spacing, 13 mapped Falcons-off formations incl. the
    gun Tight family) — screenshot capture was unavailable (preview compositing), so layout was verified by
    DOM geometry probes.
+9. Post-apply defect found & fixed by the 2026-10-08 live round trip: the checklist's confirm/cancel payloads
+   passed the checklist unit's FULL app formation id (`nfl-off-falcons:singleback:tight-y-off`) while the DB
+   stores `book_id` + `formation_id` split at the first colon — so cancel/confirm against a real pending unit
+   failed with "no pending override". The DB tests missed it because they hand-built split ids instead of
+   going through the real unit path. Fixed at the identity layer (`848cb75`): a shared
+   `splitAppFormationId` helper in [lib/formations/types.ts](../../lib/formations/types.ts) is now used by
+   both `lib/actions/formations.ts` (write) and `lib/actions/checklist.ts` (confirm+cancel), so the three
+   paths can never disagree again; regression test added in tests/formations.test.ts. Re-verified live after
+   the fix: stale unit canceled cleanly (rev 35→36), then a fresh write→checklist→cancel round trip
+   (rev 36→37→38) with the history row carrying the stored identity.
 
 ## Owner manual acceptance
 
@@ -185,8 +199,6 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
 - 63 of 123 formations render as unmapped by design; mapping them is incremental data work, not code work.
 - Cosmetic (low severity): adjacent O-line surnames can slightly overlap at the default diagram width; the
   relaxation pass separates markers but sub-label text can still touch. Fix is a small font/offset tweak.
-- Live confirm/cancel of formation units cannot be browser-verified until 0012 is applied (pre-apply failure
-  path is the verified behavior); owner manual acceptance covers the post-apply paths.
 - Deferred outside scope: special teams (C3B with the D114 gate), iOS Safari device checks (C5B), verified
   in-game wording (D113).
 
@@ -194,11 +206,11 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
 
 1. **Review and merge the C3A PR** against `main` — owner: you; artifact: the PR plus this record;
    **OWNER APPROVAL/CHECK:** merge is the acceptance step (agents never self-merge).
-2. **Apply `supabase/migrations/0012_formations.sql`** in the Supabase SQL editor after the merge — owner: you;
-   **OWNER APPROVAL/CHECK:** the app honestly reports missing functions until this is applied; after it,
-   overrides/favorites/checklist formation units become writable.
+2. ~~Apply `supabase/migrations/0012_formations.sql`~~ **DONE 2026-10-08** — owner applied it in the Supabase
+   SQL editor; verified live (checklist formation section appeared; write/cancel round trip succeeds).
 3. **Run the owner manual acceptance script** (above) on the merged app — owner: you; **OWNER CHECK:**
-   formation override → checklist unit → confirm → undo round trip on live data.
+   formation override → checklist unit → confirm → undo round trip on live data (the write→checklist→cancel
+   legs were already live-verified 2026-10-08 after the identity fix below).
 4. **Schedule the D113 depth-chart supplement** when game access exists — owner: you; it upgrades every
    provisional label and the orientation answers to verified.
 5. **Launch C3B (special teams, D114 gate) or C4A (transactions)** from the new merged base — owner: you;
@@ -210,8 +222,8 @@ Immediate next step: **owner review/merge of the C3A PR.**
 
 - Exact next checkpoint: **C3B** (special teams, gated on D114) or **C4A** (transactions) per the phase plan,
   only after C3A is owner-accepted, merged, and 0012 is applied.
-- Required merged baseline: the C3A PR merge commit on `main`; verify with `git log`, and confirm
-  `0012_formations.sql` is applied (overrides/favorites become writable only then).
+- Required merged baseline: the C3A PR merge commit on `main`; verify with `git log`; `0012_formations.sql`
+  is already applied (2026-10-08).
 - Files/docs to read first: this record, [C3A-provisional-evidence.md](../evidence/C3A-provisional-evidence.md),
   C0B-v2 §6, `lib/formations/resolver.ts`, `lib/checklist-formation.ts`.
 - Dependencies that MUST land first: C3A merged; 0012 applied; D114 (C3B) or D113 (any verified wording).
