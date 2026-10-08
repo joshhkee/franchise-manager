@@ -189,13 +189,40 @@ export function FormationDiagram({
           );
         })}
         {/* Pass 2: all labels, drawn above every circle. */}
-        {slots.map((resolved) => {
+        {(() => {
+          // Nudge sub-labels that would visually collide (same row, overlapping
+          // spans) apart symmetrically — a render-only text dodge.
+          const spans = slots
+            .map((resolved) => ({
+              id: resolved.slot.id,
+              at: positions.get(resolved.slot.id) ?? { x: resolved.slot.x, y: resolved.slot.y },
+              name: resolved.player ? shortName(resolved.player.fullName) : null,
+            }))
+            .filter((entry) => entry.name !== null);
+          const shift = new Map<string, number>();
+          for (let i = 0; i < spans.length; i += 1) {
+            for (let j = i + 1; j < spans.length; j += 1) {
+              const a = spans[i];
+              const b = spans[j];
+              if (Math.abs(a.at.y - b.at.y) > 1.5) continue;
+              const gap = Math.abs(b.at.x - a.at.x);
+              const need = subLabelSpan(a.name!).halfWidth + subLabelSpan(b.name!).halfWidth + 1;
+              if (gap < need) {
+                const push = (need - gap) / 2;
+                const dir = b.at.x >= a.at.x ? 1 : -1;
+                shift.set(a.id, (shift.get(a.id) ?? 0) - push * dir);
+                shift.set(b.id, (shift.get(b.id) ?? 0) + push * dir);
+              }
+            }
+          }
+          return slots.map((resolved) => {
           const { slot, player } = resolved;
           const isActive = resolved.conflict !== null || resolved.pendingOverride || selectedSlotId === slot.id;
           const ink = isActive ? "#ffffff" : "var(--ink)";
           const mainText = mode === "compact" ? (jerseyOf(resolved, jerseyNumbers) !== null ? `#${jerseyOf(resolved, jerseyNumbers)}` : slot.label) : slot.label;
           const subText = mode === "compact" ? null : player ? shortName(player.fullName) : "—";
           const at = positions.get(slot.id) ?? { x: slot.x, y: slot.y };
+          const subShift = shift.get(slot.id) ?? 0;
           return (
             <g key={slot.id} className="pointer-events-none select-none">
               <text
@@ -210,14 +237,14 @@ export function FormationDiagram({
               </text>
               {subText && (
                 <text
-                  x={at.x}
-                  y={at.y + SLOT_RADIUS + 3.2}
+                  x={at.x + subShift}
+                  y={at.y + SLOT_RADIUS + 2.4}
                   textAnchor="middle"
-                  fontSize={3.1}
+                  fontSize={2.5}
                   fontWeight={550}
                   fill="var(--ink)"
                   stroke="var(--surface)"
-                  strokeWidth={1}
+                  strokeWidth={0.9}
                   paintOrder="stroke"
                 >
                   {truncated(subText)}
@@ -225,7 +252,8 @@ export function FormationDiagram({
               )}
             </g>
           );
-        })}
+          });
+        })()}
       </svg>
       <p className="mt-1 text-xs text-ink-muted">{ORIENTATION_NOTE}</p>
     </div>
@@ -256,4 +284,14 @@ function shortName(fullName: string): string {
 /** Sub-labels truncate to a fixed budget; the circle's <title> carries the full name. */
 function truncated(name: string): string {
   return name.length > 9 ? `${name.slice(0, 8)}…` : name;
+}
+
+/**
+ * Render-time measure of one rendered sub-label so the label pass can dodge
+ * collisions the marker relaxation cannot see (text is wider than its circle).
+ * Mirrors the SVG text layout: fontSize 2.5, average glyph advance ≈ 0.56em.
+ */
+function subLabelSpan(name: string): { halfWidth: number } {
+  const shown = truncated(name);
+  return { halfWidth: (shown.length * 2.5 * 0.56) / 2 };
 }

@@ -15,7 +15,7 @@ import {
   summarizeChecklist,
   type ChecklistUnit,
 } from "../lib/checklist";
-import type { FormationChecklistUnit } from "../lib/checklist-formation";
+import { toConfirmUnits, type FormationChecklistUnit } from "../lib/checklist-formation";
 import type { ChartPlayer } from "../lib/depth-chart";
 import type { ChecklistData } from "../lib/data/checklist";
 
@@ -71,6 +71,21 @@ export function ChecklistPanel({
   );
   const actionable = plan.units.filter((unit) => unit.type === "depth_chart_list").length;
 
+  // Reviewed formation units ride the same confirm command (C0B-v2 §6): every
+  // pending unit is included — the section is reviewed as a whole, mirroring the
+  // diagram's review panel. Blocked formation units are excluded by the caller.
+  const formationUnitsReady = formationUnits.filter((unit) =>
+    !formationBlocked.some((blocked) => blocked.unitId === unit.unitId),
+  );
+  const confirmUnits = useMemo(
+    () => [...plan.units, ...toConfirmUnits(formationUnitsReady)],
+    [plan, formationUnitsReady],
+  );
+  // Displayed count keeps the pre-formation semantic: chart prerequisites
+  // (roster_status) ride the batch but are not counted as selected units.
+  const confirmCount =
+    confirmUnits.filter((unit) => unit.type !== "roster_status").length;
+
   const toggle = (unitId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -99,7 +114,7 @@ export function ChecklistPanel({
   };
 
   const confirmSelected = () => {
-    if (actionable === 0) {
+    if (confirmCount === 0) {
       setStatus({
         kind: "error",
         message:
@@ -112,7 +127,7 @@ export function ChecklistPanel({
     run("confirm", () =>
       confirmChecklistUnits({
         franchiseId: franchise.id,
-        units: plan.units,
+        units: confirmUnits,
         expectedRevision: franchise.revision,
         requestId: newId(),
       }),
@@ -306,12 +321,12 @@ export function ChecklistPanel({
               <button
                 type="button"
                 onClick={confirmSelected}
-                disabled={busy || actionable === 0}
+                disabled={busy || confirmCount === 0}
                 className="min-h-11 rounded-md border border-line bg-surface px-4 text-sm font-medium disabled:opacity-60"
               >
                 {busyUnit === "confirm"
                   ? "Confirming…"
-                  : `Confirm ${actionable} selected unit${actionable === 1 ? "" : "s"} as already done`}
+                  : `Confirm ${confirmCount} selected unit${confirmCount === 1 ? "" : "s"} as already done`}
               </button>
             </div>
           </div>
