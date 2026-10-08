@@ -33,9 +33,9 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
 
 ## Status
 
-- **State: checks passed (typecheck, lint 0 errors, 265 tests, build) · migration `0012` APPLIED on the live
-  project (owner, 2026-10-08) · live browser verification passed INCLUDING the post-apply write/cancel round
-  trip · PR open for owner review.**
+- **State: checks passed (typecheck, lint 0 errors, 266 tests, build) · migration `0012` APPLIED on the live
+  project (owner, 2026-10-08) · live browser verification passed including confirm/undo/two-tab conflict legs ·
+  PR open for owner review.**
 - All formation data is provisional per D128; the pre-apply honest-failure paths are verified, not accidental.
 - 2026-10-06 owner-feedback batch: full Falcons offense mapping, owner-corrected 4-3 Even 6-1, Vikings mirror,
   confirmed sub-package personnel, 11-player audit — see evidence §4a.
@@ -118,7 +118,7 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
 |---|---|---|---|
 | Typecheck | `npx tsc --noEmit` | pass | — |
 | Lint | `npm run lint` | pass — 0 errors | 2 pre-existing unused-param warnings in `lib/actions/import.ts` |
-| Full tests | `npx vitest run` | pass — 26 files, 264 tests | — |
+| Full tests | `npx vitest run` | pass — 26 files, 266 tests | — |
 | Formation pure tests | `npx vitest run tests/formations.test.ts` | pass — 22/22 (identity, inheritance recompute, override precedence, same-player persistence, reset scope, orientation math, second-batch set-scoped identity, 11-player catalog audit, owner Y Trips Close + 4-3 Even 6-1 sheets, sub-package personnel, unmapped-honesty counts) | — |
 | Formation DB tests | `npx vitest run tests/db/formations.test.ts` | pass — 12/12 (PGlite migrations 0001–0012: overrides/favorites round trip, mixed checklist batches, replay, isolation) | — |
 | Formation UI tests | `npx vitest run tests/formation-ui.test.tsx` | pass — 10/10 (override identity, inherit-clear, pending summary/reset, unmapped honesty, favorites, compact fallback, orientation text, sub-label truncation + tooltip, O-line cohesion band) | — |
@@ -128,6 +128,9 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
 | Migration apply | `0012_formations.sql` | **APPLIED 2026-10-08** (owner, Supabase SQL editor; byte-exact paste of the file verified against the disk file before running; result "Success. No rows returned") | — |
 | Live browser pass | dev server `http://localhost:3220` + shared preview, signed-in owner, live Atlanta Falcons | pass — see below | — |
 | Live post-apply round trip | dev server 3220, signed-in owner: set formation override → checklist unit → cancel (2026-10-08) | pass — write (rev bump + "Pending overrides: 1"), unit "Tight Y Off — Z override" on the checklist, cancel clears it (rev bump + history row with stored identity `nfl-off-falcons:singleback:tight-y-off:Z`), no console/network errors | — |
+| Live confirm → undo (formation unit) | dev server 3220, signed-in owner: SL override → Confirm (mixed batch) → Undo (2026-10-08) | pass — confirm button includes formation units (`Confirm 2 selected units`: KOS chart + SL override), batch applied atomically (rev 39→40, history row `depth_chart_list:KOS, formation_slot:…:SL`), undo restored both units to pending (rev 40→41) with the honest status message | — |
+| Live two-tab double-confirm | two browser tabs both loaded at rev 41; tab 2 confirms (→42), tab 1 confirms from its stale rev-41 view | pass — tab 1 refused atomically: "The plan changed since you reviewed it, so nothing was applied. Reload to review the current checklist." Nothing applied, revision not clobbered | — |
+| Tight Y Off alignment vs Civil.GG reference | owner-supplied screenshot (2026-10-08) vs live diagram at mobile width | fixed + pass — TE moved to the right side (attached outside RT), SL moved inside the isolated X on the left, matching the reference (singleback + gun + Flex variants); diagram re-verified by DOM geometry + screenshot at 390px | — |
 | Console/network | preview console + network log | clean — no errors | — |
 | iOS Safari device check | not run | deferred to C5B per project convention | — |
 
@@ -164,6 +167,18 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
    paths can never disagree again; regression test added in tests/formations.test.ts. Re-verified live after
    the fix: stale unit canceled cleanly (rev 35→36), then a fresh write→checklist→cancel round trip
    (rev 36→37→38) with the history row carrying the stored identity.
+10. Post-apply defects found & fixed in the 2026-10-08 second live pass (`fb2c4ea`):
+    (a) the checklist confirm button never included formation units — `toConfirmUnits` existed but was not
+    wired into the panel, so confirm was unreachable from the UI while cancel worked; the confirm batch now
+    merges reviewed formation units (chart units + formation units in one atomic batch, C0B-v2 §6), with a
+    regression UI test;
+    (b) Tight Y Off (singleback/gun/Flex) had the TE attached LEFT while the owner's Civil.GG reference shows
+    it attached RIGHT outside the RT with the slot receiver (SL) inside the isolated X on the LEFT; the
+    orientation is NOT mirrored (offense-left = viewer-left, as attested) — the TE side was simply mis-mapped;
+    corrected in the data with a new `slLeft` slot helper;
+    (c) O-line sub-label text could touch at narrow widths; sub-labels now dodge same-row text collisions
+    (render-only shift) on top of the smaller 2.5-unit font. All three live-verified (confirm→undo round
+    trip rev 39→41, two-tab conflict refusal, mobile-width diagram screenshot).
 
 ## Owner manual acceptance
 
@@ -197,8 +212,9 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
 - **D113 supplement remains OPEN** (evidence gate): all mappings/orientation stay provisional until the owner
   has game access; re-verification list is in [C3A-provisional-evidence.md](../evidence/C3A-provisional-evidence.md) §5.
 - 63 of 123 formations render as unmapped by design; mapping them is incremental data work, not code work.
-- Cosmetic (low severity): adjacent O-line surnames can slightly overlap at the default diagram width; the
-  relaxation pass separates markers but sub-label text can still touch. Fix is a small font/offset tweak.
+- Cosmetic (low severity): adjacent O-line surnames can slightly overlap at the default diagram width —
+  **improved 2026-10-08** (smaller sub-label font + collision-dodge shift, verified at 390px mobile width);
+  extreme cases may still touch slightly, fix is a further font/offset tweak if seen.
 - Deferred outside scope: special teams (C3B with the D114 gate), iOS Safari device checks (C5B), verified
   in-game wording (D113).
 
@@ -209,8 +225,9 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
 2. ~~Apply `supabase/migrations/0012_formations.sql`~~ **DONE 2026-10-08** — owner applied it in the Supabase
    SQL editor; verified live (checklist formation section appeared; write/cancel round trip succeeds).
 3. **Run the owner manual acceptance script** (above) on the merged app — owner: you; **OWNER CHECK:**
-   formation override → checklist unit → confirm → undo round trip on live data (the write→checklist→cancel
-   legs were already live-verified 2026-10-08 after the identity fix below).
+   formation override → checklist unit → confirm → undo round trip on live data. **The confirm→undo legs and
+   the two-tab conflict refusal were live-verified 2026-10-08** (see verification table); what remains for you
+   is walking the same flow on the merged build.
 4. **Schedule the D113 depth-chart supplement** when game access exists — owner: you; it upgrades every
    provisional label and the orientation answers to verified.
 5. **Launch C3B (special teams, D114 gate) or C4A (transactions)** from the new merged base — owner: you;

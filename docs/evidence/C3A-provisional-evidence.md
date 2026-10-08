@@ -79,6 +79,11 @@ madden-school, 2026-10-06); classes recorded per item:
 - **Y Trips Close (owner sheet)** [Owner-attested]: 11 personnel (1 RB · 1 TE · 3 WR), QB under center, TE
   attached right just outside the RT, X isolated far left, exactly ONE slot receiver — the SLWR chart list
   player (sheet note: "WR3 is also listed as Slot WR 1"), Z wide right, HB behind QB.
+- **Tight Y Off (Civil.GG alignment image, owner-supplied 2026-10-08)** [Crawled]: same family as Y Trips
+  Close — TE attached RIGHT outside the RT, slot receiver (SLWR-list player) inside the isolated X on the
+  LEFT, Z wide right, QB under center, HB behind; personnel 3 WR / 1 TE / 1 HB. The 2026-10-06 mapping had
+  the TE attached left and the SL on the right; corrected 2026-10-08 (singleback + gun + Flex variants).
+  Orientation is NOT mirrored: offense-left = viewer-left matches the reference image directly.
 - **4-3 Even 6-1 (owner sheet, defense drawn from the offense's view)** [Owner-attested]: SIX defenders on the
   LOS — WILL and SAM standing at the edges flanking FOUR down linemen (RE–NT–DT–DT), MIKE stacked alone at
   A-gap depth behind; CBs level, SS higher (nearer the LOS), FS deepest. Personnel 4 DL / 3 LB / 4 DB = 11.
