@@ -256,9 +256,9 @@ Immediate next step: **owner review/merge of the C3A follow-up PR.**
   the C3B pre-flight ([C3B-special-teams-feasibility.md](../evidence/C3B-special-teams-feasibility.md) + D130),
   C0B-v2 §6, `lib/formations/resolver.ts`, `lib/checklist-formation.ts`.
 - Dependencies that MUST land first: C3A follow-up merged (**`2fea577`** — done); 0012 applied (done); provisional
-  C3B basis recorded (**D130** — done); the **D114 special-teams answer**, whose bounded feasibility attempt is done
-  ([evidence](../evidence/C3B-special-teams-feasibility.md)) and whose owner question is open with options (a)–(d)
-  (D113 stays open for any verified wording).
+  C3B basis recorded (**D130** — done, confirmed); the **D114 special-teams answer** — **answered as option (a):
+  inventory + roles, no diagrams** (**D131**), with C3B also mapping no new books and shipping text/personnel only.
+  D113 stays open for any verified wording.
 - Things NOT to change: formation identity (book+formation, never name), inheritance recompute semantics,
   same-player-override persistence rule (A32), explicit reset scopes, provisional evidence labels, and the
   C4A transaction seam.

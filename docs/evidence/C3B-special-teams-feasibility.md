@@ -1,9 +1,10 @@
 # C3B special-teams feasibility attempt (D114 gate) — 2026-10-09
 
-Status: **C3B's bounded feasibility attempt, executed.** The result is an **open owner question** — D114 defers
-special-teams feasibility to C3B with an explicit gate and D081 forbids a silent skip, so **no option is
-pre-approved**. Every finding below is a public-source observation made on 2026-10-09; nothing here is in-game
-verified, and nothing here authorizes inventing slot coordinates.
+Status: **C3B's bounded feasibility attempt, executed; the D114 question was answered as option (a).** D114
+deferred special-teams feasibility to C3B with an explicit gate and D081 forbids a silent skip, so the question was
+posed rather than assumed — and the owner answered it in §4 (**D131**), which is a scope choice rather than a
+waiver. Every finding below is a public-source observation made on 2026-10-09; nothing here is in-game verified,
+and nothing here authorizes inventing slot coordinates.
 
 ## 1. What was probed
 
@@ -67,11 +68,15 @@ without new work.
   and the one alternate source that carries any special-teams sets is itself incomplete.
 - **Consequence:** C3B cannot claim "special-teams diagrams included". Its exit needs either an owner-approved
   fallback scope or an explicitly recorded owner-approved skip (D114), and the eventual C6A release has to carry
-  whichever limitation is chosen.
+  whichever limitation is chosen. **Resolved:** the owner chose the fallback scope — option (a), recorded as D131.
 
-## 4. Owner question (the D114 gate)
+## 4. Owner question (the D114 gate) — **ANSWERED 2026-10-09: option (a)**
 
-Pick one; (a) is the smallest honest scope, (d) is the only option that waits for game access.
+The owner chose **(a) inventory + role fallback, no diagrams**, recorded as **D131**. The gate is answered
+without game access, and no option was pre-approved — the answer is a scope choice rather than a waiver, so the
+special-teams position stays disclosed through C6A. The options remain below for the record.
+
+Originally posed: pick one; (a) is the smallest honest scope, (d) is the only option that waits for game access.
 
 **(a) Inventory + role fallback, no diagrams (recommended).** Ship the special-teams set/play inventory with
 provenance, the K/P/LS/H/returner role lists, and a named "no diagram mapping" state. No coordinates, no invented
@@ -91,8 +96,8 @@ than by evidence. *Risk:* C6A must then carry a disclosed special-teams coverage
 86-book coverage expansion only and special teams stays open past C3B. *Cost:* C6A's "all above merged, or
 individually recorded owner-approved exceptions" stays unresolved until game access exists.
 
-**OWNER APPROVAL/CHECK:** whichever option is chosen must be recorded as a decision before C3B claims its
-special-teams result; options (a)–(c) can be answered now, without game access.
+**OWNER APPROVAL/CHECK:** satisfied — the choice is recorded as D131, so C3B may claim its special-teams result
+only as "inventory + roles, no diagrams" and must disclose the kickoff/return/onside/block gap.
 
 ## 5. What C3B can build regardless of the answer
 
