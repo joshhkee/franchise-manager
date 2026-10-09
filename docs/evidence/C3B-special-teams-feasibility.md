@@ -74,7 +74,9 @@ without new work.
 
 The owner chose **(a) inventory + role fallback, no diagrams**, recorded as **D131**. The gate is answered
 without game access, and no option was pre-approved — the answer is a scope choice rather than a waiver, so the
-special-teams position stays disclosed through C6A. The options remain below for the record.
+special-teams position stays disclosed through C6A. It is implemented in C3B as
+[lib/formations/special-teams.ts](../../lib/formations/special-teams.ts) plus the Settings coverage surface
+([C3B.md](../checkpoints/C3B.md)). The options remain below for the record.
 
 Originally posed: pick one; (a) is the smallest honest scope, (d) is the only option that waits for game access.
 
