@@ -36,15 +36,17 @@ const isolatedX = () => slot("X", "X", 4, 10, "receiver", true, inh("WR", 1));
 const zRight = () => slot("Z", "Z", 94, 10, "receiver", true, inh("WR", 2));
 /** Slot receiver — the SLWR chart list player (owner reference: WR3 = Slot WR 1). */
 const slRight = (x = 78, y = 14) => slot("SL", "SL", x, y, "receiver", false, inh("SLWR", 1));
+/** Slot receiver on the LEFT side, just inside the isolated X (Civil.GG Tight Y Off alignment, 2026-10-08). */
+const slLeft = (x = 22, y = 15) => slot("SL", "SL", x, y, "receiver", false, inh("SLWR", 1));
 
 const mapped: FormationDef[] = [
   // --- Singleback (under center) ---
   mappedFormation(BOOK, "singleback", "Tight Y Off", "tight-y-off", [
     qbUnder(),
     ...oline(),
-    slot("TE", "TE", 19, 16, "tight", false, inh("TE", 1)),
+    teRight(),
     isolatedX(),
-    slRight(70, 15),
+    slLeft(22, 15),
     zRight(),
     slot("HB", "HB", 50, 30, "back", false, inh("HB", 1)),
   ]),
@@ -69,9 +71,9 @@ const mapped: FormationDef[] = [
   mappedFormation(BOOK, "singleback", "Tight Y Off Flex", "tight-y-off-flex", [
     qbUnder(),
     ...oline(),
-    slot("TE", "TE", 19, 16, "tight", false, inh("TE", 1)),
+    teRight(),
     isolatedX(),
-    slRight(70, 15),
+    slLeft(22, 15),
     zRight(),
     slot("HB", "HB", 50, 30, "back", false, inh("HB", 1)),
   ]),
@@ -336,9 +338,9 @@ const mapped: FormationDef[] = [
   mappedFormation(BOOK, "gun", "Tight Y Off", "tight-y-off", [
     qb(30),
     ...oline(),
-    slot("TE", "TE", 19, 16, "tight", false, inh("TE", 1)),
+    teRight(),
     isolatedX(),
-    slRight(70, 15),
+    slLeft(22, 15),
     zRight(),
     slot("HB", "HB", 58, 30, "back", false, inh("HB", 1)),
   ]),

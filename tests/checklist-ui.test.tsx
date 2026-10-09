@@ -174,6 +174,41 @@ describe("checklist review and confirmation", () => {
     });
   });
 
+  it("includes a pending formation override in the confirm batch (C0B-v2 §6 mixed batch)", async () => {
+    const unit: FormationChecklistUnit = {
+      unitId: "formation_slot:falcons-off:gun_tight_flex:lt",
+      type: "formation_slot",
+      bookId: "falcons-off",
+      formationId: "gun_tight_flex",
+      formationLabel: "Gun Tight Flex",
+      slotId: "lt",
+      slotLabel: "LT",
+      baselinePlayerId: "p2",
+      baselinePlayerName: "Bravo Receiver",
+      plannedPlayerId: "p1",
+      plannedPlayerName: "Alpha Receiver",
+      label: "Gun Tight Flex — LT override",
+    };
+    renderPanel(makeData({ WR: { baseline: ["p2"], plan: ["p1", "p2"] } }, { formationUnits: [unit] }));
+
+    // Chart unit + formation unit are both counted in the reviewed scope.
+    fireEvent.click(screen.getByRole("button", { name: /Confirm 2 selected units/ }));
+    await waitFor(() => expect(harness.confirm).toHaveBeenCalledTimes(1));
+    const units = harness.confirm.mock.calls[0][0].units;
+    expect(units.filter((u: { type: string }) => u.type === "formation_slot")).toEqual([
+      {
+        type: "formation_slot",
+        unitId: "formation_slot:falcons-off:gun_tight_flex:lt",
+        bookId: "falcons-off",
+        formationId: "gun_tight_flex",
+        slotId: "lt",
+        playerId: "p1",
+        planPlayerIds: ["p1"],
+      },
+    ]);
+    expect(units.filter((u: { type: string }) => u.type === "depth_chart_list")).toHaveLength(1);
+  });
+
   it("renders a blocked formation override with its prerequisite note and no cancel button", () => {
     const unit: FormationChecklistUnit = {
       unitId: "formation_slot:falcons-off:gun_tight_flex:lt",
