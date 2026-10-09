@@ -20,6 +20,7 @@ vi.mock("next/navigation", () => ({
 
 import { ChecklistPanel } from "../components/checklist-panel";
 import { buildChecklist, type ChecklistList } from "../lib/checklist";
+import type { FormationChecklistUnit } from "../lib/checklist-formation";
 import type { ChartPlayer } from "../lib/depth-chart";
 import type { ChecklistData } from "../lib/data/checklist";
 
@@ -41,6 +42,9 @@ function makeData(
     history: [],
     historyAvailable: true,
     historyMessage: null,
+    formationUnits: [],
+    formationBlocked: [],
+    formationsAvailable: true,
     ...overrides,
   };
 }
@@ -118,6 +122,78 @@ describe("checklist review and confirmation", () => {
 
     await waitFor(() => expect(harness.cancel).toHaveBeenCalledTimes(1));
     expect(harness.cancel.mock.calls[0][0]).toMatchObject({ franchiseId: "f1", positions: ["WR"], expectedRevision: 3 });
+  });
+
+  it("shows the honest empty state for formation overrides while none are pending", () => {
+    renderPanel(makeData({}));
+
+    expect(screen.getByText("Formation overrides (reviewed separately)")).toBeInTheDocument();
+    expect(screen.getByText(/No pending formation overrides\. Set one on the Lineups formation diagram\./)).toBeInTheDocument();
+  });
+
+  it("hides the formation section honestly when the formations migration is not applied", () => {
+    renderPanel(makeData({}, { formationsAvailable: false }));
+
+    expect(screen.queryByText("Formation overrides (reviewed separately)")).not.toBeInTheDocument();
+  });
+
+  it("lists a pending formation override and cancels it with exact slot identity", async () => {
+    const unit: FormationChecklistUnit = {
+      unitId: "formation_slot:falcons-off:gun_tight_flex:lt",
+      type: "formation_slot",
+      bookId: "falcons-off",
+      formationId: "gun_tight_flex",
+      formationLabel: "Gun Tight Flex",
+      slotId: "lt",
+      slotLabel: "LT",
+      baselinePlayerId: "p2",
+      baselinePlayerName: "Bravo Receiver",
+      plannedPlayerId: "p1",
+      plannedPlayerName: "Alpha Receiver",
+      label: "Gun Tight Flex — LT override",
+    };
+    renderPanel(makeData({}, { formationUnits: [unit] }));
+
+    expect(screen.getByText("Gun Tight Flex — LT override")).toBeInTheDocument();
+    expect(screen.getByText(/falcons-off · Gun Tight Flex · slot LT: Bravo Receiver → Alpha Receiver/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel pending change" }));
+    await waitFor(() => expect(harness.cancel).toHaveBeenCalledTimes(1));
+    expect(harness.cancel.mock.calls[0][0]).toMatchObject({
+      franchiseId: "f1",
+      formations: [
+        {
+          type: "formation_slot",
+          bookId: "falcons-off",
+          formationId: "gun_tight_flex",
+          slotId: "lt",
+          label: "Gun Tight Flex — LT override",
+        },
+      ],
+      expectedRevision: 3,
+    });
+  });
+
+  it("renders a blocked formation override with its prerequisite note and no cancel button", () => {
+    const unit: FormationChecklistUnit = {
+      unitId: "formation_slot:falcons-off:gun_tight_flex:lt",
+      type: "formation_slot",
+      bookId: "falcons-off",
+      formationId: "gun_tight_flex",
+      formationLabel: "Gun Tight Flex",
+      slotId: "lt",
+      slotLabel: "LT",
+      baselinePlayerId: null,
+      baselinePlayerName: "Inherited chart slot (empty)",
+      plannedPlayerId: "s1",
+      plannedPlayerName: "Squad Caller",
+      label: "Gun Tight Flex — LT override",
+    };
+    renderPanel(makeData({}, { formationBlocked: [{ ...unit, note: "Squad Caller is recorded on the practice squad. Record the promotion before confirming this override." }] }));
+
+    expect(screen.getByText("Gun Tight Flex — LT override")).toBeInTheDocument();
+    expect(screen.getByText(/Record the promotion before confirming this override\./)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel pending change" })).not.toBeInTheDocument();
   });
 });
 

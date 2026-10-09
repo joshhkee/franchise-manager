@@ -1,7 +1,12 @@
 import type { ChartPlayer } from "../depth-chart";
 import { buildChecklist, type Checklist } from "../checklist";
+import {
+  buildFormationChecklistForFranchise,
+  type FormationChecklistUnit,
+} from "../checklist-formation";
 import { createServerSupabase } from "../supabase/server";
 import { loadDepthChart, type DepthChartEntryRow } from "./depth-chart";
+import { loadFormationState } from "./formations";
 import type { Loaded } from "./franchises";
 
 export interface ChecklistHistoryRow {
@@ -24,6 +29,12 @@ export interface ChecklistData {
   historyAvailable: boolean;
   /** Owner-readable note when history could not be read for another reason. */
   historyMessage: string | null;
+  /** Pending explicit formation-override units (empty when 0012 is not applied yet). */
+  formationUnits: FormationChecklistUnit[];
+  /** Formation units blocked on roster state (practice squad / departed), with reasons. */
+  formationBlocked: (FormationChecklistUnit & { note: string })[];
+  /** False when migration 0012 is not applied; overrides are absent, never faked. */
+  formationsAvailable: boolean;
 }
 
 /**
@@ -109,6 +120,26 @@ export async function loadChecklist(
     });
   }
 
+  // Pending formation overrides (C3A). A missing migration 0012 is an honest empty
+  // state, not a page failure — the same policy as the history above.
+  const formationState = await loadFormationState(franchiseId);
+  let formationUnits: FormationChecklistUnit[] = [];
+  let formationBlocked: (FormationChecklistUnit & { note: string })[] = [];
+  // Hidden unless migration 0012 is actually applied: pre-apply, the app renders
+  // the formations read-only on Lineups with its own named not-applied message,
+  // and a checklist section pointing at an action that cannot be recorded yet
+  // would be dishonest. Same policy as the 0011 history gate above.
+  const formationsAvailable = formationState.ok && formationState.data.overridesAvailable;
+  if (formationsAvailable) {
+    const derived = buildFormationChecklistForFranchise({
+      players: chart.data.players,
+      lists: formationState.data.chartLists,
+      overrides: formationState.data.overrides,
+    });
+    formationUnits = derived.units;
+    formationBlocked = derived.blocked;
+  }
+
   return {
     ok: true,
     data: {
@@ -119,6 +150,9 @@ export async function loadChecklist(
       history,
       historyAvailable,
       historyMessage,
+      formationUnits,
+      formationBlocked,
+      formationsAvailable,
     },
   };
 }

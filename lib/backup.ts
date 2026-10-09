@@ -54,6 +54,14 @@ export type BackupChange =
       baseline: string[];
       plan: string[];
       verification?: "provisional_published" | "owner_confirmed";
+    }
+  | {
+      kind: "formation_slot";
+      bookId: string;
+      formationId: string;
+      slotId: string;
+      baselinePlayerId: string | null;
+      planPlayerId: string | null;
     };
 
 export interface BackupActionBatch {
@@ -64,6 +72,21 @@ export interface BackupActionBatch {
   createdAt: string;
 }
 
+/** C3A book-scoped formation override rows (both layers); ids remapped on restore. */
+export interface BackupFormationOverride {
+  bookId: string;
+  formationId: string;
+  slotId: string;
+  layer: "baseline" | "plan";
+  playerId: string;
+}
+
+/** C3A favorite formations; app preference only, stable (book, formation) identity. */
+export interface BackupFormationFavorite {
+  bookId: string;
+  formationId: string;
+}
+
 export interface BackupFranchisePayload {
   name: string;
   isDefault: boolean;
@@ -72,6 +95,9 @@ export interface BackupFranchisePayload {
   fields: BackupField[];
   /** C2A depth-chart entries; both layers, so plans survive the round trip too. */
   depthChart: BackupChartEntry[];
+  /** C3A formation overrides and favorites; absent in older envelopes = empty. */
+  formationOverrides?: BackupFormationOverride[];
+  formationFavorites?: BackupFormationFavorite[];
   /** C2B retained undo history; mutable player ids are remapped on restore (C0B-v2 §8). */
   history: BackupActionBatch[];
 }
@@ -278,6 +304,23 @@ export function parseEnvelope(text: string): ValidationResult {
         if (change.kind === "roster_status") {
           if (typeof change.playerId !== "string") reasons.push("schema_invalid");
           else if (!seen.has(change.playerId)) reasons.push("dangling_player_reference");
+        } else if (change.kind === "formation_slot") {
+          if (
+            typeof change.bookId !== "string" ||
+            change.bookId.trim().length === 0 ||
+            typeof change.formationId !== "string" ||
+            change.formationId.trim().length === 0 ||
+            typeof change.slotId !== "string" ||
+            change.slotId.trim().length === 0 ||
+            !(change.baselinePlayerId === null || typeof change.baselinePlayerId === "string") ||
+            !(change.planPlayerId === null || typeof change.planPlayerId === "string")
+          ) {
+            reasons.push("schema_invalid");
+            continue;
+          }
+          for (const id of [change.baselinePlayerId, change.planPlayerId]) {
+            if (typeof id === "string" && !seen.has(id)) reasons.push("dangling_player_reference");
+          }
         } else if (change.kind === "depth_chart_list") {
           if (typeof change.position !== "string") {
             reasons.push("schema_invalid");
@@ -297,6 +340,51 @@ export function parseEnvelope(text: string): ValidationResult {
     }
   }
 
+  // C3A formation overrides and favorites: absent in older envelopes (treated as empty);
+  // every referenced player must resolve to a player in the same file.
+  const formationOverrides = franchise.formationOverrides === undefined ? [] : franchise.formationOverrides;
+  if (!Array.isArray(formationOverrides)) {
+    reasons.push("schema_invalid");
+  } else {
+    const slots = new Set<string>();
+    for (const override of formationOverrides) {
+      if (
+        !isRecord(override) ||
+        typeof override.bookId !== "string" ||
+        override.bookId.trim().length === 0 ||
+        typeof override.formationId !== "string" ||
+        override.formationId.trim().length === 0 ||
+        typeof override.slotId !== "string" ||
+        override.slotId.trim().length === 0 ||
+        (override.layer !== "baseline" && override.layer !== "plan") ||
+        typeof override.playerId !== "string"
+      ) {
+        reasons.push("schema_invalid");
+        continue;
+      }
+      if (!seen.has(override.playerId)) reasons.push("dangling_player_reference");
+      const key = `${override.bookId}:${override.formationId}:${override.slotId}:${override.layer}`;
+      if (slots.has(key)) reasons.push("schema_invalid");
+      slots.add(key);
+    }
+  }
+  const formationFavorites = franchise.formationFavorites === undefined ? [] : franchise.formationFavorites;
+  if (!Array.isArray(formationFavorites)) {
+    reasons.push("schema_invalid");
+  } else {
+    for (const favorite of formationFavorites) {
+      if (
+        !isRecord(favorite) ||
+        typeof favorite.bookId !== "string" ||
+        favorite.bookId.trim().length === 0 ||
+        typeof favorite.formationId !== "string" ||
+        favorite.formationId.trim().length === 0
+      ) {
+        reasons.push("schema_invalid");
+      }
+    }
+  }
+
   const unique = [...new Set(reasons)];
   if (unique.length > 0) return { ok: false, reasons: unique };
 
@@ -307,6 +395,8 @@ export function parseEnvelope(text: string): ValidationResult {
       rosterStatus: (player.rosterStatus as BackupRosterStatus | undefined) ?? "active",
     })),
     depthChart: depthChart as BackupChartEntry[],
+    formationOverrides: formationOverrides as BackupFormationOverride[],
+    formationFavorites: formationFavorites as BackupFormationFavorite[],
     history: history as BackupActionBatch[],
   };
 
@@ -352,6 +442,13 @@ export function restoreAsNewFranchise(
     if (change.kind === "roster_status") {
       return { ...change, playerId: idMap.get(change.playerId) ?? change.playerId };
     }
+    if (change.kind === "formation_slot") {
+      return {
+        ...change,
+        baselinePlayerId: change.baselinePlayerId ? idMap.get(change.baselinePlayerId) ?? change.baselinePlayerId : null,
+        planPlayerId: change.planPlayerId ? idMap.get(change.planPlayerId) ?? change.planPlayerId : null,
+      };
+    }
     return {
       ...change,
       baseline: change.baseline.map((id) => idMap.get(id) ?? id),
@@ -364,6 +461,12 @@ export function restoreAsNewFranchise(
     beforeState: { changes: batch.beforeState.changes.map(remapChange) },
     afterState: { changes: batch.afterState.changes.map(remapChange) },
   }));
+
+  const formationOverrides = (envelope.franchise.formationOverrides ?? []).map((override) => ({
+    ...override,
+    playerId: idMap.get(override.playerId) as string,
+  }));
+  const formationFavorites = envelope.franchise.formationFavorites ?? [];
 
   const requiredRevisionKeys = [
     ...new Set(
@@ -383,6 +486,8 @@ export function restoreAsNewFranchise(
       players,
       fields,
       depthChart,
+      formationOverrides,
+      formationFavorites,
       history,
     },
     requiredRevisionKeys,
