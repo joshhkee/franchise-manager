@@ -33,7 +33,8 @@ base, and the owner remains integration owner and reviewer.
 - **State: checks passed (typecheck, lint 0 errors, 281 tests, build) · live browser pass on the owner's
   session · PR open for owner review.**
 - Scope is exactly D131: coverage inventory + special-teams inventory/roles. **No new formations were mapped,
-  no art was copied or linked, and no special-teams diagram was drawn.**
+  no art was copied or embedded (the special-teams set names link to their source pages for provenance only),
+  and no special-teams diagram was drawn.**
 
 ## Implemented
 
