@@ -35,10 +35,9 @@ Provisional-rules note:       D128 — every mapping is labeled "Provisional map
 
 ## Status
 
-- **State: owner accepted & merged (D129) — merged as `cb30b3d` (PR #23) · checks passed (typecheck, lint 0
-  errors, 266 tests, build) · migration `0012` APPLIED on the live project (owner, 2026-10-08) · live browser
-  verification passed including confirm/undo/two-tab conflict legs · post-merge fixes + this closeout record ship
-  in the follow-up PR (`freebuff/c3a-followup-closeout`).**
+- **State: closed — owner accepted (D129); merged as `cb30b3d` (PR #23) with the post-merge fixes merged as
+  `2fea577` (PR #24) · checks passed (typecheck, lint 0 errors, 266 tests, build) · migration `0012` APPLIED on the
+  live project (owner, 2026-10-08) · live browser verification passed including confirm/undo/two-tab conflict legs.**
 - All formation data is provisional per D128; the pre-apply honest-failure paths are verified, not accidental.
 - 2026-10-06 owner-feedback batch: full Falcons offense mapping, owner-corrected 4-3 Even 6-1, Vikings mirror,
   confirmed sub-package personnel, 11-player audit — see evidence §4a.
@@ -225,10 +224,8 @@ Live browser pass detail (2026-10-06, owner's real Falcons, revision 34):
 
 ## Next steps (owner flow)
 
-1. **Review and merge the C3A follow-up PR** (`freebuff/c3a-followup-closeout` → `main`) — owner: you;
-   artifact: the PR plus this record; **OWNER APPROVAL/CHECK:** merge is the delivery step (agents never
-   self-merge). It carries the post-merge live-verified fixes and this acceptance/status record, and its merge
-   commit is the base C3B/C4A must start from — `cb30b3d` alone does **not** contain the fixes.
+1. ~~Review and merge the C3A follow-up PR~~ **DONE — merged as `2fea577` (PR #24)**, which is the base C3B/C4A
+   start from (`cb30b3d` alone does not contain the post-merge fixes).
 2. ~~Apply `supabase/migrations/0012_formations.sql`~~ **DONE 2026-10-08** — owner applied it in the Supabase
    SQL editor; verified live (checklist formation section appeared; write/cancel round trip succeeds).
 3. **Run the owner manual acceptance script** (above) on the merged app — owner: you; **OWNER CHECK:**
@@ -253,12 +250,15 @@ Immediate next step: **owner review/merge of the C3A follow-up PR.**
 
 - Exact next checkpoint: **C3B** (special teams, gated on D114) or **C4A** (transactions) per the phase plan,
   only after C3A is owner-accepted, merged, and 0012 is applied.
-- Required merged baseline: the **C3A follow-up PR merge commit** on `main` (the first C3A merge `cb30b3d` does
-  not contain the post-merge fixes); verify with `git log`; `0012_formations.sql` is already applied (2026-10-08).
+- Required merged baseline: **`2fea577`** (the C3A follow-up merge; the first C3A merge `cb30b3d` does not
+  contain the post-merge fixes); verify with `git log`; `0012_formations.sql` is already applied (2026-10-08).
 - Files/docs to read first: this record, [C3A-provisional-evidence.md](../evidence/C3A-provisional-evidence.md),
+  the C3B pre-flight ([C3B-special-teams-feasibility.md](../evidence/C3B-special-teams-feasibility.md) + D130),
   C0B-v2 §6, `lib/formations/resolver.ts`, `lib/checklist-formation.ts`.
-- Dependencies that MUST land first: the C3A follow-up merged; 0012 applied; a recorded provisional C3B evidence
-  basis; D114 answered only after C3B's bounded feasibility attempt (D113 stays open for any verified wording).
+- Dependencies that MUST land first: C3A follow-up merged (**`2fea577`** — done); 0012 applied (done); provisional
+  C3B basis recorded (**D130** — done, confirmed); the **D114 special-teams answer** — **answered as option (a):
+  inventory + roles, no diagrams** (**D131**), with C3B also mapping no new books and shipping text/personnel only.
+  D113 stays open for any verified wording.
 - Things NOT to change: formation identity (book+formation, never name), inheritance recompute semantics,
   same-player-override persistence rule (A32), explicit reset scopes, provisional evidence labels, and the
   C4A transaction seam.
