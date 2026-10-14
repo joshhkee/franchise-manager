@@ -6,6 +6,7 @@ import {
   type BackupFormationFavorite,
   type BackupFormationOverride,
   type BackupFranchisePayload,
+  type BackupGmState,
 } from "./backup";
 import { createServerSupabase } from "./supabase/server";
 import type { Loaded } from "./data/franchises";
@@ -17,7 +18,7 @@ interface ExportRow {
   full_name: string;
   source_id: string | null;
   source_revision_key: string | null;
-  roster_status: "active" | "practice_squad" | null;
+  roster_status: "active" | "practice_squad" | "pending_incoming" | "traded" | "released" | null;
 }
 
 interface ChartRow {
@@ -134,6 +135,43 @@ export async function buildFranchiseEnvelope(
     (revisions.data ?? []).map((row) => [row.id as string, row.revision_key as string]),
   );
 
+  const gmSettingsResult = await supabase.from("franchise_contract_settings_view")
+    .select("team_cap,available_cap,expiry_threshold_years").eq("franchise_id", franchiseId).maybeSingle();
+  const gmMissing = /does not exist|not found|schema cache/i.test(gmSettingsResult.error?.message ?? "");
+  if (!gmMissing && gmSettingsResult.error) return { ok: false, message: gmSettingsResult.error.message };
+  let gmState: BackupGmState | undefined;
+  if (!gmMissing) {
+    const [picksResult, proposalsResult] = await Promise.all([
+      supabase.from("franchise_draft_picks_view").select("id,draft_year,draft_round,original_team,current_owner,note").eq("franchise_id", franchiseId),
+      supabase.from("transaction_proposals_view").select("id,kind,counterparty,note,status,created_at,completed_at,player_moves,pick_moves").eq("franchise_id", franchiseId).order("created_at", { ascending: true }),
+    ]);
+    const gmError = picksResult.error ?? proposalsResult.error;
+    if (gmError) return { ok: false, message: gmError.message };
+    const pickRows = (picksResult.data ?? []) as { id: string; draft_year: number; draft_round: number; original_team: string; current_owner: string; note: string | null }[];
+    const proposalRows = (proposalsResult.data ?? []) as { id: string; kind: "trade" | "sign" | "cut" | "promotion"; counterparty: string; note: string | null; status: "proposed" | "completed" | "cancelled"; created_at: string; completed_at: string | null; player_moves: { direction: "incoming" | "outgoing" | "promotion"; playerId: string | null; sourceRecordId: string | null; sourceId: string | null; revisionKey: string | null }[]; pick_moves: { direction: "incoming" | "outgoing"; pickId: string }[] }[];
+    gmState = {
+      settings: gmSettingsResult.data ? {
+        teamCap: gmSettingsResult.data.team_cap === null ? null : Number(gmSettingsResult.data.team_cap),
+        availableCap: gmSettingsResult.data.available_cap === null ? null : Number(gmSettingsResult.data.available_cap),
+        expiryThresholdYears: gmSettingsResult.data.expiry_threshold_years,
+      } : null,
+      picks: pickRows.map((row) => ({ mutableId: row.id, year: Number(row.draft_year), round: Number(row.draft_round), originalTeam: row.original_team, currentOwner: row.current_owner, note: row.note })),
+      proposals: proposalRows.map((row) => ({
+        mutableId: row.id, kind: row.kind, counterparty: row.counterparty, note: row.note, status: row.status,
+        createdAt: row.created_at, completedAt: row.completed_at,
+        playerMoves: row.player_moves.map((move) => {
+          const heldId = move.playerId ?? move.sourceRecordId;
+          return {
+            direction: move.direction,
+            mutablePlayerId: move.playerId ? heldId : null,
+            ...(move.direction === "incoming" && move.sourceId && move.revisionKey ? { sourceReference: { sourceId: move.sourceId, revisionKey: move.revisionKey } } : {}),
+          };
+        }),
+        pickMoves: row.pick_moves.map((move) => ({ direction: move.direction, mutablePickId: move.pickId })),
+      })),
+    };
+  }
+
   const payload: BackupFranchisePayload = {
     name: franchise.data.name as string,
     isDefault: false,
@@ -167,6 +205,7 @@ export async function buildFranchiseEnvelope(
     formationOverrides,
     formationFavorites,
     history,
+    ...(gmState ? { gmState } : {}),
   };
 
   return { ok: true, data: { envelope: createEnvelope(payload), name: payload.name } };
@@ -177,8 +216,8 @@ export async function restoreNewFranchise(
   requestId: string,
 ): Promise<Loaded<string>> {
   const supabase = await createServerSupabase();
-  const { data, error } = await supabase.rpc("restore_new_franchise", {
-    p_payload: payload,
+  const { data, error } = await supabase.rpc("restore_new_franchise_c4a", {
+    p_payload: { franchise: payload, gmState: payload.gmState ?? null },
     p_request_id: requestId,
   });
 

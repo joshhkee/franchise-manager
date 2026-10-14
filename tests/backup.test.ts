@@ -182,6 +182,58 @@ describe("backup envelope round trip", () => {
   });
 });
 
+describe("C4A GM backup state", () => {
+  it("round-trips known picks and completed/pending proposals with remapped asset and player ids", () => {
+    const source = payload({
+      gmState: {
+        settings: { teamCap: 255000000, availableCap: 12000000, expiryThresholdYears: 2 },
+        picks: [{ mutableId: "pick-1", year: 2027, round: 2, originalTeam: "Atlanta", currentOwner: "Atlanta", note: null }],
+        proposals: [{
+          mutableId: "proposal-1", kind: "trade", counterparty: "Chicago", note: "Owner plan",
+          status: "proposed", createdAt: "2026-10-10T12:00:00.000Z", completedAt: null,
+          playerMoves: [
+            { direction: "outgoing", mutablePlayerId: "player-1" },
+            { direction: "incoming", mutablePlayerId: null, sourceReference: { sourceId: "ea-2", revisionKey: "1-base" } },
+          ],
+          pickMoves: [{ direction: "outgoing", mutablePickId: "pick-1" }],
+        }],
+      },
+    });
+    const parsed = parseEnvelope(serializeEnvelope(createEnvelope(source)));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const restored = restoreAsNewFranchise(parsed.envelope, {
+      newFranchiseId: "new-franchise",
+      nextPlayerId: (index) => `restored-${index + 1}`,
+    });
+    const state = restored.payload.gmState;
+    expect(state?.settings).toEqual({ teamCap: 255000000, availableCap: 12000000, expiryThresholdYears: 2 });
+    expect(state?.picks[0].mutableId).toBe("restored-pick-pick-1");
+    expect(state?.proposals[0].mutableId).toBe("restored-proposal-proposal-1");
+    expect(state?.proposals[0].playerMoves).toEqual([
+      { direction: "outgoing", mutablePlayerId: "restored-1" },
+      { direction: "incoming", mutablePlayerId: null, sourceReference: { sourceId: "ea-2", revisionKey: "1-base" } },
+    ]);
+    expect(state?.proposals[0].pickMoves[0].mutablePickId).toBe("restored-pick-pick-1");
+  });
+
+  it("rejects proposal references to unknown players or picks", () => {
+    const invalid = createEnvelope(payload({
+      gmState: {
+        settings: null,
+        picks: [],
+        proposals: [{
+          mutableId: "proposal-1", kind: "trade", counterparty: "Chicago", note: null,
+          status: "proposed", createdAt: "2026-10-10T12:00:00.000Z", completedAt: null,
+          playerMoves: [{ direction: "outgoing", mutablePlayerId: "missing-player" }],
+          pickMoves: [{ direction: "outgoing", mutablePickId: "missing-pick" }],
+        }],
+      },
+    }));
+    expect(parseEnvelope(JSON.stringify(invalid))).toEqual({ ok: false, reasons: ["dangling_player_reference", "schema_invalid"] });
+  });
+});
+
 describe("backup validation refuses unsafe input without partial state", () => {
   it("rejects an unsupported newer envelope instead of guessing", () => {
     const future = { ...createEnvelope(payload()), envelopeVersion: ENVELOPE_VERSION + 1 };

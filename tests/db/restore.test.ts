@@ -16,6 +16,7 @@ const REQUEST = (n: number) => `00000000-0000-4000-8000-0000000001${String(n).pa
 let db: PGlite;
 let franchiseId: string;
 let sourcePlayerId: string;
+let incomingSourcePlayerId: string;
 let customPlayerId: string;
 
 function payload(overrides: Record<string, unknown> = {}) {
@@ -83,6 +84,13 @@ beforeAll(async () => {
     [revision.rows[0].id],
   );
   sourcePlayerId = record.rows[0].id;
+  const incomingRecord = await db.query<{ id: string }>(
+    `insert into app.source_player_records
+       (revision_id, source_id, full_name, normalized_name, team, reconciliation_outcome)
+     values ($1, 'ea-incoming', 'Incoming Rookie', 'incoming rookie', null, 'new') returning id`,
+    [revision.rows[0].id],
+  );
+  incomingSourcePlayerId = incomingRecord.rows[0].id;
 
   await asRole(db, "authenticated", OWNER_UID);
   const franchise = await db.query<{ id: string }>(
@@ -268,6 +276,64 @@ describe("restore-new", () => {
     await asOwnerSession(db);
     const after = await db.query<{ count: string }>("select count(*)::text as count from app.franchises");
     expect(after.rows[0].count).toBe(before.rows[0].count);
+  });
+
+  it("restores C4A cap settings, picks and open proposal claims with remapped ids, atomically and retry-safely", async () => {
+    const gmState = {
+      settings: { teamCap: 255000000, availableCap: 12000000, expiryThresholdYears: 2 },
+      picks: [{ mutableId: "old-pick", year: 2029, round: 3, originalTeam: "Atlanta", currentOwner: "Atlanta", note: "known" }],
+      proposals: [{
+        mutableId: "old-proposal", kind: "trade", counterparty: "Chicago", note: null,
+        status: "proposed", createdAt: "2026-10-10T12:00:00.000Z", completedAt: null,
+        playerMoves: [
+          { direction: "outgoing", mutablePlayerId: "old-source" },
+          { direction: "incoming", mutablePlayerId: null, sourceReference: { sourceId: "ea-incoming", revisionKey: "1-base" } },
+        ],
+        pickMoves: [{ direction: "outgoing", mutablePickId: "old-pick" }],
+      }],
+    };
+    const envelopePayload = payload({ gmState });
+    const wrapped = JSON.stringify({ franchise: envelopePayload, gmState });
+    await asOwnerSession(db);
+    const beforeCount = await db.query<{ count: string }>("select count(*)::text as count from app.franchises where name='Restored club'");
+    await asRole(db, "authenticated", OWNER_UID);
+    const restored = await db.query<{ restore_new_franchise_c4a: string }>(
+      "select public.restore_new_franchise_c4a($1::jsonb, $2)", [wrapped, REQUEST(30)],
+    );
+    const newFranchiseId = restored.rows[0].restore_new_franchise_c4a;
+    const replay = await db.query<{ restore_new_franchise_c4a: string }>(
+      "select public.restore_new_franchise_c4a($1::jsonb, $2)", [wrapped, REQUEST(30)],
+    );
+    expect(replay.rows[0].restore_new_franchise_c4a).toBe(newFranchiseId);
+
+    await asOwnerSession(db);
+    const settings = await db.query<{ team_cap: number; available_cap: number; expiry_threshold_years: number }>(
+      "select team_cap, available_cap, expiry_threshold_years from app.franchise_contract_settings where franchise_id=$1", [newFranchiseId],
+    );
+    expect(settings.rows[0]).toEqual({ team_cap: "255000000.00", available_cap: "12000000.00", expiry_threshold_years: 2 });
+    const proposal = await db.query<{ id: string; status: string }>(
+      "select id,status from app.transaction_proposals where franchise_id=$1", [newFranchiseId],
+    );
+    expect(proposal.rows).toHaveLength(1);
+    expect(proposal.rows[0].status).toBe("proposed");
+    const moves = await db.query<{ direction: string; player_id: string; source_player_record_id: string | null; roster_status: string }>(
+      `select m.direction,m.player_id,m.source_player_record_id,p.roster_status
+       from app.transaction_player_moves m join app.franchise_players p on p.id=m.player_id
+       where m.proposal_id=$1 order by m.direction`, [proposal.rows[0].id],
+    );
+    expect(moves.rows).toHaveLength(2);
+    expect(moves.rows.find((row) => row.direction === "incoming")?.source_player_record_id).toBe(incomingSourcePlayerId);
+    expect(moves.rows.find((row) => row.direction === "incoming")?.roster_status).toBe("pending_incoming");
+    const claims = await db.query<{ count: string }>(
+      "select count(*)::text as count from app.transaction_asset_claims where proposal_id=$1", [proposal.rows[0].id],
+    );
+    expect(claims.rows[0].count).toBe("4");
+    const picks = await db.query<{ draft_year: number; current_owner: string }>(
+      "select draft_year,current_owner from app.franchise_draft_picks where franchise_id=$1", [newFranchiseId],
+    );
+    expect(picks.rows).toEqual([{ draft_year: 2029, current_owner: "Atlanta" }]);
+    const franchiseCount = await db.query<{ count: string }>("select count(*)::text as count from app.franchises where name='Restored club'");
+    expect(Number(franchiseCount.rows[0].count)).toBe(Number(beforeCount.rows[0].count) + 1);
   });
 
   it("replays a repeated restore request instead of duplicating the franchise", async () => {

@@ -7,6 +7,8 @@ const EDITABLE_FIELDS: { key: string; label: string; numeric: boolean }[] = [
   { key: "team", label: "Team", numeric: false },
   { key: "archetype", label: "Archetype", numeric: false },
   { key: "overall", label: "Overall", numeric: true },
+  { key: "contract_years", label: "Contract years remaining (owner-entered)", numeric: true },
+  { key: "contract_value", label: "Annual cap hit (USD, owner-entered)", numeric: true },
   { key: "notes", label: "Notes", numeric: false },
 ];
 

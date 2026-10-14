@@ -123,19 +123,23 @@ export function buildChecklist(input: ChecklistInput): Checklist {
       const player = playersById.get(id);
       const playerName = player?.fullName ?? "Unknown player";
 
-      if (pendingIncoming.has(id)) {
+      if (pendingIncoming.has(id) || player?.rosterStatus === "pending_incoming" || player?.rosterStatus === "traded" || player?.rosterStatus === "released") {
         blocked.push({
-          kind: "pending_transaction",
+          kind: player?.rosterStatus === "traded" || player?.rosterStatus === "released" ? "ineligible_placement" : "pending_transaction",
           playerId: id,
           playerName,
-          note: `${playerName} is in a pending incoming transaction; confirm that transaction before this lineup unit.`,
+          note: player?.rosterStatus === "traded" || player?.rosterStatus === "released"
+            ? `${playerName} is no longer on the roster; repair this lineup before confirming it.`
+            : `${playerName} is in a pending incoming transaction; confirm that transaction before this lineup unit.`,
         });
         prerequisites.push({
           kind: "transaction",
           playerId: id,
           playerName,
           unitRef: null,
-          note: "Transaction dependencies arrive with the GM War Room (C4A); nothing is applied silently.",
+          note: player?.rosterStatus === "traded" || player?.rosterStatus === "released"
+            ? "Remove or replace this departed player before confirming the dependent lineup."
+            : "Confirm this player’s proposal in Assets & Moves before confirming the dependent lineup.",
         });
         continue;
       }
@@ -159,6 +163,12 @@ export function buildChecklist(input: ChecklistInput): Checklist {
 
       const eligibility = eligibilityFor(player, spec.key);
       if (eligibility.ok) continue;
+
+      if (eligibility.blocked === "inactive_roster") {
+        blocked.push({ kind: "ineligible_placement", playerId: id, playerName, note: eligibility.note });
+        prerequisites.push({ kind: "placement", playerId: id, playerName, unitRef: null, note: "Repair the lineup plan before confirming; this player is no longer available." });
+        continue;
+      }
 
       if (eligibility.blocked === "practice_squad") {
         const unitId = `roster_status:${id}`;

@@ -8,6 +8,8 @@ import { loadFranchiseContext } from "../../lib/data/current";
 import { loadCatalogAttach } from "../../lib/data/catalog";
 import { listFranchisePlayers, listPlayerFields } from "../../lib/data/franchises";
 import { gmTabs } from "../../lib/tabs";
+import { loadGmLedger } from "../../lib/data/gm";
+import { GmLedgerPanel } from "../../components/gm-ledger-panel";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -17,7 +19,8 @@ export default async function GmPage({ searchParams }: { searchParams: Promise<S
   const current = gmTabs.some((tab) => tab.value === view) ? (view as string) : "roster";
 
   let roster: ReactNode = null;
-  if (current === "roster") {
+  let assets: ReactNode = null;
+  if (current === "roster" || current === "assets") {
     const context = await loadFranchiseContext();
     if (!context.ok) {
       roster = (
@@ -37,14 +40,23 @@ export default async function GmPage({ searchParams }: { searchParams: Promise<S
       );
     } else {
       const franchise = context.data.current;
-      const [players, fields, catalog] = await Promise.all([
+      const [players, fields, catalog, ledger] = await Promise.all([
         listFranchisePlayers(franchise.id),
         listPlayerFields(franchise.id),
         loadCatalogAttach(franchise.id),
+        current === "assets" ? loadGmLedger(franchise.id) : loadGmLedger(franchise.id).then(() => null),
       ]);
       roster = (
         <RosterPanel franchise={franchise} players={players} fields={fields} catalog={catalog} />
       );
+      if (current === "assets") {
+        if (!players.ok || !fields.ok || !ledger?.ok) {
+          assets = <EmptyState title="Assets & Moves could not be read" detail={!players.ok ? players.message : !fields.ok ? fields.message : ledger && !ledger.ok ? ledger.message : "Reload to retry."} hint="Nothing was changed." />;
+        } else {
+          const data = ledger.data;
+          assets = <GmLedgerPanel franchiseId={franchise.id} revision={franchise.revision} teamName={franchise.name} players={players.data} fields={fields.data} picks={data.picks} proposals={data.proposals} settings={data.settings} sourcePlayers={data.sourcePlayers} storageAvailable={data.storageAvailable} />;
+        }
+      }
     }
   }
 
@@ -58,6 +70,8 @@ export default async function GmPage({ searchParams }: { searchParams: Promise<S
       <div className="mt-4">
         {current === "roster" ? (
           roster
+        ) : current === "assets" ? (
+          assets
         ) : current === "trade-block" ? (
           <EmptyState
             title="Trade Block arrives with scouting read models"
@@ -69,10 +83,7 @@ export default async function GmPage({ searchParams }: { searchParams: Promise<S
             detail="Other-team candidates with explained scheme fit or athletic outliers arrive in C4B."
           />
         ) : (
-          <EmptyState
-            title="Assets and moves not connected"
-            detail="Manual pick assets, contract ledger, and owner-entered deals arrive in C4A. Unentered picks remain unknown."
-          />
+          assets
         )}
       </div>
       {current === "roster" ? (
