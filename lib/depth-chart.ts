@@ -126,7 +126,7 @@ export function groupOf(key: string): PositionGroup | null {
   return positionSpec(key)?.group ?? null;
 }
 
-export type RosterStatus = "active" | "practice_squad";
+export type RosterStatus = "active" | "practice_squad" | "pending_incoming" | "traded" | "released";
 
 export interface ChartPlayer {
   id: string;
@@ -138,7 +138,7 @@ export interface ChartPlayer {
   overall: number | null;
 }
 
-export type BlockReason = "position_required" | "position_mismatch" | "practice_squad";
+export type BlockReason = "position_required" | "position_mismatch" | "practice_squad" | "pending_transaction" | "inactive_roster";
 
 export interface Eligibility {
   ok: boolean;
@@ -151,6 +151,12 @@ export interface Eligibility {
  * A negative answer is disclosed in the UI, never converted into a silent skip.
  */
 export function eligibilityFor(player: ChartPlayer, position: string): Eligibility {
+  if (player.rosterStatus === "pending_incoming") {
+    return { ok: false, blocked: "pending_transaction", note: "Pending incoming transaction — plan placement is allowed, but confirm the transaction in Assets & Moves before confirming this lineup." };
+  }
+  if (player.rosterStatus === "traded" || player.rosterStatus === "released") {
+    return { ok: false, blocked: "inactive_roster", note: "This player is recorded as no longer on the roster. Remove or replace the placement before confirming." };
+  }
   if (player.rosterStatus === "practice_squad") {
     return {
       ok: false,

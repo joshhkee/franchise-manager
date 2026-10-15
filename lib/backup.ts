@@ -16,7 +16,7 @@ export const MAX_ENVELOPE_BYTES = 5 * 1024 * 1024;
 
 export type FieldClass = "game_edit_action" | "app_fact";
 
-export type BackupRosterStatus = "active" | "practice_squad";
+export type BackupRosterStatus = "active" | "practice_squad" | "pending_incoming" | "traded" | "released";
 
 export interface BackupPlayer {
   mutableId: string;
@@ -87,6 +87,45 @@ export interface BackupFormationFavorite {
   formationId: string;
 }
 
+export interface BackupPickAsset {
+  mutableId: string;
+  year: number;
+  round: number;
+  originalTeam: string;
+  currentOwner: string;
+  note: string | null;
+}
+
+export interface BackupPlayerMove {
+  direction: "incoming" | "outgoing" | "promotion";
+  mutablePlayerId: string | null;
+  /** Source player identity for an incoming catalog record, preserving immutability. */
+  sourceReference?: { sourceId: string; revisionKey: string } | null;
+}
+
+export interface BackupPickMove {
+  direction: "incoming" | "outgoing";
+  mutablePickId: string;
+}
+
+export interface BackupTransactionProposal {
+  mutableId: string;
+  kind: "trade" | "sign" | "cut" | "promotion";
+  counterparty: string;
+  note: string | null;
+  status: "proposed" | "completed" | "cancelled";
+  createdAt: string;
+  completedAt: string | null;
+  playerMoves: BackupPlayerMove[];
+  pickMoves: BackupPickMove[];
+}
+
+export interface BackupGmState {
+  settings: { teamCap: number | null; availableCap: number | null; expiryThresholdYears: number | null } | null;
+  picks: BackupPickAsset[];
+  proposals: BackupTransactionProposal[];
+}
+
 export interface BackupFranchisePayload {
   name: string;
   isDefault: boolean;
@@ -100,6 +139,8 @@ export interface BackupFranchisePayload {
   formationFavorites?: BackupFormationFavorite[];
   /** C2B retained undo history; mutable player ids are remapped on restore (C0B-v2 §8). */
   history: BackupActionBatch[];
+  /** C4A manual cap/pick ledger and proposal/completion records; absent means empty. */
+  gmState?: BackupGmState;
 }
 
 export interface BackupEnvelope {
@@ -213,8 +254,7 @@ export function parseEnvelope(text: string): ValidationResult {
       !(player.customKey === null || typeof player.customKey === "string") ||
       !(player.sourceReference === null || isRecord(player.sourceReference)) ||
       (player.rosterStatus !== undefined &&
-        player.rosterStatus !== "active" &&
-        player.rosterStatus !== "practice_squad")
+        !["active", "practice_squad", "pending_incoming", "traded", "released"].includes(String(player.rosterStatus)))
     ) {
       reasons.push("schema_invalid");
       continue;
@@ -385,6 +425,65 @@ export function parseEnvelope(text: string): ValidationResult {
     }
   }
 
+  const gmState = franchise.gmState === undefined ? null : franchise.gmState;
+  if (gmState !== null) {
+    if (!isRecord(gmState) || !Array.isArray(gmState.picks) || !Array.isArray(gmState.proposals) ||
+        !(gmState.settings === null || isRecord(gmState.settings))) {
+      reasons.push("schema_invalid");
+    } else {
+      const pickIds = new Set<string>();
+      const mutableAssetIds = new Set<string>();
+      for (const pick of gmState.picks) {
+        if (!isRecord(pick) || typeof pick.mutableId !== "string" || !Number.isInteger(pick.year) ||
+            (pick.year as number) < 2000 || (pick.year as number) > 2200 || !Number.isInteger(pick.round) ||
+            (pick.round as number) < 1 || (pick.round as number) > 7 || typeof pick.originalTeam !== "string" ||
+            typeof pick.currentOwner !== "string" || !(pick.note === null || typeof pick.note === "string")) {
+          reasons.push("schema_invalid"); continue;
+        }
+        if (mutableAssetIds.has(pick.mutableId)) reasons.push("duplicate_mutable_id");
+        mutableAssetIds.add(pick.mutableId);
+        pickIds.add(pick.mutableId);
+      }
+      for (const proposal of gmState.proposals) {
+        if (!isRecord(proposal) || typeof proposal.mutableId !== "string" ||
+            !["trade", "sign", "cut", "promotion"].includes(String(proposal.kind)) ||
+            !["proposed", "completed", "cancelled"].includes(String(proposal.status)) ||
+            typeof proposal.counterparty !== "string" || !Array.isArray(proposal.playerMoves) ||
+            !Array.isArray(proposal.pickMoves) || typeof proposal.createdAt !== "string" ||
+            !(proposal.completedAt === null || typeof proposal.completedAt === "string")) {
+          reasons.push("schema_invalid"); continue;
+        }
+        if (mutableAssetIds.has(proposal.mutableId)) reasons.push("duplicate_mutable_id");
+        mutableAssetIds.add(proposal.mutableId);
+        for (const move of proposal.playerMoves) {
+          if (!isRecord(move) || !["incoming", "outgoing", "promotion"].includes(String(move.direction)) ||
+              !(move.mutablePlayerId === null || typeof move.mutablePlayerId === "string") ||
+              (typeof move.mutablePlayerId === "string" && !seen.has(move.mutablePlayerId)) ||
+              (move.sourceReference !== undefined && !(move.sourceReference === null ||
+                (isRecord(move.sourceReference) && typeof move.sourceReference.sourceId === "string" &&
+                 typeof move.sourceReference.revisionKey === "string")))) {
+            reasons.push(typeof move === "object" && move !== null && "mutablePlayerId" in move &&
+              typeof (move as Record<string, unknown>).mutablePlayerId === "string" ? "dangling_player_reference" : "schema_invalid");
+          }
+        }
+        for (const move of proposal.pickMoves) {
+          if (!isRecord(move) || !["incoming", "outgoing"].includes(String(move.direction)) ||
+              typeof move.mutablePickId !== "string" || !pickIds.has(move.mutablePickId)) {
+            reasons.push("schema_invalid");
+          }
+        }
+      }
+      if (gmState.settings !== null && isRecord(gmState.settings) &&
+          [gmState.settings.teamCap, gmState.settings.availableCap].some((value) => value !== null &&
+            (typeof value !== "number" || !Number.isFinite(value) || value < 0)) ||
+          gmState.settings !== null && isRecord(gmState.settings) &&
+          gmState.settings.expiryThresholdYears !== null &&
+          (!Number.isInteger(gmState.settings.expiryThresholdYears) || Number(gmState.settings.expiryThresholdYears) < 0 || Number(gmState.settings.expiryThresholdYears) > 20)) {
+        reasons.push("schema_invalid");
+      }
+    }
+  }
+
   const unique = [...new Set(reasons)];
   if (unique.length > 0) return { ok: false, reasons: unique };
 
@@ -398,6 +497,7 @@ export function parseEnvelope(text: string): ValidationResult {
     formationOverrides: formationOverrides as BackupFormationOverride[],
     formationFavorites: formationFavorites as BackupFormationFavorite[],
     history: history as BackupActionBatch[],
+    ...(gmState === null ? {} : { gmState: gmState as unknown as BackupGmState }),
   };
 
   return {
@@ -467,6 +567,22 @@ export function restoreAsNewFranchise(
     playerId: idMap.get(override.playerId) as string,
   }));
   const formationFavorites = envelope.franchise.formationFavorites ?? [];
+  const gmState = envelope.franchise.gmState ? {
+    ...envelope.franchise.gmState,
+    picks: envelope.franchise.gmState.picks.map((pick) => ({ ...pick, mutableId: `restored-pick-${pick.mutableId}` })),
+    proposals: envelope.franchise.gmState.proposals.map((proposal) => ({
+      ...proposal,
+      mutableId: `restored-proposal-${proposal.mutableId}`,
+      playerMoves: proposal.playerMoves.map((move) => ({
+        ...move,
+        mutablePlayerId: move.mutablePlayerId ? idMap.get(move.mutablePlayerId) ?? move.mutablePlayerId : null,
+      })),
+      pickMoves: proposal.pickMoves.map((move) => ({
+        ...move,
+        mutablePickId: `restored-pick-${move.mutablePickId}`,
+      })),
+    })),
+  } : undefined;
 
   const requiredRevisionKeys = [
     ...new Set(
@@ -489,6 +605,7 @@ export function restoreAsNewFranchise(
       formationOverrides,
       formationFavorites,
       history,
+      ...(gmState ? { gmState } : {}),
     },
     requiredRevisionKeys,
   };

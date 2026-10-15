@@ -21,6 +21,7 @@ export interface FranchisePlayer {
   listedPosition: string | null;
   archetype: string | null;
   birthdate: string | null;
+  rosterStatus: "active" | "practice_squad" | "pending_incoming" | "traded" | "released";
 }
 
 export interface PlayerField {
@@ -74,7 +75,7 @@ export async function listFranchisePlayers(franchiseId: string): Promise<Loaded<
   const supabase = await createServerSupabase();
   const { data, error } = await supabase
     .from("franchise_players_view")
-    .select("id,franchise_id,origin,custom_key,full_name,team,listed_position,archetype,birthdate")
+    .select("id,franchise_id,origin,custom_key,full_name,team,listed_position,archetype,birthdate,roster_status")
     .eq("franchise_id", franchiseId)
     .order("full_name", { ascending: true });
 
@@ -92,6 +93,7 @@ export async function listFranchisePlayers(franchiseId: string): Promise<Loaded<
       listedPosition: (row.listed_position as string | null) ?? null,
       archetype: (row.archetype as string | null) ?? null,
       birthdate: (row.birthdate as string | null) ?? null,
+      rosterStatus: (row.roster_status as FranchisePlayer["rosterStatus"] | null) ?? "active",
     })),
   };
 }

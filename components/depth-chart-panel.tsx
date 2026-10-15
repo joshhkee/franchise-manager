@@ -467,7 +467,7 @@ export function DepthChartPanel({
   );
 
   const correctRoster = useCallback(
-    (playerId: string, status: RosterStatus) => {
+    (playerId: string, status: "active" | "practice_squad") => {
       void runExplicit(
         selectedPosition,
         () =>
