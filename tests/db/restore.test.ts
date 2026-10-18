@@ -336,6 +336,54 @@ describe("restore-new", () => {
     expect(Number(franchiseCount.rows[0].count)).toBe(Number(beforeCount.rows[0].count) + 1);
   });
 
+  it("restores C4B preferences and shortlist atomically with franchise-player remapping", async () => {
+    const scoutingState = {
+      preferences: { offensiveScheme: null, defensiveScheme: "Multiple", offensiveBookId: "nfl-off-bears", defensiveBookId: "nfl-def-vikings" },
+      shortlist: [
+        { kind: "trade_block", identity: "franchise", mutablePlayerId: "old-custom", sourceReference: null, status: "dismissed", note: "Keep for the next roster review" },
+        { kind: "trade_block", identity: "franchise", mutablePlayerId: "old-source", sourceReference: null, status: "pinned", note: "Source-backed shortlist identity" },
+        { kind: "trade_target", identity: "source", mutablePlayerId: null, sourceReference: { sourceId: "ea-incoming", revisionKey: "1-base" }, status: "pinned", note: null },
+      ],
+    };
+    const wrapped = JSON.stringify({ franchise: payload({ scoutingState }), gmState: null, scoutingState });
+    await asRole(db, "authenticated", OWNER_UID);
+    const restored = await db.query<{ restore_new_franchise_c4b: string }>(
+      "select public.restore_new_franchise_c4b($1::jsonb,$2::uuid)", [wrapped, REQUEST(40)],
+    );
+    const newFranchiseId = restored.rows[0].restore_new_franchise_c4b;
+    await asOwnerSession(db);
+    const prefs = await db.query<{ offensive_scheme: string | null; defensive_scheme: string | null; offensive_book_id: string; defensive_book_id: string }>(
+      "select offensive_scheme,defensive_scheme,offensive_book_id,defensive_book_id from app.franchise_scouting_preferences where franchise_id=$1", [newFranchiseId],
+    );
+    expect(prefs.rows[0]).toEqual({ offensive_scheme: null, defensive_scheme: "Multiple", offensive_book_id: "nfl-off-bears", defensive_book_id: "nfl-def-vikings" });
+    const rows = await db.query<{ kind: string; player_id: string | null; source_player_record_id: string | null; status: string; note: string | null }>(
+      "select kind,player_id,source_player_record_id,status,note from app.franchise_scouting_shortlist where franchise_id=$1 order by kind", [newFranchiseId],
+    );
+    const restoredPlayers = await db.query<{ id: string; custom_key: string | null; source_player_record_id: string | null }>("select id,custom_key,source_player_record_id from app.franchise_players where franchise_id=$1", [newFranchiseId]);
+    const restoredCustom = restoredPlayers.rows.find((row) => row.custom_key === "c_keepme")?.id;
+    const restoredSourcePlayer = restoredPlayers.rows.find((row) => row.source_player_record_id === sourcePlayerId)?.id;
+    expect(restoredCustom).toBeTruthy();
+    expect(rows.rows).toEqual([
+      { kind: "trade_block", player_id: restoredCustom, source_player_record_id: null, status: "dismissed", note: "Keep for the next roster review" },
+      { kind: "trade_block", player_id: restoredSourcePlayer, source_player_record_id: null, status: "pinned", note: "Source-backed shortlist identity" },
+      { kind: "trade_target", player_id: null, source_player_record_id: incomingSourcePlayerId, status: "pinned", note: null },
+    ]);
+  });
+
+  it("rejects invalid C4B references without retaining the new franchise", async () => {
+    const invalid = payload({ scoutingState: {
+      preferences: { offensiveScheme: null, defensiveScheme: null, offensiveBookId: "nfl-off-falcons", defensiveBookId: "nfl-def-falcons" },
+      shortlist: [{ kind: "trade_block", identity: "franchise", mutablePlayerId: "missing-player", sourceReference: null, status: "pinned", note: null }],
+    } });
+    await asOwnerSession(db);
+    const before = await db.query<{ count: string }>("select count(*)::text as count from app.franchises");
+    await asRole(db, "authenticated", OWNER_UID);
+    await expect(db.query("select public.restore_new_franchise_c4b($1::jsonb,$2::uuid)", [JSON.stringify({ franchise: invalid, scoutingState: (invalid as typeof invalid & { scoutingState: unknown }).scoutingState }), REQUEST(41)])).rejects.toThrow(/backup_invalid/);
+    await asOwnerSession(db);
+    const after = await db.query<{ count: string }>("select count(*)::text as count from app.franchises");
+    expect(after.rows[0].count).toBe(before.rows[0].count);
+  });
+
   it("replays a repeated restore request instead of duplicating the franchise", async () => {
     await asRole(db, "authenticated", OWNER_UID);
     const first = await db.query<{ restore_new_franchise: string }>(

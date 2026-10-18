@@ -182,6 +182,42 @@ describe("backup envelope round trip", () => {
   });
 });
 
+describe("C4B scouting backup state", () => {
+  it("round-trips owner preferences and shortlist notes with remapped franchise player ids", () => {
+    const source = payload({
+      scoutingState: {
+        preferences: { offensiveScheme: null, defensiveScheme: "Multiple", offensiveBookId: "nfl-off-bears", defensiveBookId: "nfl-def-vikings" },
+        shortlist: [
+          { kind: "trade_block", identity: "franchise", mutablePlayerId: "player-1", sourceReference: null, status: "pinned", note: "Role is a better fit in another package" },
+          { kind: "trade_target", identity: "source", mutablePlayerId: null, sourceReference: { sourceId: "ea-target", revisionKey: "1-base" }, status: "dismissed", note: null },
+        ],
+      },
+    });
+    const parsed = parseEnvelope(serializeEnvelope(createEnvelope(source)));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const restored = restoreAsNewFranchise(parsed.envelope, {
+      newFranchiseId: "new-franchise",
+      nextPlayerId: (index) => `restored-${index + 1}`,
+    });
+    expect(restored.payload.scoutingState).toEqual({
+      preferences: { offensiveScheme: null, defensiveScheme: "Multiple", offensiveBookId: "nfl-off-bears", defensiveBookId: "nfl-def-vikings" },
+      shortlist: [
+        { kind: "trade_block", identity: "franchise", mutablePlayerId: "restored-1", sourceReference: null, status: "pinned", note: "Role is a better fit in another package" },
+        { kind: "trade_target", identity: "source", mutablePlayerId: null, sourceReference: { sourceId: "ea-target", revisionKey: "1-base" }, status: "dismissed", note: null },
+      ],
+    });
+  });
+
+  it("rejects dangling shortlist player references and malformed state", () => {
+    const broken = createEnvelope(payload({ scoutingState: {
+      preferences: { offensiveScheme: null, defensiveScheme: null, offensiveBookId: "nfl-off-falcons", defensiveBookId: "nfl-def-falcons" },
+      shortlist: [{ kind: "trade_block", identity: "franchise", mutablePlayerId: "absent", sourceReference: null, status: "pinned", note: null }],
+    } }));
+    expect(parseEnvelope(JSON.stringify(broken))).toEqual({ ok: false, reasons: ["dangling_player_reference"] });
+  });
+});
+
 describe("C4A GM backup state", () => {
   it("round-trips known picks and completed/pending proposals with remapped asset and player ids", () => {
     const source = payload({

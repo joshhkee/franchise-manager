@@ -126,6 +126,11 @@ export interface BackupGmState {
   proposals: BackupTransactionProposal[];
 }
 
+export interface BackupScoutingState {
+  preferences: { offensiveScheme: string | null; defensiveScheme: string | null; offensiveBookId: string; defensiveBookId: string };
+  shortlist: { kind: "trade_block" | "trade_target"; identity: "franchise" | "source"; mutablePlayerId: string | null; sourceReference: { sourceId: string; revisionKey: string } | null; status: "pinned" | "dismissed"; note: string | null }[];
+}
+
 export interface BackupFranchisePayload {
   name: string;
   isDefault: boolean;
@@ -141,6 +146,8 @@ export interface BackupFranchisePayload {
   history: BackupActionBatch[];
   /** C4A manual cap/pick ledger and proposal/completion records; absent means empty. */
   gmState?: BackupGmState;
+  /** C4B preferences and shortlist; absent in older envelopes means defaults/empty. */
+  scoutingState?: BackupScoutingState;
 }
 
 export interface BackupEnvelope {
@@ -425,6 +432,35 @@ export function parseEnvelope(text: string): ValidationResult {
     }
   }
 
+  const scoutingState = franchise.scoutingState === undefined ? null : franchise.scoutingState;
+  if (scoutingState !== null) {
+    if (!isRecord(scoutingState) || !isRecord(scoutingState.preferences) || !Array.isArray(scoutingState.shortlist)) {
+      reasons.push("schema_invalid");
+    } else {
+      const prefs = scoutingState.preferences;
+      if (!(prefs.offensiveScheme === null || typeof prefs.offensiveScheme === "string") ||
+          !(prefs.defensiveScheme === null || typeof prefs.defensiveScheme === "string") ||
+          typeof prefs.offensiveBookId !== "string" || typeof prefs.defensiveBookId !== "string") reasons.push("schema_invalid");
+      const shortlistIds = new Set<string>();
+      for (const item of scoutingState.shortlist) {
+        if (!isRecord(item) || !["trade_block", "trade_target"].includes(String(item.kind)) ||
+            !["franchise", "source"].includes(String(item.identity)) || !["pinned", "dismissed"].includes(String(item.status)) ||
+            !(item.mutablePlayerId === null || typeof item.mutablePlayerId === "string") ||
+            !(item.sourceReference === null || (isRecord(item.sourceReference) && typeof item.sourceReference.sourceId === "string" && typeof item.sourceReference.revisionKey === "string")) ||
+            !(item.note === null || typeof item.note === "string") || (item.note !== null && typeof item.note === "string" && item.note.length > 1000)) {
+          reasons.push("schema_invalid"); continue;
+        }
+        if (item.identity === "franchise" && (typeof item.mutablePlayerId !== "string" || !seen.has(item.mutablePlayerId))) reasons.push("dangling_player_reference");
+        if (item.identity === "source" && (item.mutablePlayerId !== null || item.sourceReference === null)) reasons.push("schema_invalid");
+        if (item.identity === "franchise" && item.sourceReference !== null) reasons.push("schema_invalid");
+        const ref = isRecord(item.sourceReference) ? `${item.sourceReference.sourceId}:${item.sourceReference.revisionKey}` : "";
+        const key = `${item.kind}:${item.identity}:${item.mutablePlayerId ?? ref}`;
+        if (shortlistIds.has(key)) reasons.push("schema_invalid");
+        shortlistIds.add(key);
+      }
+    }
+  }
+
   const gmState = franchise.gmState === undefined ? null : franchise.gmState;
   if (gmState !== null) {
     if (!isRecord(gmState) || !Array.isArray(gmState.picks) || !Array.isArray(gmState.proposals) ||
@@ -498,6 +534,7 @@ export function parseEnvelope(text: string): ValidationResult {
     formationFavorites: formationFavorites as BackupFormationFavorite[],
     history: history as BackupActionBatch[],
     ...(gmState === null ? {} : { gmState: gmState as unknown as BackupGmState }),
+    ...(scoutingState === null ? {} : { scoutingState: scoutingState as unknown as BackupScoutingState }),
   };
 
   return {
@@ -567,6 +604,13 @@ export function restoreAsNewFranchise(
     playerId: idMap.get(override.playerId) as string,
   }));
   const formationFavorites = envelope.franchise.formationFavorites ?? [];
+  const scoutingState = envelope.franchise.scoutingState ? {
+    ...envelope.franchise.scoutingState,
+    shortlist: envelope.franchise.scoutingState.shortlist.map((entry) => ({
+      ...entry,
+      mutablePlayerId: entry.mutablePlayerId ? idMap.get(entry.mutablePlayerId) ?? entry.mutablePlayerId : null,
+    })),
+  } : undefined;
   const gmState = envelope.franchise.gmState ? {
     ...envelope.franchise.gmState,
     picks: envelope.franchise.gmState.picks.map((pick) => ({ ...pick, mutableId: `restored-pick-${pick.mutableId}` })),
@@ -606,6 +650,7 @@ export function restoreAsNewFranchise(
       formationFavorites,
       history,
       ...(gmState ? { gmState } : {}),
+      ...(scoutingState ? { scoutingState } : {}),
     },
     requiredRevisionKeys,
   };

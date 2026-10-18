@@ -23,7 +23,7 @@ This table is the dependency authority; phase packets and launch prompts refer t
 | C3A | C2B plus verified Falcons mappings | Dynamic personnel/overrides; no redundant inherited-sub checklist items; backup includes formations |
 | C3B | C3A | Reconciled stock-book inventory + special-teams result/owner-approved exception |
 | C4A | C3A; C3B need not be finished | Real transaction/asset integration replaces dependency fixtures; backup includes GM state |
-| C4B | C4A and stable verified selected-book catalog | Tested fit/scouting/Coach rubrics; backup includes notes/dismissals/identity |
+| C4B | C4A and stable verified selected-book catalog; owner-approved provisional exception D132 permits unverified books only with labels and no fit/anomaly rankings | Tested in-scope scouting/Coach behavior; backup includes notes/dismissals/identity. Verified fit/rubric acceptance remains blocked on evidence and owner review. |
 | C5A | C4B and supported chosen books; C3B may still expand independently | Executable tested rule engine + metadata/templates + signed-off coverage grid, not documentation-only examples |
 | C5B | C5A | Integrated phone UI and persistent editable plans; backup includes gameday state |
 | C6A | All above merged, including C3B, or individually recorded owner-approved exceptions | Integrated acceptance, actual iOS test or explicit pending owner waiver, recovery/security/coverage evidence |
@@ -147,8 +147,9 @@ Exit: asset ownership/duplicate trade validation, cross-franchise isolation, inc
 - Attribute/name/team filters and side-by-side comparison; position-relative athletic anomalies with explicit missing/sample policy.
 - Explained surplus/poor-fit Trade Block, explained targets, pin/dismiss/notes.
 - Coach Scheme & Playbook, Personnel Gaps, Formation Identity with links to authoritative editors.
+- **D132 owner-approved provisional exception:** selection and scouting UI may be delivered against the current unverified book catalog, with all schemes/mappings called provisional. No scheme-fit or athletic-anomaly rankings, invented grade, or game-legal trade advice is enabled; only raw published values, cautious position-count context, shortlist curation and links are shown.
 
-Exit: no ambiguous magic score, no missing-as-zero bias, no mandatory off-scheme sell decision, persistent dismissals and custom-player behavior covered. Owner approves example recommendations.
+Exit for a D132-limited delivery: no ambiguous magic score, no missing-as-zero bias, no mandatory off-scheme sell decision, persistent dismissals and custom-player behavior covered, and unverified facts clearly labeled. Verified fit/rubric acceptance remains open pending D113 evidence and owner review of representative examples.
 
 Parallelism: A owns transactions/assets/persistence; B owns fit/scouting/Coach read models using frozen roster interfaces. Shared schema changes routed through A with agreed integration window.
 
