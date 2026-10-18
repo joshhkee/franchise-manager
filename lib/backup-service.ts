@@ -7,6 +7,7 @@ import {
   type BackupFormationOverride,
   type BackupFranchisePayload,
   type BackupGmState,
+  type BackupScoutingState,
 } from "./backup";
 import { createServerSupabase } from "./supabase/server";
 import type { Loaded } from "./data/franchises";
@@ -172,6 +173,36 @@ export async function buildFranchiseEnvelope(
     };
   }
 
+  const scoutingPreferencesResult = await supabase.from("franchise_scouting_preferences_view")
+    .select("offensive_scheme,defensive_scheme,offensive_book_id,defensive_book_id").eq("franchise_id", franchiseId).maybeSingle();
+  const scoutingMissing = /does not exist|not found|schema cache/i.test(scoutingPreferencesResult.error?.message ?? "");
+  if (!scoutingMissing && scoutingPreferencesResult.error) return { ok: false, message: scoutingPreferencesResult.error.message };
+  let scoutingState: BackupScoutingState | undefined;
+  if (!scoutingMissing) {
+    const shortlistResult = await supabase.from("franchise_scouting_shortlist_view")
+      .select("kind,player_id,source_player_record_id,status,note").eq("franchise_id", franchiseId);
+    if (shortlistResult.error) return { ok: false, message: shortlistResult.error.message };
+    const sourceIdentities = [...new Set(((shortlistResult.data ?? []) as { source_player_record_id: string | null }[]).map((row) => row.source_player_record_id).filter((id): id is string => Boolean(id)))];
+    const sourceRowsResult = sourceIdentities.length
+      ? await supabase.from("source_player_records_view").select("id,source_id,revision_key").in("id", sourceIdentities)
+      : { data: [], error: null };
+    if (sourceRowsResult.error) return { ok: false, message: sourceRowsResult.error.message };
+    const sourceRef = new Map(((sourceRowsResult.data ?? []) as { id: string; source_id: string; revision_key: string }[]).map((row) => [row.id, { sourceId: row.source_id, revisionKey: row.revision_key }]));
+    const pref = scoutingPreferencesResult.data as { offensive_scheme: string | null; defensive_scheme: string | null; offensive_book_id: string; defensive_book_id: string } | null;
+    scoutingState = {
+      preferences: {
+        offensiveScheme: pref?.offensive_scheme ?? null, defensiveScheme: pref?.defensive_scheme ?? null,
+        offensiveBookId: pref?.offensive_book_id ?? "nfl-off-falcons", defensiveBookId: pref?.defensive_book_id ?? "nfl-def-falcons",
+      },
+      shortlist: ((shortlistResult.data ?? []) as { kind: "trade_block" | "trade_target"; player_id: string | null; source_player_record_id: string | null; status: "pinned" | "dismissed"; note: string | null }[]).map((row) => {
+        const mutablePlayerId = row.player_id;
+        const sourceReference = row.source_player_record_id ? sourceRef.get(row.source_player_record_id) ?? null : null;
+        if (!mutablePlayerId && !sourceReference) throw new Error("A scouting shortlist source reference could not be resolved; export stopped rather than dropping it.");
+        return { kind: row.kind, identity: mutablePlayerId ? "franchise" as const : "source" as const, mutablePlayerId, sourceReference, status: row.status, note: row.note };
+      }),
+    };
+  }
+
   const payload: BackupFranchisePayload = {
     name: franchise.data.name as string,
     isDefault: false,
@@ -206,6 +237,7 @@ export async function buildFranchiseEnvelope(
     formationFavorites,
     history,
     ...(gmState ? { gmState } : {}),
+    ...(scoutingState ? { scoutingState } : {}),
   };
 
   return { ok: true, data: { envelope: createEnvelope(payload), name: payload.name } };
@@ -216,8 +248,8 @@ export async function restoreNewFranchise(
   requestId: string,
 ): Promise<Loaded<string>> {
   const supabase = await createServerSupabase();
-  const { data, error } = await supabase.rpc("restore_new_franchise_c4a", {
-    p_payload: { franchise: payload, gmState: payload.gmState ?? null },
+  const { data, error } = await supabase.rpc("restore_new_franchise_c4b", {
+    p_payload: { franchise: payload, gmState: payload.gmState ?? null, scoutingState: payload.scoutingState ?? null },
     p_request_id: requestId,
   });
 

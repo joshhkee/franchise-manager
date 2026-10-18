@@ -6,7 +6,7 @@
 
 ## Mission / preconditions
 
-Build useful low-maintenance team planning, not a cap/trade simulator. C4A depends on accepted C3A, NOT completion of C3B; C4B depends on accepted C4A and stable selected-book catalog. C3B can run independently with frozen contracts/exclusive ownership, remains visible and is required by C6A or owner-approved exception. PLAN.md's dependency table is authoritative.
+Build useful low-maintenance team planning, not a cap/trade simulator. C4A depends on accepted C3A, NOT completion of C3B; C4B normally depends on accepted C4A and a stable selected-book catalog. Under owner-approved D132, C4B may proceed with the current unverified catalog only with provisional labels and no fit/anomaly rankings or invented game advice; this does not close D113. C3B can run independently with frozen contracts/exclusive ownership, remains visible and is required by C6A or owner-approved exception. PLAN.md's dependency table is authoritative.
 
 ## C4A — assets, roster moves, contract ledger
 

@@ -72,7 +72,7 @@ Append this shared instruction to EVERY launch:
 
 ## C4B — explained scouting and Coach View
 
-> Execute C4B only using phases/04-gm-coach.md after accepted C4A with frozen roster/formation interfaces. Build filters/side-by-side comparison, explained Trade Block/Targets, pin/dismiss/notes and approved Coach tabs. Separate verified Madden archetype match from researched practical suitability; athletic anomalies need visible position-relative threshold/peer/sample/missing policy. Seed verified editable Falcons schemes independently of playbooks. No opaque official-looking score, missing-as-zero bias, compulsory off-scheme selling or duplicate editors. Have the owner review representative suggestions/rubrics before completion.
+> Execute C4B only using phases/04-gm-coach.md after accepted C4A with frozen roster/formation interfaces. The stable verified selected-book catalog is the normal gate; if the owner explicitly approves the D132 provisional exception, proceed with every scheme/mapping labeled unverified and do not enable fit/anomaly rankings, fabricated grades, or game-legal trade advice. Build filters/side-by-side comparison, in-scope Trade Block/Targets, pin/dismiss/notes and Coach tabs. Keep missing values unknown, avoid compulsory off-scheme selling and duplicate editors. Have the owner review representative behavior before completion; verified fit/rubric acceptance stays open until D113 evidence and owner review.
 
 ## C5A — verified drive metadata/templates/rules
 
