@@ -64,6 +64,8 @@ No phase is marked complete because documentation describes it. Accepted C0A exc
 
 Planning and accepted C0A/C0B/C1A/C1B/C2/C3A/C3B artifacts are committed on `main` (PRs #1–#26 merged); C4A is merged as PR #27 at `3e3cad4`. C4B is delivered for review on its isolated branch. Decision/disposition updates land as small owner-reviewed docs PRs; no broad staging or unrelated commits.
 
+- **Phase 5 C5A**: implementation in progress on the current execution branch after C4B; source-backed Civil.GG Madden 27 catalog, deterministic rules, tests and evidence/checkpoint docs are being delivered before C5B. D133–D136 record the approved planned-lineup view, play art, unified call sheet and sequential checkpoint execution. Do not claim C5A accepted/committed until its checkpoint commit is confirmed; D113/D128 mapping evidence remains provisional.
+
 The [documentation audit](AUDIT.md) records corrected contradictions and remaining choices. D001–D101 were not rewritten as new owner approvals; audit-derived engineering criteria are labeled separately.
 
 ## Next launch — a NEW execution thread
