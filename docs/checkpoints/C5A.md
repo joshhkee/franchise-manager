@@ -1,6 +1,6 @@
 # Checkpoint C5A — Gameday catalog and deterministic rules
 
-**Status:** Implementation checkpoint delivered. C5B work has continued on the same working tree, but the C5A checkpoint has not been committed yet; current branch history does not contain a C5A commit. Keep the phase checkpoint ordering honest: produce and verify the C5A commit before staging any C5B files, then commit C5B separately.
+**Status:** C5A checkpoint committed as `f446f29` (`Establish the sourced Gameday catalog and honest call-selection rules`). C5B continued on the same branch as a separate working-tree change; the C5A commit contains only the catalog, evaluator, theme definitions, tests, evidence, and decisions. C5B remains a separate follow-up checkpoint.
 
 ## Scope delivered
 
@@ -19,8 +19,8 @@ Source API: Civil.GG public Supabase REST endpoint, `plays` joined through Madde
 - `npm ci` completed using the existing lockfile.
 - `npm test -- tests/gameday-rules.test.ts` passed (7 tests).
 - `npm run typecheck` passed.
-- C5B also later passed the full `npm run checks` suite (321 tests/build) and `npm run test:db` (112 DB tests); see [C5B record](C5B.md). Those later checks do not make the C5A checkpoint committed or owner-accepted.
+- C5B later passed the full `npm run checks` suite (321 tests/build) and `npm run test:db` (112 DB tests); see [C5B record](C5B.md). These are implementation checks, not owner acceptance.
 
 ## Not done / next owner
 
-No database migration or persistent customization exists yet. The interactive page is not yet wired to this catalog, lineup resolution, Civil.GG art, or persistence. Continue with `0015_c5b_gameday.sql`, backup validation/restore extension, server read model for franchise preferences and planned roster data, and phone-first Gameday UI. The user requested sequential checkpoint commits. **This C5A checkpoint remains uncommitted**, and C5B work is already present in the same worktree, so isolate only C5A paths in staging/commit and confirm `git log` before describing it as committed. Then stage C5B in a separate commit. No push/PR was authorized.
+C5B adds the persistence, backup validation/export/restore extension, server read model, lineup resolver and phone-first Gameday UI in the next checkpoint. Review [C5B](C5B.md) for remaining browser-auth limitation and owner migration review. No push/PR was authorized.

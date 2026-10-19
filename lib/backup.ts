@@ -131,6 +131,11 @@ export interface BackupScoutingState {
   shortlist: { kind: "trade_block" | "trade_target"; identity: "franchise" | "source"; mutablePlayerId: string | null; sourceReference: { sourceId: string; revisionKey: string } | null; status: "pinned" | "dismissed"; note: string | null }[];
 }
 
+/** C5B app-owned Gameday plans and ordered favorites; displayed-menu history is intentionally ephemeral. */
+export interface BackupGamedayState {
+  plans: { themeId: string; customName: string | null; customNotes: string | null; pinnedPlayIds: string[]; pinnedFormationIds: string[] }[];
+}
+
 export interface BackupFranchisePayload {
   name: string;
   isDefault: boolean;
@@ -148,6 +153,8 @@ export interface BackupFranchisePayload {
   gmState?: BackupGmState;
   /** C4B preferences and shortlist; absent in older envelopes means defaults/empty. */
   scoutingState?: BackupScoutingState;
+  /** C5B editable drive plans and favorites; displayed-menu session history is never backed up. */
+  gamedayState?: BackupGamedayState;
 }
 
 export interface BackupEnvelope {
@@ -461,6 +468,28 @@ export function parseEnvelope(text: string): ValidationResult {
     }
   }
 
+  const gamedayState = franchise.gamedayState === undefined ? null : franchise.gamedayState;
+  if (gamedayState !== null) {
+    if (!isRecord(gamedayState) || !Array.isArray(gamedayState.plans)) reasons.push("schema_invalid");
+    else {
+      const themes = new Set<string>();
+      for (const plan of gamedayState.plans) {
+        if (!isRecord(plan) || typeof plan.themeId !== "string" || !plan.themeId.trim() ||
+            !(plan.customName === null || typeof plan.customName === "string") ||
+            !(plan.customNotes === null || typeof plan.customNotes === "string") ||
+            (typeof plan.customName === "string" && plan.customName.length > 80) ||
+            (typeof plan.customNotes === "string" && plan.customNotes.length > 1000) ||
+            !Array.isArray(plan.pinnedPlayIds) || !Array.isArray(plan.pinnedFormationIds)) {
+          reasons.push("schema_invalid"); continue;
+        }
+        if (themes.has(plan.themeId)) reasons.push("schema_invalid");
+        themes.add(plan.themeId);
+        const ids = [...plan.pinnedPlayIds, ...plan.pinnedFormationIds];
+        if (ids.some((id) => typeof id !== "string" || !id.trim() || id.length > 200) || new Set(ids).size !== ids.length) reasons.push("schema_invalid");
+      }
+    }
+  }
+
   const gmState = franchise.gmState === undefined ? null : franchise.gmState;
   if (gmState !== null) {
     if (!isRecord(gmState) || !Array.isArray(gmState.picks) || !Array.isArray(gmState.proposals) ||
@@ -535,6 +564,7 @@ export function parseEnvelope(text: string): ValidationResult {
     history: history as BackupActionBatch[],
     ...(gmState === null ? {} : { gmState: gmState as unknown as BackupGmState }),
     ...(scoutingState === null ? {} : { scoutingState: scoutingState as unknown as BackupScoutingState }),
+    ...(gamedayState === null ? {} : { gamedayState: gamedayState as unknown as BackupGamedayState }),
   };
 
   return {
@@ -611,6 +641,9 @@ export function restoreAsNewFranchise(
       mutablePlayerId: entry.mutablePlayerId ? idMap.get(entry.mutablePlayerId) ?? entry.mutablePlayerId : null,
     })),
   } : undefined;
+  const gamedayState = envelope.franchise.gamedayState ? {
+    plans: envelope.franchise.gamedayState.plans.map((plan) => ({ ...plan, pinnedPlayIds: [...plan.pinnedPlayIds], pinnedFormationIds: [...plan.pinnedFormationIds] })),
+  } : undefined;
   const gmState = envelope.franchise.gmState ? {
     ...envelope.franchise.gmState,
     picks: envelope.franchise.gmState.picks.map((pick) => ({ ...pick, mutableId: `restored-pick-${pick.mutableId}` })),
@@ -651,6 +684,7 @@ export function restoreAsNewFranchise(
       history,
       ...(gmState ? { gmState } : {}),
       ...(scoutingState ? { scoutingState } : {}),
+      ...(gamedayState ? { gamedayState } : {}),
     },
     requiredRevisionKeys,
   };
