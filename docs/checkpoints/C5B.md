@@ -1,6 +1,6 @@
 # Checkpoint C5B — Interactive Gameday call sheet
 
-**Status:** C5A is committed as `f446f29`; this C5B implementation is ready as the separate next checkpoint, pending its commit, owner review, and migration application. Owner must separately review/apply migrations before persistence is available in a live project.
+**Status:** C5A is committed as `f446f29`; C5B is committed as `124c572`. This implementation remains pending owner review/acceptance and migration application. Owner must separately review/apply migrations before persistence is available in a live project.
 
 ## Delivered
 
@@ -27,4 +27,4 @@ The local dev server started at `http://127.0.0.1:3007` and `/gameday` returned 
 2. Review/apply `0015_c5b_gameday.sql` then `0016_c5b_restore.sql` to the intended development database only with owner authorization; verify restore and save RPC against the actual provider once applied.
 3. Sign in through the owner's private account and test the live interface across offense/defense, theme, family, situations, pinned overflows, unsupported cells, art fallback, lineup pending warnings, plan saves, browser console/network, desktop and 390px portrait.
 4. The session-backed selection is local UI state; only name/notes/pins persist. Theme customizations currently use curated themes and loaded book IDs.
-5. C5A checkpoint is committed (`f446f29`). Stage and commit only the remaining C5B changes after checking the staged diff and preserving unrelated changes. Do not push or open a PR without explicit authorization.
+5. Sequential checkpoints are committed: C5A `f446f29`, then C5B `124c572`. No push or PR was made; do not push or open one without explicit authorization.
