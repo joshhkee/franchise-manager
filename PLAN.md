@@ -24,7 +24,7 @@ This table is the dependency authority; phase packets and launch prompts refer t
 | C3B | C3A | Reconciled stock-book inventory + special-teams result/owner-approved exception |
 | C4A | C3A; C3B need not be finished | Real transaction/asset integration replaces dependency fixtures; backup includes GM state |
 | C4B | C4A and stable verified selected-book catalog; owner-approved provisional exception D132 permits unverified books only with labels and no fit/anomaly rankings | Tested in-scope scouting/Coach behavior; backup includes notes/dismissals/identity. Verified fit/rubric acceptance remains blocked on evidence and owner review. |
-| C5A | C4B and supported chosen books; C3B may still expand independently | Executable tested rule engine + metadata/templates + signed-off coverage grid, not documentation-only examples |
+| C5A | C4B closed and merged at `817b9c6`; supported chosen books; C3B may still expand independently | Executable tested rules + metadata/templates and owner-reviewed coverage grid based on owner-observed Madden 27 calls; exact buckets wait for owner's examples; never use invented or third-party-only calls |
 | C5B | C5A | Integrated phone UI and persistent editable plans; backup includes gameday state |
 | C6A | All above merged, including C3B, or individually recorded owner-approved exceptions | Integrated acceptance, actual iOS test or explicit pending owner waiver, recovery/security/coverage evidence |
 
@@ -160,9 +160,9 @@ Parallelism: A owns transactions/assets/persistence; B owns fit/scouting/Coach r
 - Exact supported calls/formation identifiers, personnel/look families, permissible play art or fallback.
 - Research notes separate official game facts, football heuristics, and version-dependent adjustments.
 - Initial target: three offensive themes (under-center/play action, shotgun quick game, motion/misdirection) and three defensive themes with verified useful calls/context. Catalog is extensible. A source gap requires an explicit owner decision, not fabricated calls.
-- Explicit down/distance/field/context rules, empty-formation vs personnel distinction, traceable explanations, no invented calls.
+- Explicit down/distance/field/context rules, empty-formation vs personnel distinction, traceable explanations, no invented calls. D134 selects the last recorded roster; pending edits and unresolved players remain distinct. D135 limits actionable records to owner-observed Madden 27 plays, and D136 requires the owner's call-sheet examples before freezing buckets or claiming reviewed coverage.
 
-Exit: executable rule tests and an explicit theme×situation coverage grid reviewed by owner, including exact bucket boundaries, unknown-context behavior, valid calls, and intentional unsupported cells. At least one supported situation per theme has three eligible complementary calls; a refreshable theme also demonstrates an eligible non-pinned alternative or explains exhaustion. Source gaps require owner approval, never filler. The grid, not a speculative universal play count, defines useful initial coverage.
+Exit: executable rule tests and an explicit theme×situation coverage grid reviewed by owner, including exact bucket boundaries, unknown-context behavior, valid calls, and intentional unsupported cells. At least one supported situation per theme has three eligible complementary calls; a refreshable theme also demonstrates an eligible non-pinned alternative or explains exhaustion. Source gaps require owner approval, never filler. The grid, not a speculative universal play count, defines useful initial coverage. If the owner-observed calls or call-sheet examples required by D135–D136 are not supplied, record C5A blocked/partial rather than claim this exit.
 
 ### C5B — Gameday UI and editable plans
 
@@ -201,7 +201,7 @@ A completed phase is not just passing isolated unit tests: integrated behavior a
 ## Approved sequencing and remaining gates
 
 - Sequencing/checkpoint granularity approved; GM/Coach precedes Gameday.
-- Initial gameday target approved as three offense + three defense themes, exact verified calls/buckets reviewed at C5A.
+- Initial gameday target is three offense + three defense themes; D135–D136 require owner-observed Madden 27 calls and owner-provided call-sheet examples before claiming exact verified coverage/bucket acceptance.
 - See WORKFLOW.md for worktree/PR/integration procedure and SETUP.md for project/auth/environment setup.
 - Node/package manager/GitHub CLI/Docker, primary branch/remote, free project slots, and source feasibility must be inspected, not assumed.
 - Infeasible special-teams diagrams require owner explanation and approval to skip.

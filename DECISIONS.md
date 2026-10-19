@@ -325,9 +325,17 @@ Owner-provided position labels from memory (research candidates, not authoritati
 
 - D132 — After C4A was accepted, the owner directed C4B to proceed with the stable but **unverified** selected-book catalog, explicitly choosing the provisional-labeled path. This is a scoped exception to PLAN.md's stable verified selected-book prerequisite, not evidence closure for D113. Keep every existing formation mapping and scheme label marked provisional/unverified; do not claim Madden 27 validation. C4B may ship book selection and raw-data comparisons, role-context notes, same-position headcount review, filters, shortlist notes/pin/dismiss, and Coach links, but must not enable scheme-fit/anomaly rankings, invented OVR/fit scores, or game-legal trade advice. C4B remains subject to the owner's review of representative examples; D132 does not accept recommendation quality or close the D113 evidence supplement. See [docs/checkpoints/C4B.md](docs/checkpoints/C4B.md).
 
+### Round 40 — C4B closure and C5A execution inputs (confirmed)
+
+- D133 — Owner directs that **C4B is closed as a code checkpoint** now that PR #28 is merged to `main` at `817b9c6`. This closure does not claim the signed-in walkthrough, live migration `0014`, production deployment, recommendation acceptance, or D113 evidence closure. Keep those follow-ups explicit in [the C4B record](docs/checkpoints/C4B.md).
+- D134 — Gameday situation evaluation uses the franchise's **last recorded roster**. Planned changes remain separately visible as pending context; no planned or unconfirmed acquisition is treated as in-game personnel.
+- D135 — Only play records **observed in Madden 27 by the owner** may support actionable C5A suggestions. Third-party catalog claims or football heuristics do not become verified game facts. Until observations are supplied, unsupported coverage returns no actionable calls rather than fabricated examples.
+- D136 — The owner will supply representative call-sheet examples before C5A freezes its situation boundaries and useful theme×situation coverage. Until those examples arrive, do not invent final distance/field-zone buckets or claim the coverage grid is owner-reviewed.
+
 ## Current execution decisions
 
 - **D132 (Round 39): C4B may proceed on a provisional catalog basis.** This is the owner's explicit acceptance of the unverified-catalog exception only, not Madden evidence, fit-rubric acceptance, or closure of D113. See the dated entry above and [C4B delivery record](docs/checkpoints/C4B.md).
+- **D133–D136 (Round 40):** C4B code is closed at merged PR #28; C5A uses the last recorded roster, requires owner-observed Madden 27 calls for actionable suggestions, and waits for the owner's call-sheet examples before freezing buckets/coverage. See the [C4B handoff](docs/checkpoints/C4B.md) and [C5A launch prompt](LAUNCH_PROMPTS.md).
 
 ## Confirmed architecture summary
 
@@ -335,13 +343,13 @@ Logical franchise isolation, focused panels/tabs, separate worktrees, familiar s
 
 ## Remaining material unknowns
 
-- Actual Madden 27 primary/specialist ranks, eligibility, formation inheritance and stock/special-teams coverage: C0 evidence gates, not resolved by owner recollection.
+- Actual Madden 27 primary/specialist ranks, eligibility, formation inheritance, stock/special-teams coverage, and owner-observed play records: game-evidence gates, not resolved by owner recollection or third-party catalog claims.
 - Data acquisition/reuse and source completeness: reuse is owner-accepted (D111) and published counts are recorded (D109); game-catalog completeness remains a C1B/C3 coverage gate.
 - Resolved at C0A: primary branch/remote = `main`; local tools inventoried; one Supabase project approved as production (D103). OAuth bootstrap/provider configuration still to be designed at C1B.
 - Practical-fit/anomaly rubrics and exact template calls/buckets: research-backed checkpoint review, not arbitrary formulas.
 - Difficulty/gameplay settings, exact desktop resolution/iPhone model: not specified; use broad defaults only where they do not misrepresent behavior, ask when actually needed.
 - Undo retention is frozen at `C0B-v2` (most recent 50 batches and 30 days); detailed conflict UI and transaction cancellation resolution still need engineering ADR/fixtures within the confirmed semantics; material behavior changes require owner review.
-- Gameday roster view (planned or recorded with pending-change warnings) and theme/pin-overflow grid: resolve at C5A; the audit did not silently select these owner-facing defaults.
+- Gameday roster view is resolved to last recorded by D134. Theme/pin-overflow behavior remains an engineering contract for C5A; exact situation buckets await owner examples under D136.
 - Special-teams feasibility is deferred to C3B (D114); any skip needs owner approval (D081).
 
 ## Documentation audit provenance
@@ -350,7 +358,7 @@ The owner requested a documentation-only contradiction/acceptance/complexity aud
 
 - SPEC.md clarifies valid checklist action units, atomic/retry-safe confirmations, baseline labels, inherited-vs-explicit formation operations, staged backup/state contracts, and app-only edits.
 - PLAN.md is the dependency authority; WORKFLOW.md distinguishes independent checkpoint PRs from one integrated backend/UI delivery.
-- ACCEPTANCE.md adds detailed engineering tests; exact game rules, rubrics, architecture representation, gameday roster view and proposed numeric benchmarks still require their named gates.
+- ACCEPTANCE.md adds detailed engineering tests; exact game rules, rubrics, architecture representation, C5A call-sheet examples/bucket boundaries, and proposed numeric benchmarks still require their named gates. D134 resolved the Gameday roster basis.
 - LAUNCH_PROMPTS.md is the canonical prompt catalog. Phase packets link to it rather than maintain competing launch instructions.
 
 ## Scope-change process

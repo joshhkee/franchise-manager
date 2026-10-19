@@ -39,8 +39,10 @@ Frozen here (C0B-v1, extended by the C0B-v2 corrections):
 
 Not frozen here (owned by later checkpoints through reviewed amendments): physical schema and
 migrations (C1B), exact game slot/eligibility rules pending the D113 evidence supplement (C2A/C3A),
-special-teams data (C3B per D114), practical-fit rubrics and thresholds (C4B), gameday metadata,
-theme grids, and the planned-vs-recorded roster-view choice (C5A).
+special-teams data (C3B per D114), practical-fit rubrics and thresholds (C4B), and gameday metadata
+and theme grids (C5A). D134 resolves the Gameday roster view to last recorded; D135 limits actionable
+plays to owner-observed Madden 27 records; D136 requires owner call-sheet examples before freezing
+situation buckets and reviewed coverage.
 
 Non-goals: event sourcing, a generic workflow/dependency scheduler, an offline queue or durable
 offline edits, season/week state, generated trades or acceptance prediction, invented ratings
@@ -333,7 +335,9 @@ keeps one authoritative editor (DESIGN.md; WORKFLOW.md integrated delivery).
 | Game-catalog coverage reporting vs EA published population | C1B/C3 coverage report (IR-3) | Contract fixes the labels; evidence later |
 | Per-field game editability | C1B/C2A classification | Defaults to app-fact until evidenced |
 | Archive read-only/resume behavior documented before implementation | C1B | Open — C1B documents (SPEC) |
-| Gameday planned-vs-recorded roster view | C5A | Owner decision deferred (SPEC) |
+| Gameday roster view | C5A | Resolved by D134: last recorded roster; label planned/unresolved personnel separately |
+| Actionable play evidence | C5A | D135: owner-observed Madden 27 records only; no invented/third-party-as-verified calls |
+| Situation buckets and coverage examples | C5A | D136: wait for owner's representative call-sheet examples before freeze |
 | Practical-fit/anomaly thresholds, sample policy | C4B | Research/rubric gate (D057) |
 | Preview credential isolation configured and verified | C1B/C6A (IR-10) | Requirement recorded; verification pending |
 

@@ -1,6 +1,6 @@
 # Franchise Manager — Product Specification
 
-Status: approved product direction consolidated from D001–D101. Detailed engineering representation and research-dependent values remain gated; no permission to build in this planning thread.
+Status: approved product direction consolidated from D001–D101, with later explicit execution decisions D133–D136 recorded below. Detailed engineering representation and research-dependent values remain gated; no permission to build in this planning thread.
 
 ## Authority
 
@@ -119,7 +119,9 @@ The documentation audit refines engineering acceptance, not the owner's decision
 - Offensive families: under-center/play action, shotgun spread/quick game, motion/misdirection, restricted to verified supported plays.
 - Offer THREE complementary eligible calls initially (fewer if insufficient verified coverage, never filler), with exact formation/play names, purpose, concise cue, expandable reads/disguise/risks/verified adjustments. Incompatible favorites stay pinned/browsable but are excluded; pinning does not override eligibility. Eligible pins compete within the same three slots; C5A defines deterministic >3-pin handling and exhaustion behavior without losing saved pins.
 - C5A declares a theme×situation coverage grid and owner-reviewed bucket boundaries/unknown-context behavior; a theme need not handle every possible situation. At least one supported context per initial theme demonstrates three distinct complementary eligible calls, with refresh alternatives where available or explicit exhaustion.
-- Resolve at C5A which roster view Gameday uses (planned vs last recorded), label the view, and expose pending/unresolved personnel. Do not silently treat a player in an unconfirmed deal as available in Madden. Menu-history reset/invalidation follows book/theme/side/franchise/template context, never a hidden used-play log.
+- D134 resolves the Gameday roster basis to the **last recorded roster**. Label that view and expose planned changes/pending or unresolved personnel separately. Do not silently treat a player in an unconfirmed deal or planned edit as available in Madden. Menu-history reset/invalidation follows book/theme/side/franchise/template context, never a hidden used-play log.
+- D135: only plays the owner has observed in Madden 27 may become actionable records. Third-party catalog descriptions and football heuristics may inform research but cannot be represented as verified game facts or used to fill call menus. If no eligible observed calls are present, return fewer/no calls with an honest explanation.
+- D136: use the owner's forthcoming call-sheet examples before freezing situation bucket boundaries and claiming the useful theme×situation coverage grid is reviewed. Do not invent exact distance/field-zone thresholds in advance.
 - Defensive context: personnel + down/distance, field zone, tendency/focus, clock/score/game phase.
 - Distinguish personnel grouping from formation appearance. Empty backfield does not alone establish 00 personnel; match receiving threats and actual/selected personnel, not an absolute 'never 3-4 against empty' rule.
 - Do not promise CPU-proof counters, outcome probabilities, or unknown audible/custom-book support.
