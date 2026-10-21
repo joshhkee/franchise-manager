@@ -5,6 +5,7 @@ import {
   type BackupEnvelope,
   type BackupFormationFavorite,
   type BackupFormationOverride,
+  type BackupGamedayState,
   type BackupFranchisePayload,
   type BackupGmState,
   type BackupScoutingState,
@@ -203,6 +204,29 @@ export async function buildFranchiseEnvelope(
     };
   }
 
+  const gamedayPlansResult = await supabase.from("franchise_gameday_plans_view")
+    .select("theme_id,custom_name,custom_notes").eq("franchise_id", franchiseId);
+  const gamedayMissing = /does not exist|not found|schema cache/i.test(gamedayPlansResult.error?.message ?? "");
+  if (!gamedayMissing && gamedayPlansResult.error) return { ok: false, message: gamedayPlansResult.error.message };
+  let gamedayState: BackupGamedayState | undefined;
+  if (!gamedayMissing) {
+    const gamedayPinsResult = await supabase.from("franchise_gameday_pins_view")
+      .select("theme_id,target_kind,target_id,pin_rank").eq("franchise_id", franchiseId).order("pin_rank", { ascending: true });
+    if (gamedayPinsResult.error) return { ok: false, message: gamedayPinsResult.error.message };
+    const planByTheme = new Map<string, BackupGamedayState["plans"][number]>();
+    for (const row of gamedayPlansResult.data ?? []) planByTheme.set(row.theme_id as string, {
+      themeId: row.theme_id as string, customName: row.custom_name as string | null, customNotes: row.custom_notes as string | null,
+      pinnedPlayIds: [], pinnedFormationIds: [],
+    });
+    for (const row of gamedayPinsResult.data ?? []) {
+      const themeId = row.theme_id as string;
+      const plan = planByTheme.get(themeId) ?? { themeId, customName: null, customNotes: null, pinnedPlayIds: [], pinnedFormationIds: [] };
+      (row.target_kind === "play" ? plan.pinnedPlayIds : plan.pinnedFormationIds).push(row.target_id as string);
+      planByTheme.set(themeId, plan);
+    }
+    gamedayState = { plans: [...planByTheme.values()] };
+  }
+
   const payload: BackupFranchisePayload = {
     name: franchise.data.name as string,
     isDefault: false,
@@ -238,6 +262,7 @@ export async function buildFranchiseEnvelope(
     history,
     ...(gmState ? { gmState } : {}),
     ...(scoutingState ? { scoutingState } : {}),
+    ...(gamedayState ? { gamedayState } : {}),
   };
 
   return { ok: true, data: { envelope: createEnvelope(payload), name: payload.name } };
@@ -248,8 +273,8 @@ export async function restoreNewFranchise(
   requestId: string,
 ): Promise<Loaded<string>> {
   const supabase = await createServerSupabase();
-  const { data, error } = await supabase.rpc("restore_new_franchise_c4b", {
-    p_payload: { franchise: payload, gmState: payload.gmState ?? null, scoutingState: payload.scoutingState ?? null },
+  const { data, error } = await supabase.rpc("restore_new_franchise_c5b", {
+    p_payload: { franchise: payload, gmState: payload.gmState ?? null, scoutingState: payload.scoutingState ?? null, gamedayState: payload.gamedayState ?? null },
     p_request_id: requestId,
   });
 

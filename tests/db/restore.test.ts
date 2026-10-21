@@ -384,6 +384,43 @@ describe("restore-new", () => {
     expect(after.rows[0].count).toBe(before.rows[0].count);
   });
 
+  it("restores C5B plan names, notes and favorites through the atomic C5B wrapper", async () => {
+    const gamedayState = { plans: [{
+      themeId: "off-shotgun-quick", customName: "Fast answers", customNotes: "Read the nickel leverage",
+      pinnedPlayIds: ["nfl-off-falcons:gun:bunch-te:rpo_alert_bubble_gun_bunch_te"],
+      pinnedFormationIds: ["nfl-off-falcons:gun:bunch-te"],
+    }] };
+    const wrapped = JSON.stringify({ franchise: payload({ name: "Gameday restore", gamedayState }), gamedayState });
+    await asRole(db, "authenticated", OWNER_UID);
+    const restored = await db.query<{ restore_new_franchise_c5b: string }>(
+      "select public.restore_new_franchise_c5b($1::jsonb,$2::uuid)", [wrapped, REQUEST(50)],
+    );
+    const newFranchiseId = restored.rows[0].restore_new_franchise_c5b;
+    await asOwnerSession(db);
+    const plan = await db.query<{ theme_id: string; custom_name: string; custom_notes: string }>(
+      "select theme_id,custom_name,custom_notes from app.franchise_gameday_plans where franchise_id=$1", [newFranchiseId],
+    );
+    expect(plan.rows).toEqual([{ theme_id: "off-shotgun-quick", custom_name: "Fast answers", custom_notes: "Read the nickel leverage" }]);
+    const pins = await db.query<{ target_kind: string; target_id: string; pin_rank: number }>(
+      "select target_kind,target_id,pin_rank from app.franchise_gameday_pins where franchise_id=$1 order by pin_rank", [newFranchiseId],
+    );
+    expect(pins.rows).toEqual([
+      { target_kind: "play", target_id: "nfl-off-falcons:gun:bunch-te:rpo_alert_bubble_gun_bunch_te", pin_rank: 1 },
+      { target_kind: "formation", target_id: "nfl-off-falcons:gun:bunch-te", pin_rank: 2 },
+    ]);
+  });
+
+  it("rejects invalid C5B restore state without retaining the franchise", async () => {
+    const bad = { plans: [{ themeId: "bad", customName: "x".repeat(81), customNotes: null, pinnedPlayIds: [], pinnedFormationIds: [] }] };
+    await asOwnerSession(db);
+    const before = await db.query<{ count: string }>("select count(*)::text as count from app.franchises");
+    await asRole(db, "authenticated", OWNER_UID);
+    await expect(db.query("select public.restore_new_franchise_c5b($1::jsonb,$2::uuid)", [JSON.stringify({ franchise: payload({ name: "Bad gameday", gamedayState: bad }), gamedayState: bad }), REQUEST(51)])).rejects.toThrow(/backup_invalid/);
+    await asOwnerSession(db);
+    const after = await db.query<{ count: string }>("select count(*)::text as count from app.franchises");
+    expect(after.rows[0].count).toBe(before.rows[0].count);
+  });
+
   it("replays a repeated restore request instead of duplicating the franchise", async () => {
     await asRole(db, "authenticated", OWNER_UID);
     const first = await db.query<{ restore_new_franchise: string }>(
