@@ -1,6 +1,4 @@
-import { playbookById } from "../formations/catalog";
-import { formationsOf } from "../formations/catalog";
-import { DRIVE_THEME_TEMPLATES } from "../gameday/themes";
+import { LOADED_BOOK_IDS, playbookById, formationsOf } from "../formations/catalog";
 import { loadFormationState, resolveFromState, type FormationState } from "./formations";
 import { createServerSupabase } from "../supabase/server";
 import type { Loaded } from "./franchises";
@@ -41,9 +39,9 @@ export async function loadGameday(franchiseId: string): Promise<Loaded<GamedayDa
 }
 
 export function resolveGamedayFormation(state: FormationState, formationId: string) {
-  for (const theme of DRIVE_THEME_TEMPLATES) {
-    const formation = formationsOf(theme.defaultBookId).find((item) => item.id === formationId);
-    if (formation) return resolveFromState(state, theme.defaultBookId, formationId);
+  for (const bookId of LOADED_BOOK_IDS) {
+    const formation = formationsOf(bookId).find((item) => item.id === formationId);
+    if (formation) return resolveFromState(state, bookId, formationId);
   }
   return { ok: false as const, message: "That formation is not in a loaded book." };
 }

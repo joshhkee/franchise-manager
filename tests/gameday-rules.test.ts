@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CATALOG_PLAYS, catalogFor, SOURCE_NOTE } from "../lib/gameday/catalog";
+import { buildGamedayCoverageGrid } from "../lib/gameday/coverage";
 import { SITUATION_BUCKETS } from "../lib/gameday/types";
 import { evaluateGameday } from "../lib/gameday/rules";
 
@@ -34,7 +35,19 @@ describe("C5A sourced play catalog", () => {
       expect(new Set(result.recommendations.map((r) => r.play.complementaryRole)).size, themeId).toBeGreaterThanOrEqual(2);
     }
   });
+
+  it("builds a complete theme x situation coverage grid with explicit unsupported cells", () => {
+    const grid = buildGamedayCoverageGrid();
+    expect(grid.length).toBe(6 * SITUATION_BUCKETS.length);
+    const twoMinUnderCenter = grid.find((cell) => cell.themeId === "off-under-center-pa" && cell.situationId === "two_minute");
+    expect(twoMinUnderCenter?.supported).toBe(false);
+    expect(twoMinUnderCenter?.note).toContain("Under-center");
+    const firstDownUnderCenter = grid.find((cell) => cell.themeId === "off-under-center-pa" && cell.situationId === "first_10");
+    expect(firstDownUnderCenter?.supported).toBe(true);
+    expect(firstDownUnderCenter?.playCount).toBeGreaterThanOrEqual(3);
+  });
 });
+
 
 describe("deterministic game-day rules", () => {
   it("returns stable complementary calls and explains the heuristic role", () => {

@@ -1,12 +1,11 @@
-import { formationsOf } from "../formations/catalog";
+import { LOADED_BOOK_IDS, formationsOf } from "../formations/catalog";
 import { resolveFormation } from "../formations/resolver";
 import type { ChartPlayer } from "../depth-chart";
 import type { FormationState } from "../data/formations";
-import { DRIVE_THEME_TEMPLATES } from "./themes";
 
 export function resolveGamedayFormation(state: FormationState, formationId: string) {
-  for (const theme of DRIVE_THEME_TEMPLATES) {
-    const formation = formationsOf(theme.defaultBookId).find((item) => item.id === formationId);
+  for (const bookId of LOADED_BOOK_IDS) {
+    const formation = formationsOf(bookId).find((item) => item.id === formationId);
     if (!formation) continue;
     const result = resolveFormation({
       formation,

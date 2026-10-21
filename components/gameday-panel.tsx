@@ -2,21 +2,40 @@
 
 import { useMemo, useState } from "react";
 import { useActionState } from "react";
-import { FormationDiagram } from "./formation-diagram";
+import { FormationDiagram, type MarkerMode } from "./formation-diagram";
+import { useIdempotentAction } from "./autosave/use-idempotent-action";
 import { saveGamedayPlan } from "../lib/actions/gameday";
 import { CATALOG_PLAYS, catalogFor, SOURCE_NOTE } from "../lib/gameday/catalog";
 import { DRIVE_THEME_TEMPLATES, coachingReferencesForSide } from "../lib/gameday/themes";
 import { evaluateGameday, familyFilters } from "../lib/gameday/rules";
-import { SITUATION_BUCKETS, type DriveThemeId, type GamedaySide, type PlayFamilyId, type SituationBucketId } from "../lib/gameday/types";
+import {
+  PLAY_FAMILY_BY_ID,
+  SITUATION_BUCKETS,
+  type DriveThemeId,
+  type GamedaySide,
+  type OffensivePersonnelGrouping,
+  type PlayFamilyId,
+  type SituationBucketId,
+} from "../lib/gameday/types";
 import type { GamedayData } from "../lib/data/gameday";
 import { resolveGamedayFormation } from "../lib/gameday/formation";
 import { PLAYBOOK_INVENTORY } from "../lib/formations/playbooks";
 
 const initial = { status: "idle", message: "" } as const;
 const pill = (active: boolean) => `min-h-10 shrink-0 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${active ? "border-accent bg-accent text-white" : "border-line bg-surface text-ink hover:border-accent"}`;
+const OFFENSE_PERSONNEL_OPTIONS: { value: OffensivePersonnelGrouping; label: string }[] = [
+  { value: "unknown", label: "Unknown / not specified" },
+  { value: "11", label: "11 (1 RB · 1 TE · 3 WR)" },
+  { value: "12", label: "12 (1 RB · 2 TE · 2 WR)" },
+  { value: "21", label: "21 (2 RB · 1 TE · 2 WR)" },
+  { value: "13", label: "13 (1 RB · 3 TE · 1 WR)" },
+  { value: "22", label: "22 (2 RB · 2 TE · 1 WR)" },
+  { value: "10", label: "10 (1 RB · 0 TE · 4 WR)" },
+  { value: "00", label: "00 (0 RB · 0 TE · 5 WR)" },
+];
 
 export function GamedayPanel({ franchiseId, revision, side: initialSide, data }: { franchiseId: string; revision: number; side: GamedaySide; data: GamedayData }) {
-  const [state, action] = useActionState(saveGamedayPlan, initial);
+  const [state, action, pending] = useActionState(useIdempotentAction(saveGamedayPlan), initial);
   const [side, setSide] = useState<GamedaySide>(initialSide);
   const books = PLAYBOOK_INVENTORY.filter((book) => book.side === side && ["nfl-off-falcons", "nfl-off-bears", "nfl-def-falcons", "nfl-def-vikings"].includes(book.id));
   const [bookId, setBookId] = useState(data.bookIdBySide[initialSide]);
@@ -28,6 +47,9 @@ export function GamedayPanel({ franchiseId, revision, side: initialSide, data }:
   const saved = planFor(theme.id);
   const [situation, setSituation] = useState<SituationBucketId>("first_10");
   const [family, setFamily] = useState<PlayFamilyId | "all">("all");
+  const [offensePersonnel, setOffensePersonnel] = useState<OffensivePersonnelGrouping>("unknown");
+  const [offenseAlignment, setOffenseAlignment] = useState<"any" | "empty_look" | "compressed_bunch" | "trips">("any");
+  const [markerMode, setMarkerMode] = useState<MarkerMode>("name");
   const [refresh, setRefresh] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
   const [selectedPlayId, setSelectedPlayId] = useState<string | null>(null);
@@ -42,11 +64,13 @@ export function GamedayPanel({ franchiseId, revision, side: initialSide, data }:
   const bookPlays = catalogFor(bookId, side);
   const result = useMemo(() => evaluateGameday({
     bookId, side, themeId, situationId: situation, familyFilter: family,
+    offensePersonnel, offenseAlignment,
     recentlyDisplayedPlayIds: recent, refreshSeed: refresh,
     pinnedPlayIds: pinIds.filter((id) => bookPlays.some((play) => play.id === id)),
-    pinnedFormationIds: pinIds.filter((id) => data.formationState.favorites.some((favorite) => `${favorite.bookId}:${favorite.formationId}` === id)),
-  }, bookPlays), [bookId, side, themeId, situation, family, recent, refresh, pinIds, bookPlays, data.formationState.favorites]);
-  const selectedPlay = CATALOG_PLAYS.find((play) => play.id === selectedPlayId) ?? result.recommendations[0]?.play ?? null;
+    pinnedFormationIds: pinIds.filter((id) => data.formationState.favorites.some((favorite) => favorite.bookId === bookId && favorite.formationId === id) || bookPlays.some((play) => play.formationId === id)),
+  }, bookPlays), [bookId, side, themeId, situation, family, offensePersonnel, offenseAlignment, recent, refresh, pinIds, bookPlays, data.formationState.favorites]);
+  const selectedRec = result.recommendations.find((rec) => rec.play.id === selectedPlayId) ?? result.recommendations[0] ?? null;
+  const selectedPlay = CATALOG_PLAYS.find((play) => play.id === selectedPlayId) ?? selectedRec?.play ?? null;
   const resolved = selectedPlay ? resolveGamedayFormation(data.formationState, selectedPlay.formationId) : null;
   const view = resolved?.ok ? resolved.data : null;
   const pendingWarnings = view?.slots.flatMap((slot) => {
@@ -69,8 +93,8 @@ export function GamedayPanel({ franchiseId, revision, side: initialSide, data }:
     setPinIds([...(plan?.pinnedPlayIds ?? []), ...(plan?.pinnedFormationIds ?? [])]);
     setPlanName(plan?.customName ?? ""); setPlanNotes(plan?.customNotes ?? "");
     setPlanPinIds([...(plan?.pinnedPlayIds ?? []), ...(plan?.pinnedFormationIds ?? [])]);
-    setPlans(data.plans);
-    setSituation("first_10"); setFamily("all"); setRefresh(0); setRecent([]); setSelectedPlayId(null); setSelectedSlotId(null);
+    setSituation("first_10"); setFamily("all"); setOffensePersonnel("unknown"); setOffenseAlignment("any");
+    setRefresh(0); setRecent([]); setSelectedPlayId(null); setSelectedSlotId(null);
   }
   function selectTheme(next: DriveThemeId) {
     setThemeId(next); setRefresh(0); setRecent([]); setSelectedPlayId(null);
@@ -79,11 +103,15 @@ export function GamedayPanel({ franchiseId, revision, side: initialSide, data }:
     setPinIds([...(plan?.pinnedPlayIds ?? []), ...(plan?.pinnedFormationIds ?? [])]);
     setPlanName(plan?.customName ?? ""); setPlanNotes(plan?.customNotes ?? "");
     setPlanPinIds([...(plan?.pinnedPlayIds ?? []), ...(plan?.pinnedFormationIds ?? [])]);
-    setPlans(data.plans);
   }
   function refreshCalls() {
     setRecent((items) => [...new Set([...items, ...result.recommendations.map((entry) => entry.play.id)])]);
     setRefresh((value) => value + 1); setSelectedPlayId(null);
+  }
+  function resetMenuMemory() {
+    setRecent([]);
+    setRefresh(0);
+    setSelectedPlayId(null);
   }
   function togglePin(id: string) {
     const toggle = (items: string[]) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id];
@@ -125,24 +153,79 @@ export function GamedayPanel({ franchiseId, revision, side: initialSide, data }:
       <div className="mt-4">
         <h2 className="text-sm font-semibold">Play type</h2>
         <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-          {familyFilters(side).map((item) => <button key={item} className={pill(family === item)} aria-pressed={family === item} onClick={() => { setFamily(item); setSelectedPlayId(null); }}>{item === "all" ? "All types" : item.replaceAll("_", " ")}</button>)}
+          {familyFilters(side).map((item) => {
+            const meta = item === "all" ? null : PLAY_FAMILY_BY_ID.get(item);
+            return <button key={item} className={pill(family === item)} aria-pressed={family === item} onClick={() => { setFamily(item); setSelectedPlayId(null); }}>
+              {meta ? <><span className="mr-1.5 rounded bg-black/10 px-1.5 py-0.5 text-xs font-bold dark:bg-white/15">{meta.badge}</span>{item.replaceAll("_", " ")}</> : "All types"}
+            </button>;
+          })}
         </div>
       </div>
+      {side === "defense" ? (
+        <details className="mt-4 rounded-lg border border-line bg-background p-3">
+          <summary className="cursor-pointer text-xs font-semibold text-ink-muted">
+            Optional opponent context · personnel: {offensePersonnel === "unknown" ? "unknown" : `${offensePersonnel} personnel`} · look: {offenseAlignment === "any" ? "any alignment" : offenseAlignment.replaceAll("_", " ")}
+          </summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-xs font-medium text-ink-muted">
+              Offensive personnel grouping
+              <select
+                aria-label="Offensive personnel grouping"
+                className="min-h-10 rounded-md border border-line bg-surface px-2.5 text-sm text-ink"
+                value={offensePersonnel}
+                onChange={(event) => { setOffensePersonnel(event.target.value as OffensivePersonnelGrouping); setSelectedPlayId(null); }}
+              >
+                {OFFENSE_PERSONNEL_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-medium text-ink-muted">
+              Formation alignment look (separate from personnel)
+              <select
+                aria-label="Formation alignment look"
+                className="min-h-10 rounded-md border border-line bg-surface px-2.5 text-sm text-ink"
+                value={offenseAlignment}
+                onChange={(event) => { setOffenseAlignment(event.target.value as "any" | "empty_look" | "compressed_bunch" | "trips"); setSelectedPlayId(null); }}
+              >
+                <option value="any">Any alignment</option>
+                <option value="empty_look">Empty backfield look (can still be 11/12 personnel)</option>
+                <option value="compressed_bunch">Compressed / Bunch set</option>
+                <option value="trips">3x1 Trips set</option>
+              </select>
+            </label>
+          </div>
+        </details>
+      ) : null}
     </section>
 
     <section aria-labelledby="spotlight-title">
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div><h2 id="spotlight-title" className="text-lg font-bold">Three-call spotlight</h2><p className="text-xs text-ink-muted">Curated ideas, not a guaranteed best play.</p></div>
-        <button className="min-h-11 rounded-lg border border-line px-3 text-sm font-semibold hover:bg-surface" onClick={refreshCalls}>Refresh calls</button>
+        <div className="flex flex-wrap items-center gap-2">
+          {recent.length > 0 || refresh > 0 ? (
+            <button type="button" className="min-h-11 rounded-lg border border-line px-3 text-xs font-medium text-ink-muted hover:bg-surface" onClick={resetMenuMemory}>
+              Reset displayed memory ({recent.length})
+            </button>
+          ) : null}
+          <button type="button" className="min-h-11 rounded-lg border border-line px-3 text-sm font-semibold hover:bg-surface" onClick={refreshCalls}>Refresh calls</button>
+        </div>
       </div>
       {!result.bookSupported || !result.recommendations.length ? <div className="rounded-xl border border-dashed border-line bg-surface p-5"><h3 className="font-semibold">No calls for this selection</h3><p className="mt-1 text-sm text-ink-muted">{result.unsupportedSituationMessage}</p></div> : <div className="grid gap-3 md:grid-cols-3">
-        {result.recommendations.map(({ play, isPinnedPlay, isPinnedFormation, wasRecentlyDisplayed }, index) => <button key={play.id} onClick={() => { setSelectedPlayId(play.id); setRecent((items) => [...new Set([...items, play.id])]); }} className={`min-h-36 rounded-xl border bg-surface p-4 text-left transition-colors hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${selectedPlayId === play.id ? "border-accent ring-1 ring-accent" : "border-line"}`}>
-          <div className="flex items-start justify-between gap-2"><span className="rounded-md bg-surface-muted px-2 py-1 text-xs font-bold">CALL {index + 1}</span>{isPinnedPlay || isPinnedFormation ? <span aria-label="Pinned" className="text-accent">★</span> : null}</div>
-          <span className="mt-3 block text-base font-bold leading-snug">{play.playName}</span>
-          <span className="mt-1 block text-xs text-ink-muted">{play.setName} / {play.formationName}</span>
-          <span className="mt-3 block text-sm leading-5">{play.cue}</span>
-          {wasRecentlyDisplayed ? <span className="mt-2 block text-xs text-ink-muted">Displayed this session</span> : null}
-        </button>)}
+        {result.recommendations.map(({ play, isPinnedPlay, isPinnedFormation, wasRecentlyDisplayed }, index) => {
+          const famMeta = PLAY_FAMILY_BY_ID.get(play.family);
+          return <button key={play.id} onClick={() => { setSelectedPlayId(play.id); setRecent((items) => [...new Set([...items, play.id])]); }} className={`min-h-36 rounded-xl border bg-surface p-4 text-left transition-colors hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${(selectedPlay?.id ?? null) === play.id ? "border-accent ring-1 ring-accent" : "border-line"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="rounded-md bg-surface-muted px-2 py-1 text-xs font-bold">CALL {index + 1}</span>
+                {famMeta ? <span className="rounded-md border border-line px-1.5 py-0.5 text-xs font-semibold text-ink-muted">{famMeta.badge} · {famMeta.label}</span> : null}
+              </div>
+              {isPinnedPlay || isPinnedFormation ? <span aria-label="Pinned" className="text-accent">★</span> : null}
+            </div>
+            <span className="mt-3 block text-base font-bold leading-snug">{play.playName}</span>
+            <span className="mt-1 block text-xs text-ink-muted">{play.setName} / {play.formationName} · {play.complementaryRole.replaceAll("_", " ")}</span>
+            <span className="mt-3 block text-sm leading-5">{play.cue}</span>
+            {wasRecentlyDisplayed ? <span className="mt-2 block text-xs text-ink-muted">Displayed this session (not a called-play log)</span> : null}
+          </button>;
+        })}
       </div>}
       {!result.bookSupported && result.unsupportedBookMessage ? <p className="mt-2 text-sm text-amber-700">{result.unsupportedBookMessage}</p> : null}
       {result.unsupportedSituationMessage ? <p className="mt-2 text-sm text-ink-muted">{result.unsupportedSituationMessage}</p> : null}
@@ -162,13 +245,29 @@ export function GamedayPanel({ franchiseId, revision, side: initialSide, data }:
           <p className="mt-2 text-xs text-ink-muted">{SOURCE_NOTE}</p>
           <a href={selectedPlay.civilPageUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block min-h-10 py-2 text-sm font-semibold text-accent underline">Open Civil.GG source</a>
         </div>
+        {selectedRec?.reasons.length ? (
+          <div className="border-t border-line px-4 py-3 text-xs text-ink-muted">
+            <p className="font-semibold text-ink">Rule trace</p>
+            <ul className="mt-1 list-inside list-disc space-y-1">
+              {selectedRec.reasons.map((reason, idx) => <li key={idx}><span className="font-medium">[{reason.kind === "civil_gg_catalog" ? "Catalog fact" : "Heuristic"}]</span> {reason.text}</li>)}
+            </ul>
+          </div>
+        ) : null}
         <details className="border-t border-line p-4"><summary className="cursor-pointer font-semibold">Coaching notes <span className="text-xs font-normal text-ink-muted">football heuristic</span></summary><dl className="mt-3 space-y-3 text-sm"><div><dt className="font-semibold">Read</dt><dd className="text-ink-muted">{selectedPlay.coachingDetails.reads}</dd></div><div><dt className="font-semibold">Complement</dt><dd className="text-ink-muted">{selectedPlay.coachingDetails.disguiseAndComplements}</dd></div><div><dt className="font-semibold">Risk</dt><dd className="text-ink-muted">{selectedPlay.coachingDetails.risks}</dd></div><div><dt className="font-semibold">Adjustments</dt><dd className="text-ink-muted">{selectedPlay.coachingDetails.adjustmentsNote}</dd></div></dl></details>
       </article>
       <article className="rounded-xl border border-line bg-surface p-4">
-        <div className="flex items-start justify-between gap-2"><div><p className="text-xs text-ink-muted">Planned lineup (unconfirmed changes flagged)</p><h3 className="mt-1 font-bold">{selectedPlay.formationName}</h3></div><button className="min-h-10 rounded-lg border border-line px-3 text-sm" onClick={() => togglePin(selectedPlay.formationId)}>{pinIds.includes(selectedPlay.formationId) ? "★ Formation" : "☆ Formation"}</button></div>
-        {view ? <><FormationDiagram slots={view.slots} side={selectedPlay.side} mode="name" selectedSlotId={selectedSlotId} jerseyNumbers={numbers} onSelectSlot={setSelectedSlotId} />
-          {selectedSlotId ? (() => { const slot = view.slots.find((item) => item.slot.id === selectedSlotId); return slot ? <div className="mt-3 rounded-lg bg-surface-muted p-3 text-sm"><p className="font-semibold">{slot.slot.label}: {slot.player?.fullName ?? "Unfilled"}</p><p className="mt-1 text-ink-muted">{slot.conflict?.note ?? (slot.pendingOverride ? "Planned override — not confirmed." : "Resolved from the planned depth chart. Mapping is provisional.")}</p></div> : null; })() : null}
-          {pendingWarnings.length > 0 ? <div className="mt-3 rounded-lg border border-amber-500/50 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100"><h4 className="font-bold">Lineup needs review</h4><ul className="mt-1 list-inside list-disc">{pendingWarnings.slice(0, 8).map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></div> : <p className="mt-3 text-sm text-ink-muted">No pending conflicts detected. Formation mappings remain provisional under D128.</p>}
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div><p className="text-xs text-ink-muted">Planned lineup (unconfirmed changes flagged)</p><h3 className="mt-1 font-bold">{selectedPlay.formationName}</h3></div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="min-h-10 rounded-lg border border-line px-2.5 text-xs font-medium" onClick={() => setMarkerMode((curr) => (curr === "name" ? "compact" : "name"))}>
+              {markerMode === "name" ? "Compact # circles" : "Name markers"}
+            </button>
+            <button type="button" className="min-h-10 rounded-lg border border-line px-3 text-sm" onClick={() => togglePin(selectedPlay.formationId)}>{pinIds.includes(selectedPlay.formationId) ? "★ Formation" : "☆ Formation"}</button>
+          </div>
+        </div>
+        {view ? <><FormationDiagram slots={view.slots} side={selectedPlay.side} mode={markerMode} selectedSlotId={selectedSlotId} jerseyNumbers={numbers} onSelectSlot={setSelectedSlotId} />
+          {selectedSlotId ? (() => { const slot = view.slots.find((item) => item.slot.id === selectedSlotId); return slot ? <div className="mt-3 rounded-lg bg-surface-muted p-3 text-sm"><p className="font-semibold">{slot.slot.label}: {slot.player?.fullName ?? "Unfilled"}{slot.player?.overall !== null && slot.player?.overall !== undefined ? ` · OVR ${slot.player.overall}` : " · OVR unknown"}</p><p className="mt-1 text-ink-muted">{slot.conflict?.note ?? (slot.pendingOverride ? "Planned override — not confirmed." : "Resolved from the planned depth chart. Mapping is provisional.")}</p></div> : null; })() : null}
+          {pendingWarnings.length > 0 ? <div className="mt-3 rounded-lg border border-amber-500/50 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100"><h4 className="font-bold">Lineup needs review</h4><ul className="mt-1 list-inside list-disc">{pendingWarnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></div> : <p className="mt-3 text-sm text-ink-muted">No pending conflicts detected. Formation mappings remain provisional under D128.</p>}
         </> : <p className="mt-3 rounded-lg bg-surface-muted p-3 text-sm text-ink-muted">{resolved && !resolved.ok ? resolved.message : "Formation data is unavailable."}</p>}
       </article>
     </section> : null}
@@ -184,8 +283,8 @@ export function GamedayPanel({ franchiseId, revision, side: initialSide, data }:
         <input type="hidden" name="franchiseId" value={franchiseId} /><input type="hidden" name="revision" value={revision} /><input type="hidden" name="themeId" value={themeId} /><input type="hidden" name="pins" value={JSON.stringify(planPins)} />
         <label className="text-sm font-semibold">Plan name<input name="customName" maxLength={80} value={planName} onChange={(event) => setPlanName(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-line bg-background px-3 font-normal" placeholder={theme.name} /></label>
         <label className="text-sm font-semibold sm:col-span-2">Coaching notes<textarea name="customNotes" maxLength={1000} value={planNotes} onChange={(event) => setPlanNotes(event.target.value)} className="mt-1 min-h-24 w-full rounded-lg border border-line bg-background p-3 font-normal" placeholder="Your plan reminders" /></label>
-        <div className="sm:col-span-2"><p className="text-sm font-semibold">Favorites in this book</p><div className="mt-2 flex max-h-52 flex-wrap gap-2 overflow-y-auto">{bookPlays.filter((play) => play.themes.includes(themeId)).map((play) => <button type="button" key={play.id} className={pill(planPinIds.includes(play.id))} aria-pressed={planPinIds.includes(play.id)} onClick={() => togglePlanPin(play.id)}>{planPinIds.includes(play.id) ? "★ " : "☆ "}{play.playName}</button>)}{data.formationState && data.formationState.favorites.filter((fav) => fav.bookId === bookId).map((fav) => <button type="button" key={fav.formationId} className={pill(planPinIds.includes(`${fav.bookId}:${fav.formationId}`))} onClick={() => togglePlanPin(`${fav.bookId}:${fav.formationId}`)}>☆ {fav.formationId.split(":").slice(-1)[0]}</button>)}</div></div>
-        <div className="sm:col-span-2"><button className="min-h-11 rounded-lg bg-accent px-4 font-semibold text-white hover:bg-accent-strong">Save plan</button><p role="status" className="mt-2 text-sm text-ink-muted">{state.message}</p>{state.status === "ok" ? <button type="button" className="mt-2 min-h-10 text-sm text-accent underline" onClick={() => { const next = { themeId: theme.id, customName: planName.trim() || null, customNotes: planNotes.trim() || null, pinnedPlayIds: planPins.filter((item) => item.kind === "play").map((item) => item.id), pinnedFormationIds: planPins.filter((item) => item.kind === "formation").map((item) => item.id) }; setPlans((items) => [...items.filter((item) => item.themeId !== theme.id), next]); setPinIds([...next.pinnedPlayIds, ...next.pinnedFormationIds]); setEditorOpen(false); }}>Show saved plan</button> : null}</div>
+        <div className="sm:col-span-2"><p className="text-sm font-semibold">Favorites in this book</p><div className="mt-2 flex max-h-52 flex-wrap gap-2 overflow-y-auto">{bookPlays.filter((play) => play.themes.includes(themeId)).map((play) => <button type="button" key={play.id} className={pill(planPinIds.includes(play.id))} aria-pressed={planPinIds.includes(play.id)} onClick={() => togglePlanPin(play.id)}>{planPinIds.includes(play.id) ? "★ " : "☆ "}{play.playName}</button>)}{data.formationState && data.formationState.favorites.filter((fav) => fav.bookId === bookId).map((fav) => <button type="button" key={fav.formationId} className={pill(planPinIds.includes(fav.formationId))} aria-pressed={planPinIds.includes(fav.formationId)} onClick={() => togglePlanPin(fav.formationId)}>{planPinIds.includes(fav.formationId) ? "★ " : "☆ "}{fav.formationId.split(":").slice(-1)[0]}</button>)}</div></div>
+        <div className="sm:col-span-2"><button disabled={pending} className="min-h-11 rounded-lg bg-accent px-4 font-semibold text-white hover:bg-accent-strong disabled:opacity-60">{pending ? "Saving…" : "Save plan"}</button><p role={state.status === "error" ? "alert" : "status"} className="mt-2 text-sm text-ink-muted">{state.message}</p>{state.status === "ok" ? <button type="button" className="mt-2 min-h-10 text-sm text-accent underline" onClick={() => { const next = { themeId: theme.id, customName: planName.trim() || null, customNotes: planNotes.trim() || null, pinnedPlayIds: planPins.filter((item) => item.kind === "play").map((item) => item.id), pinnedFormationIds: planPins.filter((item) => item.kind === "formation").map((item) => item.id) }; setPlans((items) => [...items.filter((item) => item.themeId !== theme.id), next]); setPinIds([...next.pinnedPlayIds, ...next.pinnedFormationIds]); setEditorOpen(false); }}>Show saved plan</button> : null}</div>
       </form> : null}
     </section>
     <p className="text-xs text-ink-muted">Recently displayed is remembered only in this browser session. No called-play log is kept. Coaching fit is heuristic.</p>
