@@ -1,20 +1,27 @@
 # C4B — Provisional scouting and Coach workspace
 
 ## Status
-- State: implementation ready for owner review; awaiting owner acceptance and merge.
+- State: **closed per owner direction; PR #28 merged to `main`** at `817b9c6`.
+- Updated by: C4B closeout follow-up; workspace root is this repository (absolute local paths omitted).
+- Remote checks: PR #28 is merged; historical check details are recorded below. This follow-up did not re-query PR checks.
+- Production deployment: not verified here; no production deployment operation performed.
 - Workspace: isolated `franchise-manager-c4b`; branch `freebuff/c4b-scouting-coach`.
-- PR target: `main`; base `3e3cad4` (C4A merge, PR #27).
-- Current commit / PR: recorded in the PR after creation; owner merge is pending.
-- Owner merge: No. Production deployment: none.
-- Migration status: `0014_c4b_scouting.sql` not applied; owner review/application is a separate step.
+- PR target: `main`; base `3e3cad4` (C4A merge, PR #27); merged PR: [#28](https://github.com/joshhkee/franchise-manager/pull/28).
+- Owner merge: Yes. This closes the code checkpoint; it does not imply the live migration or signed-in live walkthrough occurred.
+- Migration status: `0014_c4b_scouting.sql` remains unapplied per the available record; live application is separate and requires owner authorization.
+- Browser status: previous execution verified signed-out routes only; signed-in C4B behavior was not exercised.
+
+The checkpoint is closed as requested. The migration and signed-in walkthrough remain explicit follow-up operational checks, not evidence to invent or mark complete.
 
 ## Scope and authority
+
 - Read [phase 4](../../phases/04-gm-coach.md), [PLAN](../../PLAN.md), [DECISIONS](../../DECISIONS.md), and relevant accepted C2/C3 records. Accepted C4A baseline: merge `3e3cad4` (PR #27).
 - D132 permits proceeding on the stable but **unverified** selected-book catalog, with clear provisional labels. This is an exception to PLAN's verified-catalog prerequisite, not Madden evidence, recommendation acceptance or closure of D113.
 - Explicitly excluded: scheme-fit rankings, athletic-anomaly rankings, invented OVR/fit grades, and game-legal trade advice.
 - One integrated checkpoint; no separate lane. Owned: scouting/Coach UI, migration 0014, backup extension and tests, decision/dependency notes and this record.
 
 ## Implemented
+
 - Coach scheme/playbook panel with separate owner-entered schemes, independent offense/defense books, unknown defaults and provisional catalog disclosure.
 - GM Trade Block/Targets: name/team/position and raw numeric filters, missing-value labels, raw side-by-side comparison, non-ranking role notes, headcount context only, persistent shortlist pin/dismiss/note.
 - Scheme/book chooser and all available book options now visibly disclose provisional, unverified status.
@@ -23,6 +30,7 @@
 - Backup export/restore for preferences, shortlist status/notes, source/player references and remapped franchise player IDs. No new dependencies.
 
 ## Invariants verified
+
 - PGlite tests cover isolated preferences, cross-franchise reference rejection and visibility between owners.
 - Scheme/book selections and shortlist state are app state, not game actions/checklist changes.
 - Missing numeric values remain unknown and do not pass a numeric range filter.
@@ -30,6 +38,7 @@
 - Older backup envelopes remain accepted; C4B state round-trips with restored player IDs.
 
 ## Verification evidence
+
 | Check | Exact command/environment | Result | Limitations |
 |---|---|---|---|
 | Full checks | `git diff --check && npm run checks` (`typecheck`, `lint`, `npm test`, `build`) | Passed; typecheck and build passed, lint had 0 errors, full suite 34 files / 307 tests passed | Lint reports two existing unused-argument warnings in `lib/actions/import.ts`; automated/PGlite only; no live migration. |
@@ -53,18 +62,15 @@ Owner's signed-in desktop/mobile review and live migration verification remain n
 - Migration `0014_c4b_scouting.sql` is additive and follows `0013_gm_ledger.sql`; it was not applied.
 - Next.js Webpack dev server at `127.0.0.1:3204` served `/` with a 307 sign-in redirect and `/sign-in` with HTTP 200. Signed-in C4B routes were not exercised because no owner browser session was available. No credentials included.
 
-## Open items
-- Owner review of representative behavior and provisional labels; D132 does not accept recommendation quality or close D113.
+## Follow-up items (not a blocker to the owner's requested code-checkpoint closure)
+- The signed-in desktop/mobile walkthrough remains outstanding; D132 does not accept recommendation quality or close D113.
+- Migration `0014_c4b_scouting.sql` is unapplied. Review and live application are separate owner-authorized operations; do not apply it without explicit authorization.
 - D113 evidence supplement and Madden verification remain open. Fit/anomaly policy remains disabled.
-- Supabase CLI migration listing is blocked by absent project ref; do not link/apply without the owner's explicit project/migration step.
-- No unrelated edits were staged, committed, pushed or changed.
+- Supabase CLI migration listing was blocked by the absent project ref; do not link/apply without the owner's explicit project/migration step.
 
-## Next steps (owner flow)
-1. Review this record and C4B provisional behavior — owner: project owner; approval/check: confirm D132's limited scope and no scoring.
-2. Complete signed-in desktop/mobile walkthrough — owner: project owner; artifact: GM and Coach routes; approval/check: verify representative behavior and flag confusing provisional labels.
-3. Review and explicitly authorize migration application — owner: project owner; artifact: `supabase/migrations/0014_c4b_scouting.sql`; approval/check: verify target and migration order.
-4. After application, rerun `npm test`, `npm run checks`, and backup restore — owner: C4B thread; approval/check: live DB and user-facing behavior.
-5. Review and merge the C4B PR to `main` — owner: project owner; artifact: C4B pull request; approval/check: owner reviews and merges, no self-merge.
-6. Keep D113 evidence work separate before enabling fit/anomaly rankings — owner: future evidence thread; approval/check: accept game evidence.
-
-Immediate next step: owner review of provisional C4B behavior, migration, and PR before merge or migration application.
+## Next steps
+1. **Immediate next step: start C5A in a separate thread** — owner: project owner / C5A thread; artifact: C5A on merged base `817b9c6`; **OWNER CHECK:** use the last recorded roster, restrict actionable records to game-observed Madden 27 calls, and wait for the owner's call-sheet examples before freezing coverage boundaries.
+2. Complete the signed-in C4B walkthrough — owner: project owner; artifact: GM and Coach routes; check representative behavior and provisional labels.
+3. Review and explicitly authorize migration application — owner: project owner; artifact: `supabase/migrations/0014_c4b_scouting.sql`; **OWNER APPROVAL:** verify target and migration order.
+4. After application, rerun `npm test`, `npm run checks`, and backup restore — owner: implementation thread; check live DB and user-facing behavior.
+5. Keep D113 evidence work separate before enabling fit/anomaly rankings — owner: future evidence thread; **OWNER CHECK:** accept Madden evidence.
