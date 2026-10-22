@@ -182,6 +182,31 @@ describe("backup envelope round trip", () => {
   });
 });
 
+describe("C5B Gameday backup state", () => {
+  it("round-trips renamed themes, notes, ordered pins and formation favorites", () => {
+    const source = payload({ gamedayState: { plans: [
+      { themeId: "off-shotgun-quick", customName: "Quick on the trigger", customNotes: "Check the nickel leverage", pinnedPlayIds: ["nfl-off-falcons:gun:bunch-te:spacing_gun_bunch_te"], pinnedFormationIds: ["nfl-off-falcons:gun:bunch-te"] },
+    ] } });
+    const parsed = parseEnvelope(serializeEnvelope(createEnvelope(source)));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const restored = restoreAsNewFranchise(parsed.envelope, { newFranchiseId: "new-franchise", nextPlayerId: (index) => `restored-${index + 1}` });
+    expect(restored.payload.gamedayState).toEqual(source.gamedayState);
+  });
+
+  it("rejects duplicate themes, malformed pins and oversized customization", () => {
+    const duplicate = createEnvelope(payload({ gamedayState: { plans: [
+      { themeId: "theme", customName: null, customNotes: null, pinnedPlayIds: [], pinnedFormationIds: [] },
+      { themeId: "theme", customName: null, customNotes: null, pinnedPlayIds: [], pinnedFormationIds: [] },
+    ] } }));
+    expect(parseEnvelope(JSON.stringify(duplicate))).toEqual({ ok: false, reasons: ["schema_invalid"] });
+    const malformed = createEnvelope(payload({ gamedayState: { plans: [
+      { themeId: "theme", customName: "x".repeat(81), customNotes: null, pinnedPlayIds: [], pinnedFormationIds: [] },
+    ] } }));
+    expect(parseEnvelope(JSON.stringify(malformed))).toEqual({ ok: false, reasons: ["schema_invalid"] });
+  });
+});
+
 describe("C4B scouting backup state", () => {
   it("round-trips owner preferences and shortlist notes with remapped franchise player ids", () => {
     const source = payload({
